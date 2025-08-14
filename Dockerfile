@@ -1,4 +1,4 @@
-FROM golang:1.20.13-alpine3.21 AS build-sources
+FROM golang:1.22-alpine3.19 AS build-sources
 
 ENV GOPATH=/go \
 	GOBIN=/go/bin \
@@ -26,7 +26,7 @@ RUN apk update && apk upgrade && apk add --update --no-cache \
 	rm -rf /var/cache/apk/ && mkdir /var/cache/apk/ && \
 	rm -rf /usr/share/man
 
-RUN go install gotest.tools/gotestsum@latest
+RUN go install gotest.tools/gotestsum@v1.10.1
 
 RUN mkdir -p $APP_DIR $TEST_RESULTS_DIR
 
@@ -104,7 +104,7 @@ CMD []
 #
 # Build Binaries
 #
-FROM golang:1.20.13-bullseye AS build-bins
+FROM golang:1.22-bullseye AS build-bins
 
 ENV APP_DIR=/go/src/github.com/keep-network/keep-core
 
