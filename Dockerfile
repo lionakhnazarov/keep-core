@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine3.19 AS build-sources
+FROM golang:1.24-alpine3.21 AS build-sources
 
 ENV GOPATH=/go \
 	GOBIN=/go/bin \
@@ -110,7 +110,7 @@ CMD []
 #
 # Build Binaries
 #
-FROM golang:1.22-bullseye AS build-bins
+FROM golang:1.24-bullseye AS build-bins
 
 ENV APP_DIR=/go/src/github.com/keep-network/keep-core
 
