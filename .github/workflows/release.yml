@@ -19,7 +19,7 @@ jobs:
 
       - name: Resolve versions
         run: |
-          echo "version=$(git describe --tags --match "v[0-9]*" HEAD)" \
+          echo "version=$(git describe --tags --match 'v[0-9]*' HEAD)" \
             >> $GITHUB_ENV
           echo "revision=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
@@ -71,7 +71,7 @@ jobs:
         id: release_notes
         run: |
           # Get the previous tag for release notes
-          PREV_TAG=$(git describe --tags --abbrev=0 --match "v[0-9]*" \
+          PREV_TAG=$(git describe --tags --abbrev=0 --match 'v[0-9]*' \
             HEAD^ 2>/dev/null || echo "")
 
           # Create release notes
