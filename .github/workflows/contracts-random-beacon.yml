@@ -45,26 +45,40 @@ jobs:
   contracts-detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      path-filter: ${{ steps.filter.outputs.path-filter }}
+      path-filter: ${{ steps.set-output.outputs.path-filter }}
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
         if: github.event_name == 'pull_request'
         with:
           fetch-depth: 0
 
-      - uses: dorny/paths-filter@v2
+      - name: Detect path changes
+        uses: dorny/paths-filter@v2
         if: github.event_name == 'pull_request'
         id: filter
+        continue-on-error: true
         with:
           filters: |
             path-filter:
               - './solidity/random-beacon/**'
               - './.github/workflows/contracts-random-beacon.yml'
 
-      - name: Set default path-filter for non-PR events
-        if: github.event_name != 'pull_request'
-        id: filter
-        run: echo "path-filter=true" >> $GITHUB_OUTPUT
+      - name: Set path-filter output
+        id: set-output
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            # For non-PR events, always set to true
+            echo "path-filter=true" >> $GITHUB_OUTPUT
+          else
+            # For PRs, try to use filter output, default to false if not available
+            FILTER_OUTPUT="${{ steps.filter.outputs.path-filter }}"
+            if [ -n "$FILTER_OUTPUT" ] && [ "$FILTER_OUTPUT" != "" ] && [ "$FILTER_OUTPUT" != "null" ]; then
+              echo "path-filter=$FILTER_OUTPUT" >> $GITHUB_OUTPUT
+            else
+              echo "path-filter=false" >> $GITHUB_OUTPUT
+            fi
+          fi
 
   contracts-lint:
     needs: contracts-detect-changes
