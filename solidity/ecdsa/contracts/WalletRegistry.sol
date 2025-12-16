@@ -34,6 +34,8 @@ import "@threshold-network/solidity-contracts/contracts/staking/IStaking.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
+// TODO: Remove this once the contract is deployed to the mainnet
+
 contract WalletRegistry is
     IWalletRegistry,
     IRandomBeaconConsumer,
