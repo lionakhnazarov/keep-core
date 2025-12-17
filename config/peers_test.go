@@ -16,11 +16,11 @@ func TestResolvePeers(t *testing.T) {
 		expectedError error
 	}{
 		"mainnet network": {
-			network: network.Mainnet,
+			network:       network.Mainnet,
 			expectedPeers: []string{},
 		},
 		"sepolia network": {
-			network: network.Testnet,
+			network:       network.Testnet,
 			expectedPeers: []string{},
 		},
 		"developer network": {
