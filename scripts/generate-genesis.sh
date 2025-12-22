@@ -82,3 +82,4 @@ echo "2. Initialize the chain:"
 echo "   geth --datadir=\$GETH_DATA_DIR init $GENESIS_FILE"
 echo ""
 echo "3. Start Geth with mining enabled"
+

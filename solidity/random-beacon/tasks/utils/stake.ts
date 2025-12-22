@@ -50,10 +50,10 @@ export async function stake(
     try {
       // Try to call stake function (available in ExtendedTokenStaking)
       await (await stakingWithSigner.stake(
-        providerAddress,
-        beneficiaryAddress,
-        authorizerAddress,
-        stakeAmount
+          providerAddress,
+          beneficiaryAddress,
+          authorizerAddress,
+          stakeAmount
       )).wait()
     } catch (error: any) {
       if (error.message?.includes('stake is not a function') || 

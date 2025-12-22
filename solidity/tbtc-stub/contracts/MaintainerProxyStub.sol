@@ -8,3 +8,4 @@ pragma solidity ^0.8.17;
 contract MaintainerProxyStub {
     // Minimal stub - just needs to exist
 }
+

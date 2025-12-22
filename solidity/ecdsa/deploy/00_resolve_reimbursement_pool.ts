@@ -25,7 +25,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         abi: poolData.abi,
       })
     } else {
-      throw new Error("deployed ReimbursementPool contract not found")
+    throw new Error("deployed ReimbursementPool contract not found")
     }
   }
 }

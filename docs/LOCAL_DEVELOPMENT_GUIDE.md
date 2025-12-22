@@ -276,3 +276,4 @@ For issues:
 2. Verify all contracts are deployed: `./scripts/check-deployments.sh`
 3. Ensure Geth is running and mining
 4. Check account balances and gas availability
+

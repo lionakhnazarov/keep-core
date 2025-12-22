@@ -16,12 +16,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   )
 
   try {
-    await deployments.execute(
-      "WalletRegistry",
-      { from: deployer, log: true, waitConfirmations: 1 },
-      "transferGovernance",
-      WalletRegistryGovernance.address
-    )
+  await deployments.execute(
+    "WalletRegistry",
+    { from: deployer, log: true, waitConfirmations: 1 },
+    "transferGovernance",
+    WalletRegistryGovernance.address
+  )
   } catch (error: any) {
     if (error.message?.includes("not the governance") || error.message?.includes("Caller is not the governance")) {
       console.log(`Deployer is not governance, trying with governance account: ${governance}`)

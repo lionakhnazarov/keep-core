@@ -12,12 +12,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   try {
     // Try to execute approveApplication using hardhat-deploy
-    await execute(
-      "TokenStaking",
-      { from: deployer, log: true, waitConfirmations: 1 },
-      "approveApplication",
-      RandomBeacon.address
-    )
+  await execute(
+    "TokenStaking",
+    { from: deployer, log: true, waitConfirmations: 1 },
+    "approveApplication",
+    RandomBeacon.address
+  )
   } catch (error: any) {
     // If the method doesn't exist in the deployment artifact, try using ethers directly
     if (

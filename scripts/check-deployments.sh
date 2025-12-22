@@ -77,3 +77,4 @@ echo "To deploy missing contracts, run:"
 echo "  export GETH_DATA_DIR=~/ethereum/data"
 echo "  export KEEP_ETHEREUM_PASSWORD=password"
 echo "  ./scripts/install.sh --network development"
+

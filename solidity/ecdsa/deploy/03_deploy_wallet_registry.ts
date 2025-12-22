@@ -53,7 +53,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     }
   } else {
     [walletRegistry, proxyDeployment] = await helpers.upgrades.deployProxy(
-      "WalletRegistry",
+    "WalletRegistry",
     {
       contractName:
         process.env.TEST_USE_STUBS_ECDSA === "true"
@@ -76,7 +76,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
         kind: "transparent",
       },
     }
-    )
+  )
   }
 
   await helpers.ownable.transferOwnership(

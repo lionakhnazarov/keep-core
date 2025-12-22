@@ -9,13 +9,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const WalletRegistry = await deployments.get("WalletRegistry")
 
   try {
-    await execute(
-      "RandomBeaconChaosnet",
-      { from: deployer, log: true, waitConfirmations: 1 },
-      "setRequesterAuthorization",
-      WalletRegistry.address,
-      true
-    )
+  await execute(
+    "RandomBeaconChaosnet",
+    { from: deployer, log: true, waitConfirmations: 1 },
+    "setRequesterAuthorization",
+    WalletRegistry.address,
+    true
+  )
   } catch (error: any) {
     // If authorization fails due to ownership, try with governance account
     if (error.message?.includes("not the owner") || error.message?.includes("caller is not the owner")) {

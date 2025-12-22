@@ -141,3 +141,4 @@ echo ""
 echo "=== Deployment Complete ==="
 echo ""
 echo "Run ./scripts/check-deployments.sh to verify all contracts are deployed"
+

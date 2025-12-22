@@ -20,12 +20,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   })
 
   try {
-    await execute(
-      "EcdsaSortitionPool",
-      { from: deployer, log: true, waitConfirmations: 1 },
-      "transferChaosnetOwnerRole",
-      chaosnetOwner
-    )
+  await execute(
+    "EcdsaSortitionPool",
+    { from: deployer, log: true, waitConfirmations: 1 },
+    "transferChaosnetOwnerRole",
+    chaosnetOwner
+  )
   } catch (error: any) {
     if (error.message?.includes("Not the chaosnet owner") || error.message?.includes("not the chaosnet owner")) {
       log("Chaosnet owner role already transferred or deployer is not chaosnet owner. Skipping transfer.")

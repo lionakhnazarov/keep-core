@@ -432,7 +432,7 @@ Start Ethereum client locally using the miner account address. The client will:
 Multi-line version (easier to read):
 ```
 $ geth --port 3000 --networkid 1101 --identity 'somerandomidentity' \
-       --ws --ws.addr '127.0.0.1' --ws.port '8546' --ws.origins '*' \
+       --ws --ws.addr '127.0.0.1' --ws.port '8546' --ws.origins '*' \ 
        --ws.api 'admin, debug, web3, eth, txpool, personal, ethash, miner, net' \
        --http --http.port '8545' --http.addr '127.0.0.1' --http.corsdomain '' \
        --http.api 'admin, debug, web3, eth, txpool, personal, ethash, miner, net' \

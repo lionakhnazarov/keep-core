@@ -44,3 +44,4 @@ contract BridgeStub {
         return address(0);
     }
 }
+

@@ -63,3 +63,4 @@ echo "Then run the install script with:"
 echo "export GETH_DATA_DIR=~/ethereum/data"
 echo "export KEEP_ETHEREUM_PASSWORD=password"
 echo "./scripts/install.sh --network development"
+

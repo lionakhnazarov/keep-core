@@ -53,14 +53,34 @@ for i in {1..3}; do
   if [ "$IN_POOL" = "true" ]; then
     echo "  ✓ In Pool: YES"
     
-    # Get operator weight (if available)
+    # Get operator weight in sortition pool (optional - may fail if sortition pool address not configured)
     echo "  Checking operator weight..."
-    WEIGHT=$(KEEP_ETHEREUM_PASSWORD=password ./keep-client ethereum ecdsa wallet-registry authorized-stake \
-      "$OPERATOR" --config "$CONFIG" --developer 2>&1 | grep -E "^[0-9]+$" | tail -1)
-    if [ -n "$WEIGHT" ] && [ "$WEIGHT" != "Error" ]; then
-      echo "  Authorized Stake: $WEIGHT"
+    WEIGHT_OUTPUT=$(KEEP_ETHEREUM_PASSWORD=password ./keep-client ethereum ecdsa ecdsa-sortition-pool get-pool-weight \
+      "$OPERATOR" --config "$CONFIG" --developer 2>&1 || echo "")
+    
+    # Extract weight value (handle various output formats)
+    WEIGHT=$(echo "$WEIGHT_OUTPUT" | grep -E "^[0-9]+$" | tail -1 || echo "")
+    
+    if [ -n "$WEIGHT" ] && [ "$WEIGHT" != "Error" ] && [ "$WEIGHT" != "0" ]; then
+      echo "  Pool Weight: $WEIGHT"
+    elif echo "$WEIGHT_OUTPUT" | grep -qiE "address not configured|not found|failed to get"; then
+      echo "  Pool Weight: (sortition pool address not configured - skipping)"
     else
-      echo "  Authorized Stake: (check manually)"
+      # Try to get eligible stake from WalletRegistry instead
+      STAKING_PROVIDER=$(KEEP_ETHEREUM_PASSWORD=password ./keep-client ethereum ecdsa wallet-registry operator-to-staking-provider \
+        "$OPERATOR" --config "$CONFIG" --developer 2>&1 | tail -1 | grep -oE "0x[0-9a-fA-F]{40}" || echo "")
+      
+      if [ -n "$STAKING_PROVIDER" ] && [ "$STAKING_PROVIDER" != "0x0000" ]; then
+        ELIGIBLE_STAKE=$(KEEP_ETHEREUM_PASSWORD=password ./keep-client ethereum ecdsa wallet-registry eligible-stake \
+          "$STAKING_PROVIDER" --config "$CONFIG" --developer 2>&1 | tail -1 || echo "")
+        if echo "$ELIGIBLE_STAKE" | grep -qE "^[0-9]+$|^\+[0-9]+$"; then
+          echo "  Eligible Stake: $(echo "$ELIGIBLE_STAKE" | sed 's/^+//')"
+        else
+          echo "  Pool Weight: (not available)"
+        fi
+      else
+        echo "  Pool Weight: (not available)"
+      fi
     fi
   else
     echo "  ✗ In Pool: NO"

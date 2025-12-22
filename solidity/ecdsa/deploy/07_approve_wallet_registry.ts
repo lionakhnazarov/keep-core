@@ -12,12 +12,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   try {
     // Try to execute approveApplication using hardhat-deploy
-    await execute(
-      "TokenStaking",
-      { from: deployer, log: true, waitConfirmations: 1 },
-      "approveApplication",
-      WalletRegistry.address
-    )
+  await execute(
+    "TokenStaking",
+    { from: deployer, log: true, waitConfirmations: 1 },
+    "approveApplication",
+    WalletRegistry.address
+  )
   } catch (error: any) {
     // Check if application is already approved
     if (error.message?.includes("Can't approve application") || error.message?.includes("already approved")) {

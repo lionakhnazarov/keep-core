@@ -35,7 +35,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
         abi: chaosnetData.abi,
       })
     } else {
-      throw new Error("deployed RandomBeaconChaosnet contract not found")
+    throw new Error("deployed RandomBeaconChaosnet contract not found")
     }
   }
 }

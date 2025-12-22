@@ -206,6 +206,7 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricDKGValidationTotal,
 		MetricDKGChallengesSubmittedTotal,
 		MetricDKGApprovalsSubmittedTotal,
+		MetricDKGRequestedTotal,
 		MetricSigningOperationsTotal,
 		MetricSigningSuccessTotal,
 		MetricSigningFailedTotal,
@@ -349,6 +350,7 @@ const (
 	MetricDKGValidationTotal          = "dkg_validation_total"
 	MetricDKGChallengesSubmittedTotal = "dkg_challenges_submitted_total"
 	MetricDKGApprovalsSubmittedTotal  = "dkg_approvals_submitted_total"
+	MetricDKGRequestedTotal           = "dkg_requested_total"
 
 	// Signing Metrics
 	MetricSigningOperationsTotal      = "signing_operations_total"

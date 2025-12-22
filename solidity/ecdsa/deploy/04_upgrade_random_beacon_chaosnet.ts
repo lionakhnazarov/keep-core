@@ -13,12 +13,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // `WalletRegistry` before the random beacon functionalities in the client
   // are ready.
   try {
-    await execute(
-      "WalletRegistry",
-      { from: deployer, log: true, waitConfirmations: 1 },
-      "upgradeRandomBeacon",
-      RandomBeaconChaosnet.address
-    )
+  await execute(
+    "WalletRegistry",
+    { from: deployer, log: true, waitConfirmations: 1 },
+    "upgradeRandomBeacon",
+    RandomBeaconChaosnet.address
+  )
   } catch (error: any) {
     if (error.message?.includes("not the governance") || error.message?.includes("Caller is not the governance")) {
       const { governance } = await getNamedAccounts()
