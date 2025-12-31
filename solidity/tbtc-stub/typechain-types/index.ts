@@ -2,5 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { BridgeStub } from "./BridgeStub";
+export type { IWalletRegistry } from "./IWalletRegistry";
 export * as factories from "./factories";
 export { BridgeStub__factory } from "./factories/BridgeStub__factory";
+export { IWalletRegistry__factory } from "./factories/IWalletRegistry__factory";

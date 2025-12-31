@@ -1,0 +1,199 @@
+#!/bin/bash
+# Check if operators are in sortition pools (RandomBeacon and WalletRegistry)
+
+set -eou pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+CONFIG_DIR="${CONFIG_DIR:-configs}"
+OPERATOR_ADDRESS="${1:-}"  # Optional: specific operator address to check
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+echo "=========================================="
+echo "Check Operators in Sortition Pools"
+echo "=========================================="
+echo ""
+
+# Function to extract operator address from config
+get_operator_from_config() {
+    local config_file="$1"
+    local keyfile=$(grep -E "^KeyFile\s*=" "$config_file" 2>/dev/null | cut -d'"' -f2 || echo "")
+    
+    if [ -z "$keyfile" ]; then
+        echo ""
+        return
+    fi
+    
+    # Resolve relative paths
+    if [[ "$keyfile" != /* ]]; then
+        keyfile="$PROJECT_ROOT/$keyfile"
+    fi
+    
+    if [ ! -f "$keyfile" ]; then
+        echo ""
+        return
+    fi
+    
+    # Extract address from keyfile JSON using jq
+    local address=$(cat "$keyfile" 2>/dev/null | jq -r '.address' 2>/dev/null || echo "")
+    
+    if [ -z "$address" ] || [ "$address" = "null" ]; then
+        # Fallback: try to extract from filename (format: UTC--...--ADDRESS)
+        address=$(basename "$keyfile" | grep -oE '[0-9a-f]{40}$' || echo "")
+    fi
+    
+    # Ensure address has 0x prefix
+    if [ -n "$address" ] && [[ ! "$address" =~ ^0x ]]; then
+        address="0x$address"
+    fi
+    
+    echo "$address"
+}
+
+# Function to check operator in pool
+check_operator_in_pool() {
+    local operator="$1"
+    local pool_type="$2"  # "beacon" or "ecdsa"
+    local config_file="$3"
+    
+    if [ -z "$operator" ]; then
+        echo -e "${RED}✗ No operator address${NC}"
+        return 1
+    fi
+    
+    local result=""
+    local pool_address=""
+    local rpc_url="http://localhost:8545"
+    
+    # Get pool address from contract deployments (faster than keep-client)
+    if [ "$pool_type" = "beacon" ]; then
+        pool_address=$(jq -r '.address' solidity/random-beacon/deployments/development/BeaconSortitionPool.json 2>/dev/null || echo "")
+    else
+        pool_address=$(jq -r '.address' solidity/ecdsa/deployments/development/EcdsaSortitionPool.json 2>/dev/null || echo "")
+    fi
+    
+    if [ -z "$pool_address" ] || [ "$pool_address" = "null" ]; then
+        echo -e "${YELLOW}?${NC}"
+        return 2
+    fi
+    
+    # Use cast for fast direct contract call (no timeout needed, cast is fast)
+    result=$(cast call "$pool_address" "isOperatorInPool(address)(bool)" "$operator" --rpc-url "$rpc_url" 2>/dev/null | tr -d '\n\r ' || echo "")
+    
+    if [ "$result" = "true" ]; then
+        echo -e "${GREEN}✓${NC}"
+        return 0
+    elif [ "$result" = "false" ]; then
+        echo -e "${RED}✗${NC}"
+        return 1
+    else
+        echo -e "${YELLOW}?${NC}"
+        return 2
+    fi
+}
+
+# If specific operator address provided, check only that one
+if [ -n "$OPERATOR_ADDRESS" ]; then
+    echo "Checking operator: $OPERATOR_ADDRESS"
+    echo ""
+    
+    # Use first available config
+    CONFIG_FILE=$(find "$CONFIG_DIR" -name "*.toml" | head -1)
+    if [ -z "$CONFIG_FILE" ]; then
+        echo -e "${RED}Error: No config file found${NC}"
+        exit 1
+    fi
+    
+    echo "RandomBeacon Pool:"
+    check_operator_in_pool "$OPERATOR_ADDRESS" "beacon" "$CONFIG_FILE"
+    echo ""
+    
+    echo "WalletRegistry Pool:"
+    check_operator_in_pool "$OPERATOR_ADDRESS" "ecdsa" "$CONFIG_FILE"
+    echo ""
+    
+    exit 0
+fi
+
+# Check all operators from node configs
+echo "Checking all operators from node configs..."
+echo ""
+
+# Find all node config files
+NODE_CONFIGS=($(find "$CONFIG_DIR" -name "node*.toml" | sort))
+
+if [ ${#NODE_CONFIGS[@]} -eq 0 ]; then
+    echo -e "${YELLOW}No node configs found in $CONFIG_DIR${NC}"
+    exit 0
+fi
+
+echo "Found ${#NODE_CONFIGS[@]} node config(s)"
+echo ""
+
+# Table header
+printf "%-10s %-45s %-20s %-20s\n" "Node" "Operator Address" "RandomBeacon" "WalletRegistry"
+echo "--------------------------------------------------------------------------------------------------------"
+
+IN_POOL_COUNT=0
+NOT_IN_POOL_COUNT=0
+ERROR_COUNT=0
+
+for config_file in "${NODE_CONFIGS[@]}"; do
+    # Extract node number from filename
+    NODE_NUM=$(basename "$config_file" | grep -oE '[0-9]+' || echo "?")
+    
+    # Get operator address
+    OPERATOR=$(get_operator_from_config "$config_file")
+    
+    if [ -z "$OPERATOR" ]; then
+        printf "%-10s %-45s %-20s %-20s\n" "node$NODE_NUM" "NOT FOUND" "${RED}ERROR${NC}" "${RED}ERROR${NC}"
+        ERROR_COUNT=$((ERROR_COUNT + 1))
+        continue
+    fi
+    
+    # Check RandomBeacon pool (redirect stderr to avoid hanging)
+    RB_RESULT=$(check_operator_in_pool "$OPERATOR" "beacon" "$config_file" 2>/dev/null)
+    RB_STATUS=$?
+    
+    # Check WalletRegistry pool (redirect stderr to avoid hanging)
+    WR_RESULT=$(check_operator_in_pool "$OPERATOR" "ecdsa" "$config_file" 2>/dev/null)
+    WR_STATUS=$?
+    
+    # Count status
+    if [ $RB_STATUS -eq 0 ] && [ $WR_STATUS -eq 0 ]; then
+        IN_POOL_COUNT=$((IN_POOL_COUNT + 1))
+    elif [ $RB_STATUS -ne 0 ] || [ $WR_STATUS -ne 0 ]; then
+        NOT_IN_POOL_COUNT=$((NOT_IN_POOL_COUNT + 1))
+    fi
+    
+    # Display result
+    printf "%-10s %-45s %-20s %-20s\n" \
+        "node$NODE_NUM" \
+        "$OPERATOR" \
+        "$RB_RESULT" \
+        "$WR_RESULT"
+done
+
+echo "--------------------------------------------------------------------------------------------------------"
+echo ""
+echo "Summary:"
+echo "  Operators in both pools: $IN_POOL_COUNT"
+echo "  Operators NOT in pools: $NOT_IN_POOL_COUNT"
+echo "  Errors: $ERROR_COUNT"
+echo ""
+
+# Additional info
+echo "To join operators to pools:"
+echo "  ./scripts/join-all-operators-to-pools.sh"
+echo ""
+echo "To check a specific operator:"
+echo "  ./scripts/check-operator-in-pool.sh <OPERATOR_ADDRESS>"
+echo ""

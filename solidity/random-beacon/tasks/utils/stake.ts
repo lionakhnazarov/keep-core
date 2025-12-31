@@ -10,7 +10,7 @@ export async function stake(
   beneficiary?: string,
   authorizer?: string
 ): Promise<void> {
-  const { ethers, helpers } = hre
+  const { ethers, helpers, deployments } = hre
   const { to1e18, from1e18 } = helpers.number
   const ownerAddress = ethers.utils.getAddress(owner)
   const providerAddress = ethers.utils.getAddress(provider)
@@ -28,7 +28,44 @@ export async function stake(
     ? ethers.utils.getAddress(authorizer)
     : ownerAddress
 
-  const staking = await helpers.contracts.getContract("TokenStaking")
+  // For development, prefer ExtendedTokenStaking which has stake() function
+  let staking
+  if (hre.network.name === "development") {
+    try {
+      // Try to get ExtendedTokenStaking from ecdsa deployments (it's deployed there)
+      const fs = require("fs")
+      const path = require("path")
+      // Path from random-beacon/tasks/utils/stake.ts to solidity/ecdsa/deployments/development/
+      // __dirname is random-beacon/tasks/utils/, so go up 4 levels to project root
+      // (utils -> tasks -> random-beacon -> solidity -> project root)
+      const projectRoot = path.resolve(__dirname, "../../../../")
+      const ecdsaDeployPath = path.join(
+        projectRoot,
+        "solidity/ecdsa/deployments/development/ExtendedTokenStaking.json"
+      )
+      
+      if (fs.existsSync(ecdsaDeployPath)) {
+        const ExtendedTokenStakingData = JSON.parse(fs.readFileSync(ecdsaDeployPath, "utf8"))
+        // Use the ABI from the deployment file
+        staking = (await hre.ethers.getContractAt(
+          ExtendedTokenStakingData.abi || [],
+          ExtendedTokenStakingData.address
+        )) as any
+        console.log(`Using ExtendedTokenStaking at ${ExtendedTokenStakingData.address}`)
+      } else {
+        throw new Error(
+          `ExtendedTokenStaking deployment file not found at ${ecdsaDeployPath}. ` +
+          `Please deploy ExtendedTokenStaking first by running ECDSA deployment.`
+        )
+      }
+    } catch (e: any) {
+      // Fallback to regular TokenStaking
+      staking = await helpers.contracts.getContract("TokenStaking")
+      console.log(`ExtendedTokenStaking not found (${e.message}), using TokenStaking`)
+    }
+  } else {
+    staking = await helpers.contracts.getContract("TokenStaking")
+  }
 
   const { tStake: currentStake } = await staking.callStatic.stakes(
     providerAddress
@@ -47,25 +84,48 @@ export async function stake(
 
     const stakingWithSigner = staking.connect(await ethers.getSigner(ownerAddress))
     
+    // Check if stake function exists (ExtendedTokenStaking has it, regular TokenStaking doesn't)
+    let hasStakeFunction = false
     try {
-      // Try to call stake function (available in ExtendedTokenStaking)
-      await (await stakingWithSigner.stake(
-          providerAddress,
-          beneficiaryAddress,
-          authorizerAddress,
-          stakeAmount
-      )).wait()
-    } catch (error: any) {
-      if (error.message?.includes('stake is not a function') || 
-          error.message?.includes('is not a function')) {
-        throw new Error(
-          'TokenStaking contract does not have a stake function. ' +
-          'For development, you need to deploy ExtendedTokenStaking (from TokenStakingTestSet.sol) ' +
-          'instead of TokenStaking. The stake function is only available in ExtendedTokenStaking ' +
-          'which is used for testing and development.'
-        )
+      staking.interface.getFunction("stake")
+      hasStakeFunction = true
+    } catch (e) {
+      hasStakeFunction = false
+    }
+    
+    if (hasStakeFunction) {
+      try {
+        // Call stake function (available in ExtendedTokenStaking)
+        await (await stakingWithSigner.stake(
+            providerAddress,
+            beneficiaryAddress,
+            authorizerAddress,
+            stakeAmount
+        )).wait()
+        console.log(`✓ Successfully staked ${from1e18(stakeAmount)} T`)
+      } catch (error: any) {
+        const errorMessage = error.message || error.toString() || ""
+        if (errorMessage.includes("execution reverted") || 
+            errorMessage.includes("stake is not a function") || 
+            errorMessage.includes("is not a function") ||
+            errorMessage.includes("no matching function") ||
+            error.code === "INVALID_ARGUMENT") {
+          throw new Error(
+            `TokenStaking.stake() function call failed. ` +
+            `The deployed TokenStaking contract may not be ExtendedTokenStaking. ` +
+            `Please ensure ExtendedTokenStaking is deployed for development network. ` +
+            `Error: ${errorMessage}`
+          )
+        } else {
+          throw error
+        }
       }
-      throw error
+    } else {
+      throw new Error(
+        `TokenStaking contract does not have stake() function. ` +
+        `For development, you need to deploy ExtendedTokenStaking which includes this function. ` +
+        `The stake() function is not available in the standard TokenStaking contract.`
+      )
     }
   } else if (currentStake.lt(stakeAmount)) {
     const topUpAmount = stakeAmount.sub(currentStake)

@@ -22,17 +22,33 @@ import type {
 export interface BridgeStubInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "__ecdsaWalletCreatedCallback"
+      | "__ecdsaWalletHeartbeatFailedCallback"
       | "bank"
       | "contractReferences"
+      | "devRequestNewWallet"
       | "ecdsaWalletRegistry"
       | "getRedemptionWatchtower"
       | "reimbursementPool"
       | "relay"
+      | "requestNewWallet"
   ): FunctionFragment;
 
+  encodeFunctionData(
+    functionFragment: "__ecdsaWalletCreatedCallback",
+    values: [BytesLike, BytesLike, BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "__ecdsaWalletHeartbeatFailedCallback",
+    values: [BytesLike, BytesLike, BytesLike]
+  ): string;
   encodeFunctionData(functionFragment: "bank", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "contractReferences",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "devRequestNewWallet",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -48,10 +64,26 @@ export interface BridgeStubInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(functionFragment: "relay", values?: undefined): string;
+  encodeFunctionData(
+    functionFragment: "requestNewWallet",
+    values?: undefined
+  ): string;
 
+  decodeFunctionResult(
+    functionFragment: "__ecdsaWalletCreatedCallback",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "__ecdsaWalletHeartbeatFailedCallback",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "bank", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "contractReferences",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "devRequestNewWallet",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -67,6 +99,10 @@ export interface BridgeStubInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "relay", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "requestNewWallet",
+    data: BytesLike
+  ): Result;
 }
 
 export interface BridgeStub extends BaseContract {
@@ -112,6 +148,18 @@ export interface BridgeStub extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  __ecdsaWalletCreatedCallback: TypedContractMethod<
+    [walletID: BytesLike, publicKeyX: BytesLike, publicKeyY: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
+  __ecdsaWalletHeartbeatFailedCallback: TypedContractMethod<
+    [walletID: BytesLike, publicKeyX: BytesLike, publicKeyY: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+
   bank: TypedContractMethod<[], [string], "view">;
 
   contractReferences: TypedContractMethod<
@@ -127,6 +175,8 @@ export interface BridgeStub extends BaseContract {
     "view"
   >;
 
+  devRequestNewWallet: TypedContractMethod<[], [void], "nonpayable">;
+
   ecdsaWalletRegistry: TypedContractMethod<[], [string], "view">;
 
   getRedemptionWatchtower: TypedContractMethod<[], [string], "view">;
@@ -135,10 +185,26 @@ export interface BridgeStub extends BaseContract {
 
   relay: TypedContractMethod<[], [string], "view">;
 
+  requestNewWallet: TypedContractMethod<[], [void], "nonpayable">;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "__ecdsaWalletCreatedCallback"
+  ): TypedContractMethod<
+    [walletID: BytesLike, publicKeyX: BytesLike, publicKeyY: BytesLike],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "__ecdsaWalletHeartbeatFailedCallback"
+  ): TypedContractMethod<
+    [walletID: BytesLike, publicKeyX: BytesLike, publicKeyY: BytesLike],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "bank"
   ): TypedContractMethod<[], [string], "view">;
@@ -157,6 +223,9 @@ export interface BridgeStub extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "devRequestNewWallet"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
     nameOrSignature: "ecdsaWalletRegistry"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -168,6 +237,9 @@ export interface BridgeStub extends BaseContract {
   getFunction(
     nameOrSignature: "relay"
   ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "requestNewWallet"
+  ): TypedContractMethod<[], [void], "nonpayable">;
 
   filters: {};
 }

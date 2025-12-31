@@ -17,23 +17,41 @@ declare module "hardhat/types/runtime" {
       name: "BridgeStub",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.BridgeStub__factory>;
+    getContractFactory(
+      name: "IWalletRegistry",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.IWalletRegistry__factory>;
 
     getContractAt(
       name: "BridgeStub",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.BridgeStub>;
+    getContractAt(
+      name: "IWalletRegistry",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.IWalletRegistry>;
 
     deployContract(
       name: "BridgeStub",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.BridgeStub>;
+    deployContract(
+      name: "IWalletRegistry",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IWalletRegistry>;
 
     deployContract(
       name: "BridgeStub",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.BridgeStub>;
+    deployContract(
+      name: "IWalletRegistry",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.IWalletRegistry>;
 
     // default types
     getContractFactory(

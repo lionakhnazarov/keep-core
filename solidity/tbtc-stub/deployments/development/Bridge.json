@@ -1,5 +1,5 @@
 {
-  "address": "0xD5c25Cf659a65dD3Eb7856bcadD8539225Cd66dB",
+  "address": "0xc0a2ee534F004a4ec2EFA541489acBD5ff4bBA99",
   "abi": [
     {
       "inputs": [
@@ -26,6 +26,52 @@
       ],
       "stateMutability": "nonpayable",
       "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "walletID",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "publicKeyX",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "publicKeyY",
+          "type": "bytes32"
+        }
+      ],
+      "name": "__ecdsaWalletCreatedCallback",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "walletID",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "publicKeyX",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "publicKeyY",
+          "type": "bytes32"
+        }
+      ],
+      "name": "__ecdsaWalletHeartbeatFailedCallback",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     },
     {
       "inputs": [],
@@ -66,6 +112,13 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "devRequestNewWallet",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -118,6 +171,13 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "requestNewWallet",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     }
   ],

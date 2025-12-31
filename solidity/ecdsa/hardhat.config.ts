@@ -204,6 +204,7 @@ const config: HardhatUserConfig = {
           paths: [
             "@threshold-network/solidity-contracts/contracts/token/T.sol",
             "@threshold-network/solidity-contracts/contracts/staking/TokenStaking.sol",
+            "@threshold-network/solidity-contracts/contracts/test/TokenStakingTestSet.sol",
             "@keep-network/random-beacon/contracts/api/IRandomBeacon.sol",
             "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol",
           ],

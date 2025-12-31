@@ -44,9 +44,15 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     true
   )
   } catch (error: any) {
-    // If authorization fails, try with deployer account
-    if (error.message?.includes("not the owner") || error.message?.includes("caller is not the owner")) {
-      console.log(`Governance account is not owner, trying with deployer account: ${deployer}`)
+    // If authorization fails due to account lock or ownership, try with deployer account
+    const errorMessage = error.message || error.toString() || ""
+    if (
+      errorMessage.includes("not the owner") || 
+      errorMessage.includes("caller is not the owner") ||
+      errorMessage.includes("authentication needed") ||
+      errorMessage.includes("password or unlock")
+    ) {
+      console.log(`Account ${from} failed (${errorMessage}), trying with deployer account: ${deployer}`)
       try {
         await execute(
           "RandomBeaconGovernance",
@@ -56,8 +62,16 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
           true
         )
       } catch (deployerError: any) {
-        console.log(`Authorization failed. This step may need to be done manually. Error: ${deployerError.message}`)
-        // Don't fail the deployment - authorization can be done manually
+        const deployerErrorMessage = deployerError.message || deployerError.toString() || ""
+        if (deployerErrorMessage.includes("authentication needed") || deployerErrorMessage.includes("password or unlock")) {
+          console.log(`⚠️  Both accounts need to be unlocked in Geth. This step may need to be done manually.`)
+          console.log(`   To unlock accounts, ensure Geth is started with --unlock flag or run: npx hardhat unlock-accounts --network development`)
+          console.log(`   Then manually authorize WalletRegistry in RandomBeaconGovernance: ${RandomBeaconGovernance.address}`)
+          // Don't fail the deployment - authorization can be done manually
+        } else {
+          console.log(`Authorization failed. This step may need to be done manually. Error: ${deployerErrorMessage}`)
+          // Don't fail the deployment - authorization can be done manually
+        }
       }
     } else {
       throw error

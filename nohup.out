@@ -1,0 +1,13 @@
+==========================================
+Starting Geth for Local Development
+==========================================
+
+GETH_DATA_DIR: /Users/levakhnazarov/ethereum/data
+
+⚠️  Geth is already running!
+
+To stop it:
+  pkill -f 'geth.*--datadir.*/Users/levakhnazarov/ethereum/data'
+
+Or check if it's responding:
+  curl -X POST -H 'Content-Type: application/json' --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://localhost:8545

@@ -1,0 +1,6 @@
+{
+  "version": "0x01000000",
+  "inputVector": "0x019b0b5f5c124c4c04d79de61309c34a607fa3b3867a9dbd82f30bfb54cdbec7a7be12fe5c25ddf3e9ba4eeca4f16fe46768604165e2d6381b7555d7782d4cd443ffffffff",
+  "outputVector": "0x010017f0ec7364a8281ca906a4cf3526feb0989cf843a9",
+  "locktime": "0x00000000"
+}

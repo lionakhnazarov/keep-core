@@ -1,0 +1,35 @@
+{
+  "language": "Solidity",
+  "sources": {
+    "contracts/BridgeStub.sol": {
+      "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.17;\n\n/**\n * @title BridgeStub\n * @notice Minimal stub implementation of Bridge contract for local development\n */\ncontract BridgeStub {\n    address public bank;\n    address public relay;\n    address public ecdsaWalletRegistry;\n    address public reimbursementPool;\n\n    constructor(\n        address _bank,\n        address _relay,\n        address _ecdsaWalletRegistry,\n        address _reimbursementPool\n    ) {\n        bank = _bank;\n        relay = _relay;\n        ecdsaWalletRegistry = _ecdsaWalletRegistry;\n        reimbursementPool = _reimbursementPool;\n    }\n\n    function contractReferences()\n        external\n        view\n        returns (\n            address _bank,\n            address _relay,\n            address _ecdsaWalletRegistry,\n            address _reimbursementPool\n        )\n    {\n        return (bank, relay, ecdsaWalletRegistry, reimbursementPool);\n    }\n\n    function getRedemptionWatchtower()\n        external\n        pure\n        returns (address)\n    {\n        return address(0);\n    }\n\n    /// @notice For development: Allows calling requestNewWallet on WalletRegistry\n    /// @dev This is a convenience function for local development\n    ///      In production, only the walletOwner should be able to call this\n    function requestNewWallet() external {\n        IWalletRegistry(ecdsaWalletRegistry).requestNewWallet();\n    }\n    \n    /// @notice For development: Allows anyone to trigger requestNewWallet\n    /// @dev This bypasses the walletOwner check - USE ONLY IN DEVELOPMENT\n    ///      This function calls WalletRegistry.requestNewWallet() directly,\n    ///      but since it's called from Bridge (the walletOwner), it will succeed\n    function devRequestNewWallet() external {\n        // This will work because msg.sender will be Bridge (the walletOwner)\n        // when called from an external account, but we need to call as Bridge\n        // So we use a low-level call to WalletRegistry\n        (bool success, ) = ecdsaWalletRegistry.call(\n            abi.encodeWithSignature(\"requestNewWallet()\")\n        );\n        require(success, \"requestNewWallet call failed\");\n    }\n\n    /// @notice Callback function executed when a new wallet is created\n    /// @dev Required by IWalletOwner interface for WalletRegistry\n    /// @param walletID Wallet's unique identifier\n    /// @param publicKeyX Wallet's public key's X coordinate\n    /// @param publicKeyY Wallet's public key's Y coordinate\n    function __ecdsaWalletCreatedCallback(\n        bytes32 walletID,\n        bytes32 publicKeyX,\n        bytes32 publicKeyY\n    ) external {\n        // Stub implementation - just accept the callback\n        // In production, Bridge would register the wallet and handle it\n        // For development, we just need this to not revert\n    }\n\n    /// @notice Callback function executed when wallet heartbeat fails\n    /// @dev Required by IWalletOwner interface for WalletRegistry\n    /// @param walletID Wallet's unique identifier\n    /// @param publicKeyX Wallet's public key's X coordinate\n    /// @param publicKeyY Wallet's public key's Y coordinate\n    function __ecdsaWalletHeartbeatFailedCallback(\n        bytes32 walletID,\n        bytes32 publicKeyX,\n        bytes32 publicKeyY\n    ) external {\n        // Stub implementation - just accept the callback\n        // In production, Bridge would handle heartbeat failures\n        // For development, we just need this to not revert\n    }\n}\n\ninterface IWalletRegistry {\n    function requestNewWallet() external;\n}\n\n"
+    }
+  },
+  "settings": {
+    "optimizer": {
+      "enabled": true,
+      "runs": 200
+    },
+    "outputSelection": {
+      "*": {
+        "*": [
+          "abi",
+          "evm.bytecode",
+          "evm.deployedBytecode",
+          "evm.methodIdentifiers",
+          "metadata",
+          "devdoc",
+          "userdoc",
+          "storageLayout",
+          "evm.gasEstimates"
+        ],
+        "": [
+          "ast"
+        ]
+      }
+    },
+    "metadata": {
+      "useLiteralContent": true
+    }
+  }
+}

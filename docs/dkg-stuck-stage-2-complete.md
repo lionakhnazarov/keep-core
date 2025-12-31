@@ -561,3 +561,5 @@ DKG gets stuck in Stage 2 (AWAITING_RESULT) when:
 **Quick Diagnostic:** Run `./scripts/monitor-dkg.sh` to see current status.
 
 **Quick Fix:** Run `./scripts/update-peer-ids.sh && ./configs/stop-all-nodes.sh && ./configs/start-all-nodes.sh`
+
+

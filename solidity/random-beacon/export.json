@@ -3,7 +3,7 @@
   "chainId": "1101",
   "contracts": {
     "NuCypherToken": {
-      "address": "0x7728E693bc045f8C44108E2d403592Af89833C41",
+      "address": "0x1A219363396055b7Dd0d352B4F55cDD1E65d8362",
       "abi": [
         {
           "inputs": [],
@@ -479,7 +479,7 @@
       ]
     },
     "SimplePREApplication": {
-      "address": "0xf1782447b39004ec531ccbaB082fA45ed4A3dd3A",
+      "address": "0xa3b9b9d7ab5FD774f8115701d5FcBc55956B1131",
       "abi": [
         {
           "anonymous": false,
@@ -588,7 +588,7 @@
       ]
     },
     "T": {
-      "address": "0x09c5F293a85680aDf2F813C5bF2C7F336FFaaAf6",
+      "address": "0x49C3cDEdaF8B842bDBF7437cE6150D4c4bAE78bd",
       "abi": [
         {
           "inputs": [],
@@ -1365,7 +1365,7 @@
       ]
     },
     "TokenStaking": {
-      "address": "0xC20ed492d0FA13EfB8cb5a41ee24BD78640Ea03A",
+      "address": "0xF6e82633F3D9334Ba2717B4Acf46C6FC684619FE",
       "abi": [
         {
           "inputs": [
@@ -2546,7 +2546,7 @@
       ]
     },
     "TokenholderGovernor": {
-      "address": "0x6F8fFf85F7f9a9E763674403b3679B9CF6c170E6",
+      "address": "0x13A6A5BB3251bd490d00c7f2409D0340141C1e37",
       "abi": [
         {
           "inputs": [
@@ -3810,7 +3810,7 @@
       ]
     },
     "TokenholderTimelock": {
-      "address": "0xa752fF222b2cb81d8D0206639d1e749a42E36e39",
+      "address": "0x5De73bDA1c0250D59De7ebfF60B033a86eCACf70",
       "abi": [
         {
           "inputs": [
@@ -4555,7 +4555,7 @@
       ]
     },
     "VendingMachineNuCypher": {
-      "address": "0x5704EA511b4957f3156A1E0aA43A379d0471EAE3",
+      "address": "0x38034626D02BEba8623E6204668c9B1331C4Ab9F",
       "abi": [
         {
           "inputs": [
@@ -4822,7 +4822,7 @@
       ]
     },
     "ReimbursementPool": {
-      "address": "0x15c3ddcE4FAd2E356DFa91fD4b51B1881cA7c379",
+      "address": "0x366E9a16523471d5110576C788c856D253F4A719",
       "abi": [
         {
           "inputs": [
@@ -5135,7 +5135,7 @@
       ]
     },
     "BeaconSortitionPool": {
-      "address": "0xcDbbbFA26e751E2C1d3F86eC4A72d207995eAf61",
+      "address": "0x2B45c9B1fF03db63192164460cC1F1E0C903A6E0",
       "abi": [
         {
           "inputs": [
@@ -5824,7 +5824,7 @@
       ]
     },
     "BeaconDkgValidator": {
-      "address": "0x9d18917a0f87C8B46b4218c1Ef32770832987b7b",
+      "address": "0xE0c2e7E88bB4B6282634164320734F4bc4EC2882",
       "abi": [
         {
           "inputs": [
@@ -6215,7 +6215,7 @@
       ]
     },
     "BLS": {
-      "address": "0xF9eC0831e9fb05A7D8Fbde401401255bF03Bb09a",
+      "address": "0x68171227e9AB8aE0010903C954e1EE9Df4Afe643",
       "abi": [
         {
           "inputs": [
@@ -6391,7 +6391,7 @@
       ]
     },
     "BeaconAuthorization": {
-      "address": "0x90Eb797F946D310dFa7cD8064B8C582B34B8d57D",
+      "address": "0xf0299d561E0A9bC65D868B469B73AFa8492d0870",
       "abi": [
         {
           "anonymous": false,
@@ -6565,7 +6565,7 @@
       ]
     },
     "BeaconDkg": {
-      "address": "0x4Ec1447c645c57299a15D87158Ee3A5BE2Da5E99",
+      "address": "0x9cc700a6E93d849C749a03781Ba2181a29733E93",
       "abi": [
         {
           "anonymous": false,
@@ -6733,7 +6733,7 @@
       ]
     },
     "BeaconInactivity": {
-      "address": "0x9D0C5ebf8924502d5Fb4f2aD0710ee8ae1a26759",
+      "address": "0xd6B7d5B40689D822Db378f1724E3240C006b833b",
       "abi": [
         {
           "inputs": [],
@@ -6825,7 +6825,7 @@
       ]
     },
     "RandomBeacon": {
-      "address": "0xab5F77eb8609271B72Af294995ED9dB866326680",
+      "address": "0x30F8FdC72F94C1e42F9DB00803C639dc1C8E48CE",
       "abi": [
         {
           "inputs": [
@@ -8964,7 +8964,7 @@
       ]
     },
     "RandomBeaconGovernance": {
-      "address": "0x9f3D30AbaD3cf49021E9b79189045e8F8D1519bD",
+      "address": "0x5864c31C3581213aDB97e555585B1bfC034E0CD9",
       "abi": [
         {
           "inputs": [
@@ -11369,7 +11369,7 @@
       ]
     },
     "RandomBeaconChaosnet": {
-      "address": "0xb72b2F2dbE26A474ac34e1D50F7a2826025c59AA",
+      "address": "0x63cEBb920c6E4eE307c31067a85279aE07e86572",
       "abi": [
         {
           "anonymous": false,

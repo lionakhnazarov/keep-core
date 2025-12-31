@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { BridgeStub__factory } from "./BridgeStub__factory";
+export { IWalletRegistry__factory } from "./IWalletRegistry__factory";
