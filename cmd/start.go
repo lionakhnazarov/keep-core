@@ -90,8 +90,9 @@ func start(cmd *cobra.Command) error {
 	)
 
 	// Wire performance metrics into network provider if available
+	var perfMetrics *clientinfo.PerformanceMetrics
 	if clientInfoRegistry != nil {
-		perfMetrics := clientinfo.NewPerformanceMetrics(clientInfoRegistry)
+		perfMetrics = clientinfo.NewPerformanceMetrics(clientInfoRegistry)
 		// Type assert to libp2p provider to set metrics recorder
 		// The provider struct is not exported, so we use interface assertion
 		if setter, ok := netProvider.(interface {
@@ -124,12 +125,23 @@ func start(cmd *cobra.Command) error {
 
 		scheduler := generator.StartScheduler()
 
-		clientInfoRegistry.ObserveBtcConnectivity(
-			btcChain,
-			clientConfig.ClientInfo.BitcoinMetricsTick,
-		)
+		// Note: Bitcoin connectivity is now tracked by RPC health checker
+		// which provides more comprehensive checks (see rpc_health.go)
 
 		clientInfoRegistry.RegisterBtcChainInfoSource(btcChain)
+
+		// Start RPC health checker for Ethereum and Bitcoin RPC endpoints
+		// This makes actual RPC calls (not just ICMP ping) to verify services are working
+		if clientInfoRegistry != nil {
+			rpcHealthChecker := clientinfo.NewRPCHealthChecker(
+				clientInfoRegistry,
+				blockCounter,
+				btcChain,
+				clientConfig.ClientInfo.RPCHealthCheckInterval,
+				clientConfig.ClientInfo.RPCHealthCheckTimeout,
+			)
+			rpcHealthChecker.Start(ctx)
+		}
 
 		err = beacon.Initialize(
 			ctx,
@@ -238,10 +250,8 @@ func initializeClientInfo(
 		config.ClientInfo.NetworkMetricsTick,
 	)
 
-	registry.ObserveEthConnectivity(
-		blockCounter,
-		config.ClientInfo.EthereumMetricsTick,
-	)
+	// Note: Ethereum and Bitcoin connectivity are now tracked by RPC health checker
+	// which provides more comprehensive checks (see rpc_health.go)
 
 	registry.RegisterMetricClientInfo(build.Version)
 

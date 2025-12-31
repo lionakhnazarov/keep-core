@@ -13,10 +13,12 @@ var logger = log.Logger("keep-clientinfo")
 
 // Config stores configuration for the client info.
 type Config struct {
-	Port                int
-	NetworkMetricsTick  time.Duration
-	EthereumMetricsTick time.Duration
-	BitcoinMetricsTick  time.Duration
+	Port                   int
+	NetworkMetricsTick     time.Duration
+	EthereumMetricsTick    time.Duration
+	BitcoinMetricsTick     time.Duration
+	RPCHealthCheckInterval time.Duration
+	RPCHealthCheckTimeout  time.Duration
 }
 
 // Registry wraps keep-common clientinfo registry and exposes additional

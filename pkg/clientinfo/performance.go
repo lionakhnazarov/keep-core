@@ -66,10 +66,168 @@ func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
 		gauges:     make(map[string]*gauge),
 	}
 
+	// Register all metrics upfront with 0 values so they appear in /metrics endpoint
+	pm.registerAllMetrics()
+
 	// Register gauge observers for all gauges
 	go pm.observeGauges()
 
 	return pm
+}
+
+// registerAllMetrics registers all performance metrics with 0 values
+// so they appear in the /metrics endpoint even before operations occur.
+func (pm *PerformanceMetrics) registerAllMetrics() {
+	// Register all counter metrics with 0 initial value
+	counters := []string{
+		MetricDKGJoinedTotal,
+		MetricDKGFailedTotal,
+		MetricDKGValidationTotal,
+		MetricDKGChallengesSubmittedTotal,
+		MetricDKGApprovalsSubmittedTotal,
+		MetricSigningOperationsTotal,
+		MetricSigningSuccessTotal,
+		MetricSigningFailedTotal,
+		MetricSigningTimeoutsTotal,
+		MetricWalletActionsTotal,
+		MetricWalletActionSuccessTotal,
+		MetricWalletActionFailedTotal,
+		MetricWalletHeartbeatFailuresTotal,
+		MetricCoordinationWindowsDetectedTotal,
+		MetricCoordinationProceduresExecutedTotal,
+		MetricCoordinationFailedTotal,
+		MetricPeerConnectionsTotal,
+		MetricPeerDisconnectionsTotal,
+		MetricMessageBroadcastTotal,
+		MetricMessageReceivedTotal,
+		MetricPingTestsTotal,
+		MetricPingTestSuccessTotal,
+		MetricPingTestFailedTotal,
+		MetricWalletDispatcherRejectedTotal,
+		MetricRelayEntryGenerationTotal,
+		MetricRelayEntrySuccessTotal,
+		MetricRelayEntryFailedTotal,
+		MetricRelayEntryTimeoutReportedTotal,
+	}
+
+	// First, initialize all counters in the map
+	for _, name := range counters {
+		pm.counters[name] = &counter{value: 0}
+	}
+
+	// Then, register observers (this prevents concurrent map read/write)
+	for _, name := range counters {
+		metricName := name // Capture for closure
+		pm.registry.ObserveApplicationSource(
+			"performance",
+			map[string]Source{
+				metricName: func() float64 {
+					pm.countersMutex.RLock()
+					c, exists := pm.counters[metricName]
+					pm.countersMutex.RUnlock()
+					if !exists {
+						return 0
+					}
+					c.mutex.RLock()
+					defer c.mutex.RUnlock()
+					return c.value
+				},
+			},
+		)
+	}
+
+	// Register all duration/histogram metrics with 0 initial values
+	// Note: These use the actual metric names as used in the codebase
+	durationMetrics := []string{
+		"dkg_duration_seconds",
+		"signing_duration_seconds",
+		"wallet_action_duration_seconds",
+		"coordination_duration_seconds",
+		"ping_test_duration_seconds",
+		"relay_entry_duration_seconds", // For future beacon metrics
+	}
+
+	// First, initialize all histograms in the map
+	for _, name := range durationMetrics {
+		pm.histograms[name] = &histogram{
+			buckets: make(map[float64]float64),
+		}
+	}
+
+	// Then, register observers (this prevents concurrent map read/write)
+	for _, name := range durationMetrics {
+		metricName := name // Capture for closure
+		// RecordDuration registers metrics as name + "_duration_seconds" and name + "_count"
+		// So for "dkg_duration_seconds", it registers:
+		// - "dkg_duration_seconds_duration_seconds" (average duration)
+		// - "dkg_duration_seconds_count" (count)
+		pm.registry.ObserveApplicationSource(
+			"performance",
+			map[string]Source{
+				metricName + "_duration_seconds": func() float64 {
+					pm.histogramsMutex.RLock()
+					h, exists := pm.histograms[metricName]
+					pm.histogramsMutex.RUnlock()
+					if !exists {
+						return 0
+					}
+					h.mutex.RLock()
+					defer h.mutex.RUnlock()
+					count := h.buckets[-1]
+					if count == 0 {
+						return 0
+					}
+					return h.buckets[-2] / count // average
+				},
+				metricName + "_count": func() float64 {
+					pm.histogramsMutex.RLock()
+					h, exists := pm.histograms[metricName]
+					pm.histogramsMutex.RUnlock()
+					if !exists {
+						return 0
+					}
+					h.mutex.RLock()
+					defer h.mutex.RUnlock()
+					return h.buckets[-1]
+				},
+			},
+		)
+	}
+
+	// Register all gauge metrics with 0 initial value
+	gauges := []string{
+		MetricWalletDispatcherActiveActions,
+		MetricIncomingMessageQueueSize,
+		MetricMessageHandlerQueueSize,
+		MetricSigningAttemptsPerOperation,
+	}
+
+	// First, initialize all gauges in the map
+	for _, name := range gauges {
+		pm.gauges[name] = &gauge{value: 0}
+	}
+
+	// Then, register observers (this prevents concurrent map read/write)
+	for _, name := range gauges {
+		metricName := name // Capture for closure
+		pm.registry.ObserveApplicationSource(
+			"performance",
+			map[string]Source{
+				metricName: func() float64 {
+					pm.gaugesMutex.RLock()
+					g, exists := pm.gauges[metricName]
+					pm.gaugesMutex.RUnlock()
+					if !exists {
+						return 0
+					}
+					g.mutex.RLock()
+					defer g.mutex.RUnlock()
+					return g.value
+				},
+			},
+		)
+	}
+
 }
 
 // IncrementCounter increments a counter metric by the given value.
