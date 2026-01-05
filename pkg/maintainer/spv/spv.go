@@ -38,6 +38,20 @@ func Initialize(
 	go spvMaintainer.startControlLoop(ctx)
 }
 
+// globalMetricsRecorder is a package-level variable to access metrics recorder
+// from proof submission functions.
+var globalMetricsRecorder interface {
+	IncrementCounter(name string, value float64)
+}
+
+// SetMetricsRecorder sets the metrics recorder for the SPV maintainer.
+// This allows recording metrics for proof submissions.
+func SetMetricsRecorder(recorder interface {
+	IncrementCounter(name string, value float64)
+}) {
+	globalMetricsRecorder = recorder
+}
+
 // proofTypes holds the information about proof types supported by the
 // SPV maintainer.
 var proofTypes = map[tbtc.WalletActionType]struct {
@@ -67,6 +81,11 @@ type spvMaintainer struct {
 	spvChain     Chain
 	btcDiffChain btcdiff.Chain
 	btcChain     bitcoin.Chain
+
+	// metricsRecorder is optional and used for recording performance metrics
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+	}
 }
 
 func (sm *spvMaintainer) startControlLoop(ctx context.Context) {

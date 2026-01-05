@@ -31,6 +31,18 @@ type ProposalGenerator struct {
 	tasks []ProposalTask
 }
 
+// SetRedemptionMetricsRecorder sets the metrics recorder for the redemption task.
+// This allows recording redemption-specific metrics.
+func (pg *ProposalGenerator) SetRedemptionMetricsRecorder(recorder interface {
+	SetGauge(name string, value float64)
+}) {
+	for _, task := range pg.tasks {
+		if redemptionTask, ok := task.(*RedemptionTask); ok {
+			redemptionTask.setMetricsRecorder(recorder)
+		}
+	}
+}
+
 // NewProposalGenerator returns a new proposal generator.
 func NewProposalGenerator(
 	chain Chain,

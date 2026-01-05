@@ -108,6 +108,12 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricRelayEntrySuccessTotal,
 		MetricRelayEntryFailedTotal,
 		MetricRelayEntryTimeoutReportedTotal,
+		MetricRedemptionExecutionsTotal,
+		MetricRedemptionExecutionsSuccessTotal,
+		MetricRedemptionExecutionsFailedTotal,
+		MetricRedemptionProofSubmissionsTotal,
+		MetricRedemptionProofSubmissionsSuccessTotal,
+		MetricRedemptionProofSubmissionsFailedTotal,
 	}
 
 	// First, initialize all counters in the map
@@ -145,6 +151,8 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		"coordination_duration_seconds",
 		"ping_test_duration_seconds",
 		"relay_entry_duration_seconds", // For future beacon metrics
+		"redemption_execution_duration_seconds",
+		"redemption_tx_signing_duration_seconds",
 	}
 
 	// First, initialize all histograms in the map
@@ -200,6 +208,7 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricIncomingMessageQueueSize,
 		MetricMessageHandlerQueueSize,
 		MetricSigningAttemptsPerOperation,
+		MetricRedemptionPendingRequestsCount,
 	}
 
 	// First, initialize all gauges in the map
@@ -443,4 +452,15 @@ const (
 	MetricRelayEntryFailedTotal          = "relay_entry_failed_total"
 	MetricRelayEntryDurationSeconds      = "relay_entry_duration_seconds"
 	MetricRelayEntryTimeoutReportedTotal = "relay_entry_timeout_reported_total"
+
+	// Redemption Metrics
+	MetricRedemptionExecutionsTotal              = "redemption_executions_total"
+	MetricRedemptionExecutionsSuccessTotal       = "redemption_executions_success_total"
+	MetricRedemptionExecutionsFailedTotal        = "redemption_executions_failed_total"
+	MetricRedemptionExecutionDurationSeconds     = "redemption_execution_duration_seconds"
+	MetricRedemptionTxSigningDurationSeconds     = "redemption_tx_signing_duration_seconds"
+	MetricRedemptionProofSubmissionsTotal        = "redemption_proof_submissions_total"
+	MetricRedemptionProofSubmissionsSuccessTotal = "redemption_proof_submissions_success_total"
+	MetricRedemptionProofSubmissionsFailedTotal  = "redemption_proof_submissions_failed_total"
+	MetricRedemptionPendingRequestsCount         = "redemption_pending_requests_count"
 )

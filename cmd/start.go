@@ -125,8 +125,12 @@ func start(cmd *cobra.Command) error {
 
 		scheduler := generator.StartScheduler()
 
-		// Note: Bitcoin connectivity is now tracked by RPC health checker
-		// which provides more comprehensive checks (see rpc_health.go)
+		// Observe Bitcoin connectivity (for backward compatibility)
+		// Note: RPC health checker also tracks this with more comprehensive checks
+		clientInfoRegistry.ObserveBtcConnectivity(
+			btcChain,
+			clientConfig.ClientInfo.BitcoinMetricsTick,
+		)
 
 		clientInfoRegistry.RegisterBtcChainInfoSource(btcChain)
 
@@ -250,8 +254,12 @@ func initializeClientInfo(
 		config.ClientInfo.NetworkMetricsTick,
 	)
 
-	// Note: Ethereum and Bitcoin connectivity are now tracked by RPC health checker
-	// which provides more comprehensive checks (see rpc_health.go)
+	// Observe Ethereum connectivity (for backward compatibility)
+	// Note: RPC health checker also tracks this with more comprehensive checks
+	registry.ObserveEthConnectivity(
+		blockCounter,
+		config.ClientInfo.EthereumMetricsTick,
+	)
 
 	registry.RegisterMetricClientInfo(build.Version)
 

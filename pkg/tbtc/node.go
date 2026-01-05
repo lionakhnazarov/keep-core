@@ -206,6 +206,18 @@ func (n *node) setPerformanceMetrics(metrics interface {
 	if n.dkgExecutor != nil {
 		n.dkgExecutor.setMetricsRecorder(metrics)
 	}
+
+	// Wire redemption metrics to proposal generator if it supports it
+	// This uses a type assertion to check if proposalGenerator is a *ProposalGenerator
+	// from the tbtcpg package. We can't import tbtcpg here to avoid circular dependencies,
+	// so we use an interface check instead.
+	if pg, ok := n.proposalGenerator.(interface {
+		SetRedemptionMetricsRecorder(recorder interface {
+			SetGauge(name string, value float64)
+		})
+	}); ok {
+		pg.SetRedemptionMetricsRecorder(metrics)
+	}
 }
 
 // operatorAddress returns the node's operator address.
@@ -707,6 +719,11 @@ func (n *node) handleDepositSweepProposal(
 		n.waitForBlockHeight,
 	)
 
+	// Wire metrics recorder if available
+	if n.performanceMetrics != nil {
+		action.setMetricsRecorder(n.performanceMetrics)
+	}
+
 	err = n.walletDispatcher.dispatch(action)
 	if err != nil {
 		walletActionLogger.Errorf("cannot dispatch wallet action: [%v]", err)
@@ -774,6 +791,11 @@ func (n *node) handleRedemptionProposal(
 		expiryBlock,
 		n.waitForBlockHeight,
 	)
+
+	// Wire metrics recorder if available
+	if n.performanceMetrics != nil {
+		action.setMetricsRecorder(n.performanceMetrics)
+	}
 
 	err = n.walletDispatcher.dispatch(action)
 	if err != nil {
