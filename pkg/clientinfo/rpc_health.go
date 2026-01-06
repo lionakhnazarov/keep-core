@@ -37,7 +37,6 @@ type RPCHealthChecker struct {
 
 	// Configuration
 	checkInterval time.Duration
-	timeout       time.Duration
 }
 
 // NewRPCHealthChecker creates a new RPC health checker instance.
@@ -46,13 +45,9 @@ func NewRPCHealthChecker(
 	ethBlockCounter chain.BlockCounter,
 	btcChain bitcoin.Chain,
 	checkInterval time.Duration,
-	timeout time.Duration,
 ) *RPCHealthChecker {
 	if checkInterval == 0 {
 		checkInterval = 30 * time.Second // Default: check every 30 seconds
-	}
-	if timeout == 0 {
-		timeout = 10 * time.Second // Default: 10 second timeout per check
 	}
 
 	return &RPCHealthChecker{
@@ -60,7 +55,6 @@ func NewRPCHealthChecker(
 		ethBlockCounter: ethBlockCounter,
 		btcChain:        btcChain,
 		checkInterval:   checkInterval,
-		timeout:         timeout,
 	}
 }
 

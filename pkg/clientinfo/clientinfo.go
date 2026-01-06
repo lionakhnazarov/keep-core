@@ -18,7 +18,6 @@ type Config struct {
 	EthereumMetricsTick    time.Duration
 	BitcoinMetricsTick     time.Duration
 	RPCHealthCheckInterval time.Duration
-	RPCHealthCheckTimeout  time.Duration
 }
 
 // Registry wraps keep-common clientinfo registry and exposes additional

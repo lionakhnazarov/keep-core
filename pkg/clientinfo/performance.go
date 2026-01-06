@@ -69,9 +69,6 @@ func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
 	// Register all metrics upfront with 0 values so they appear in /metrics endpoint
 	pm.registerAllMetrics()
 
-	// Register gauge observers for all gauges
-	go pm.observeGauges()
-
 	return pm
 }
 
@@ -342,13 +339,6 @@ func (pm *PerformanceMetrics) SetGauge(name string, value float64) {
 			},
 		},
 	)
-}
-
-// observeGauges periodically updates gauge observers.
-// This is handled automatically by ObserveApplicationSource.
-func (pm *PerformanceMetrics) observeGauges() {
-	// Gauges are observed automatically via ObserveApplicationSource
-	// This function is kept for future use if needed
 }
 
 // NoOpPerformanceMetrics is a no-op implementation of PerformanceMetricsRecorder

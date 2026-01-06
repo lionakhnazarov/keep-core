@@ -125,8 +125,6 @@ func start(cmd *cobra.Command) error {
 
 		scheduler := generator.StartScheduler()
 
-		// Observe Bitcoin connectivity (for backward compatibility)
-		// Note: RPC health checker also tracks this with more comprehensive checks
 		clientInfoRegistry.ObserveBtcConnectivity(
 			btcChain,
 			clientConfig.ClientInfo.BitcoinMetricsTick,
@@ -134,15 +132,12 @@ func start(cmd *cobra.Command) error {
 
 		clientInfoRegistry.RegisterBtcChainInfoSource(btcChain)
 
-		// Start RPC health checker for Ethereum and Bitcoin RPC endpoints
-		// This makes actual RPC calls (not just ICMP ping) to verify services are working
 		if clientInfoRegistry != nil {
 			rpcHealthChecker := clientinfo.NewRPCHealthChecker(
 				clientInfoRegistry,
 				blockCounter,
 				btcChain,
 				clientConfig.ClientInfo.RPCHealthCheckInterval,
-				clientConfig.ClientInfo.RPCHealthCheckTimeout,
 			)
 			rpcHealthChecker.Start(ctx)
 		}
@@ -254,8 +249,6 @@ func initializeClientInfo(
 		config.ClientInfo.NetworkMetricsTick,
 	)
 
-	// Observe Ethereum connectivity (for backward compatibility)
-	// Note: RPC health checker also tracks this with more comprehensive checks
 	registry.ObserveEthConnectivity(
 		blockCounter,
 		config.ClientInfo.EthereumMetricsTick,
