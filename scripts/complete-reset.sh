@@ -130,6 +130,7 @@ main() {
     echo "  - Set DKG parameters"
     echo "  - Update config files"
     echo "  - Restart all nodes"
+    echo "  - Fix RandomBeacon configuration (upgrade and authorize)"
     echo ""
     echo "Press Ctrl+C to cancel, or Enter to continue..."
     read
@@ -877,6 +878,32 @@ main() {
     else
         log_warning "restart-all-nodes.sh not found"
         log_info "Please start nodes manually: ./scripts/start-all-nodes.sh"
+    fi
+    echo ""
+    
+    # Step 17: Fix RandomBeacon configuration (upgrade and authorize)
+    log_info "Step 17: Fixing RandomBeacon configuration (upgrade and authorize)..."
+    cd "$PROJECT_ROOT"
+    
+    if [ -f "./solidity/ecdsa/scripts/fix-randombeacon-and-authorize.ts" ]; then
+        cd "$PROJECT_ROOT/solidity/ecdsa"
+        FIX_OUTPUT=$(npx hardhat run scripts/fix-randombeacon-and-authorize.ts --network development 2>&1)
+        FIX_EXIT_CODE=$?
+        
+        # Filter out Hardhat warnings and show only important output
+        echo "$FIX_OUTPUT" | grep -vE "(You are using a version|Please, make sure|To learn more|Error encountered|No need to generate|Contract Name|Size \(KB\)|^ ·|^ \||^---|Compiled|Compiling)" | grep -E "(Step|RandomBeacon|WalletRegistry|authorized|upgraded|SUCCESS|Error|error|Failed|failed|Transaction|✓|✗)" || true
+        
+        if [ $FIX_EXIT_CODE -eq 0 ] && echo "$FIX_OUTPUT" | grep -qE "SUCCESS.*RandomBeacon is fixed"; then
+            log_success "RandomBeacon configuration fixed successfully"
+        elif echo "$FIX_OUTPUT" | grep -qE "(already|already set|already authorized|already upgraded)"; then
+            log_success "RandomBeacon configuration already correct"
+        else
+            log_warning "RandomBeacon fix script completed with warnings"
+            log_info "You may need to run manually: cd solidity/ecdsa && npx hardhat run scripts/fix-randombeacon-and-authorize.ts --network development"
+        fi
+    else
+        log_warning "fix-randombeacon-and-authorize.ts script not found"
+        log_info "Skipping RandomBeacon fix - you may need to run it manually"
     fi
     echo ""
     
