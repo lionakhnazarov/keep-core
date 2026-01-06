@@ -81,6 +81,7 @@ func Initialize(
 	proposalGenerator CoordinationProposalGenerator,
 	config Config,
 	clientInfo *clientinfo.Registry,
+	perfMetrics *clientinfo.PerformanceMetrics,
 ) error {
 	groupParameters := &GroupParameters{
 		GroupSize:       100,
@@ -121,8 +122,12 @@ func Initialize(
 			},
 		)
 
-		// Initialize performance metrics
-		perfMetrics := clientinfo.NewPerformanceMetrics(clientInfo)
+		// Use provided performance metrics instance, or create a new one if not provided
+		// This prevents duplicate metric registrations when perfMetrics is already
+		// initialized in cmd/start.go for network provider metrics
+		if perfMetrics == nil {
+			perfMetrics = clientinfo.NewPerformanceMetrics(clientInfo)
+		}
 		node.setPerformanceMetrics(perfMetrics)
 	}
 

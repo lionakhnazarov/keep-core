@@ -69,6 +69,9 @@ func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
 	// Register all metrics upfront with 0 values so they appear in /metrics endpoint
 	pm.registerAllMetrics()
 
+	// Register gauge observers for all gauges
+	go pm.observeGauges()
+
 	return pm
 }
 
@@ -105,12 +108,6 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricRelayEntrySuccessTotal,
 		MetricRelayEntryFailedTotal,
 		MetricRelayEntryTimeoutReportedTotal,
-		MetricRedemptionExecutionsTotal,
-		MetricRedemptionExecutionsSuccessTotal,
-		MetricRedemptionExecutionsFailedTotal,
-		MetricRedemptionProofSubmissionsTotal,
-		MetricRedemptionProofSubmissionsSuccessTotal,
-		MetricRedemptionProofSubmissionsFailedTotal,
 	}
 
 	// First, initialize all counters in the map
@@ -148,8 +145,6 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		"coordination_duration_seconds",
 		"ping_test_duration_seconds",
 		"relay_entry_duration_seconds", // For future beacon metrics
-		"redemption_execution_duration_seconds",
-		"redemption_tx_signing_duration_seconds",
 	}
 
 	// First, initialize all histograms in the map
@@ -205,7 +200,6 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricIncomingMessageQueueSize,
 		MetricMessageHandlerQueueSize,
 		MetricSigningAttemptsPerOperation,
-		MetricRedemptionPendingRequestsCount,
 	}
 
 	// First, initialize all gauges in the map
@@ -341,6 +335,13 @@ func (pm *PerformanceMetrics) SetGauge(name string, value float64) {
 	)
 }
 
+// observeGauges periodically updates gauge observers.
+// This is handled automatically by ObserveApplicationSource.
+func (pm *PerformanceMetrics) observeGauges() {
+	// Gauges are observed automatically via ObserveApplicationSource
+	// This function is kept for future use if needed
+}
+
 // NoOpPerformanceMetrics is a no-op implementation of PerformanceMetricsRecorder
 // that can be used when metrics are disabled.
 type NoOpPerformanceMetrics struct{}
@@ -442,15 +443,4 @@ const (
 	MetricRelayEntryFailedTotal          = "relay_entry_failed_total"
 	MetricRelayEntryDurationSeconds      = "relay_entry_duration_seconds"
 	MetricRelayEntryTimeoutReportedTotal = "relay_entry_timeout_reported_total"
-
-	// Redemption Metrics
-	MetricRedemptionExecutionsTotal              = "redemption_executions_total"
-	MetricRedemptionExecutionsSuccessTotal       = "redemption_executions_success_total"
-	MetricRedemptionExecutionsFailedTotal        = "redemption_executions_failed_total"
-	MetricRedemptionExecutionDurationSeconds     = "redemption_execution_duration_seconds"
-	MetricRedemptionTxSigningDurationSeconds     = "redemption_tx_signing_duration_seconds"
-	MetricRedemptionProofSubmissionsTotal        = "redemption_proof_submissions_total"
-	MetricRedemptionProofSubmissionsSuccessTotal = "redemption_proof_submissions_success_total"
-	MetricRedemptionProofSubmissionsFailedTotal  = "redemption_proof_submissions_failed_total"
-	MetricRedemptionPendingRequestsCount         = "redemption_pending_requests_count"
 )

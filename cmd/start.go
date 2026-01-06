@@ -169,6 +169,7 @@ func start(cmd *cobra.Command) error {
 			proposalGenerator,
 			clientConfig.Tbtc,
 			clientInfoRegistry,
+			perfMetrics, // Pass the existing performance metrics instance to avoid duplicate registrations
 		)
 		if err != nil {
 			return fmt.Errorf("error initializing TBTC: [%v]", err)
