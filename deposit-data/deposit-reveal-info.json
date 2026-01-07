@@ -1,8 +1,8 @@
 {
   "fundingOutputIndex": 0,
-  "blindingFactor": "0xa47d3d2c8a1d53f8",
-  "walletPubKeyHash": "0x31e67e42a93bbe7f6e5c932232d38e42061369b7",
-  "refundPubKeyHash": "0x8223501baee1fbf3f9bbc8256258edeb66e5b94f",
-  "refundLocktime": "0x695457d0",
+  "blindingFactor": "0x1e4bf5fc367e4be1",
+  "walletPubKeyHash": "0x13a1d18b1d6b7ffb58d2bec05d3ae89f664b8bcf",
+  "refundPubKeyHash": "0x70c9a47466af558dad5aad1397126ae1deddfad5",
+  "refundLocktime": "0x695ed64d",
   "vault": "0x0000000000000000000000000000000000000000"
 }

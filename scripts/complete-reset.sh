@@ -123,6 +123,7 @@ main() {
     echo "  - Delete all chaindata"
     echo "  - Clean all deployment files"
     echo "  - Redeploy all contracts"
+    echo "  - Deploy and setup ReimbursementPool (authorize WalletRegistry, fund with ETH)"
     echo "  - Initialize WalletRegistry walletOwner"
     echo "  - Initialize all operators"
     echo "  - Fund operators with ETH"
@@ -340,6 +341,47 @@ main() {
         exit 1
     }
     log_success "ECDSA contracts deployed"
+    echo ""
+    
+    # Step 10.5: Deploy and setup ReimbursementPool (fix for DKG approval revert)
+    # This ensures ReimbursementPool is deployed, authorized for WalletRegistry, and funded
+    log_info "Step 10.5: Deploying and setting up ReimbursementPool..."
+    cd "$PROJECT_ROOT/solidity/ecdsa"
+    if [ -f "scripts/deploy-and-setup-reimbursement-pool.ts" ]; then
+        SETUP_OUTPUT=$(npx hardhat run scripts/deploy-and-setup-reimbursement-pool.ts --network development 2>&1)
+        SETUP_EXIT_CODE=$?
+        
+        # Filter out Hardhat warnings and show only important output
+        echo "$SETUP_OUTPUT" | grep -vE "(You are using a version|Please, make sure|To learn more|Error encountered|No need to generate|Contract Name|Size \(KB\)|^ ·|^ \||^---|Compiled|Compiling)" | grep -E "(Step|ReimbursementPool|WalletRegistry|authorized|funded|SUCCESS|Error|error|Failed|failed|Transaction|✓|✗|Setup Complete)" || true
+        
+        if [ $SETUP_EXIT_CODE -eq 0 ] && echo "$SETUP_OUTPUT" | grep -qE "Setup Complete"; then
+            log_success "ReimbursementPool deployed and configured"
+            
+            # Verify WalletRegistry is using the correct ReimbursementPool
+            WALLET_REGISTRY=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistry.json" 2>/dev/null || echo "")
+            REIMBURSEMENT_POOL=$(jq -r '.address' "$PROJECT_ROOT/solidity/random-beacon/deployments/development/ReimbursementPool.json" 2>/dev/null || echo "")
+            
+            if [ -n "$WALLET_REGISTRY" ] && [ -n "$REIMBURSEMENT_POOL" ] && [ "$WALLET_REGISTRY" != "null" ] && [ "$REIMBURSEMENT_POOL" != "null" ]; then
+                CURRENT_POOL=$(cast call "$WALLET_REGISTRY" "reimbursementPool()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "")
+                if [ "$CURRENT_POOL" = "$REIMBURSEMENT_POOL" ]; then
+                    log_success "WalletRegistry is using the correct ReimbursementPool"
+                else
+                    log_warning "WalletRegistry is using different ReimbursementPool (current: $CURRENT_POOL, expected: $REIMBURSEMENT_POOL)"
+                    log_info "This is normal if WalletRegistry was deployed before ReimbursementPool"
+                    log_info "WalletRegistry will use the ReimbursementPool it was initialized with"
+                fi
+            fi
+        elif echo "$SETUP_OUTPUT" | grep -qE "(already exists|already authorized|already has sufficient)"; then
+            log_success "ReimbursementPool already configured"
+        else
+            log_warning "ReimbursementPool setup completed with warnings"
+            log_info "You may need to run manually: cd solidity/ecdsa && npx hardhat run scripts/deploy-and-setup-reimbursement-pool.ts --network development"
+        fi
+    else
+        log_warning "deploy-and-setup-reimbursement-pool.ts script not found"
+        log_info "Skipping ReimbursementPool setup - you may need to run it manually"
+        log_info "This may cause DKG approval to fail with empty revert errors"
+    fi
     echo ""
     
     # Step 11: Approve RandomBeacon in TokenStaking
