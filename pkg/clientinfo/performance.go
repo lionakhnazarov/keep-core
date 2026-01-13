@@ -1,6 +1,7 @@
 package clientinfo
 
 import (
+	"strings"
 	"sync"
 	"time"
 )
@@ -104,10 +105,6 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricPingTestSuccessTotal,
 		MetricPingTestFailedTotal,
 		MetricWalletDispatcherRejectedTotal,
-		MetricRelayEntryGenerationTotal,
-		MetricRelayEntrySuccessTotal,
-		MetricRelayEntryFailedTotal,
-		MetricRelayEntryTimeoutReportedTotal,
 	}
 
 	// First, initialize all counters in the map
@@ -144,7 +141,6 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		"wallet_action_duration_seconds",
 		"coordination_duration_seconds",
 		"ping_test_duration_seconds",
-		"relay_entry_duration_seconds", // For future beacon metrics
 	}
 
 	// First, initialize all histograms in the map
@@ -156,15 +152,11 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 
 	// Then, register observers (this prevents concurrent map read/write)
 	for _, name := range durationMetrics {
-		metricName := name // Capture for closure
-		// RecordDuration registers metrics as name + "_duration_seconds" and name + "_count"
-		// So for "dkg_duration_seconds", it registers:
-		// - "dkg_duration_seconds_duration_seconds" (average duration)
-		// - "dkg_duration_seconds_count" (count)
+		metricName := name
 		pm.registry.ObserveApplicationSource(
 			"performance",
 			map[string]Source{
-				metricName + "_duration_seconds": func() float64 {
+				metricName: func() float64 {
 					pm.histogramsMutex.RLock()
 					h, exists := pm.histograms[metricName]
 					pm.histogramsMutex.RUnlock()
@@ -286,11 +278,16 @@ func (pm *PerformanceMetrics) RecordDuration(name string, duration time.Duration
 	h.buckets[-2] += seconds // -2 = sum
 	h.mutex.Unlock()
 
+	metricName := name
+	if !strings.HasSuffix(name, "_duration_seconds") {
+		metricName = name + "_duration_seconds"
+	}
+
 	// Expose as gauge for now (Prometheus-style histograms would be better)
 	pm.registry.ObserveApplicationSource(
 		"performance",
 		map[string]Source{
-			name + "_duration_seconds": func() float64 {
+			metricName: func() float64 {
 				h.mutex.RLock()
 				defer h.mutex.RUnlock()
 				count := h.buckets[-1]
@@ -299,7 +296,7 @@ func (pm *PerformanceMetrics) RecordDuration(name string, duration time.Duration
 				}
 				return h.buckets[-2] / count // average
 			},
-			name + "_count": func() float64 {
+			metricName + "_count": func() float64 {
 				h.mutex.RLock()
 				defer h.mutex.RUnlock()
 				return h.buckets[-1]
@@ -436,11 +433,4 @@ const (
 	// Wallet Dispatcher Metrics
 	MetricWalletDispatcherActiveActions = "wallet_dispatcher_active_actions"
 	MetricWalletDispatcherRejectedTotal = "wallet_dispatcher_rejected_total"
-
-	// Relay Entry Metrics (Beacon)
-	MetricRelayEntryGenerationTotal      = "relay_entry_generation_total"
-	MetricRelayEntrySuccessTotal         = "relay_entry_success_total"
-	MetricRelayEntryFailedTotal          = "relay_entry_failed_total"
-	MetricRelayEntryDurationSeconds      = "relay_entry_duration_seconds"
-	MetricRelayEntryTimeoutReportedTotal = "relay_entry_timeout_reported_total"
 )

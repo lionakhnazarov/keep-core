@@ -371,6 +371,14 @@ func (ce *coordinationExecutor) coordinate(
 	execLogger.Info("starting coordination")
 
 	startTime := time.Now()
+	
+	// Record duration metric once at the end using defer
+	var coordinationFailed bool
+	defer func() {
+		if ce.metricsRecorder != nil {
+			ce.metricsRecorder.RecordDuration("coordination_duration_seconds", time.Since(startTime))
+		}
+	}()
 
 	seed, err := ce.getSeed(window.coordinationBlock)
 	if err != nil {
@@ -420,9 +428,9 @@ func (ce *coordinationExecutor) coordinate(
 			// no point to keep the context active as retransmissions do not
 			// occur anyway.
 			cancelCtx()
+			coordinationFailed = true
 			if ce.metricsRecorder != nil {
 				ce.metricsRecorder.IncrementCounter("coordination_failed_total", 1)
-				ce.metricsRecorder.RecordDuration("coordination_duration_seconds", time.Since(startTime))
 			}
 			return nil, fmt.Errorf(
 				"failed to execute leader's routine: [%v]",
@@ -444,9 +452,9 @@ func (ce *coordinationExecutor) coordinate(
 			append(actionsChecklist, ActionNoop),
 		)
 		if err != nil {
+			coordinationFailed = true
 			if ce.metricsRecorder != nil {
 				ce.metricsRecorder.IncrementCounter("coordination_failed_total", 1)
-				ce.metricsRecorder.RecordDuration("coordination_duration_seconds", time.Since(startTime))
 			}
 			return nil, fmt.Errorf(
 				"failed to execute follower's routine: [%v]",
@@ -476,9 +484,9 @@ func (ce *coordinationExecutor) coordinate(
 
 	execLogger.Infof("coordination completed with result: [%s]", result)
 
-	// Record successful coordination metrics
-	if ce.metricsRecorder != nil {
-		ce.metricsRecorder.RecordDuration("coordination_duration_seconds", time.Since(startTime))
+	// Record successful coordination counter
+	if ce.metricsRecorder != nil && !coordinationFailed {
+		ce.metricsRecorder.IncrementCounter("coordination_procedures_executed_total", 1)
 	}
 
 	return result, nil

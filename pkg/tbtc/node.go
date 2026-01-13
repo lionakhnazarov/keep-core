@@ -218,6 +218,14 @@ func (n *node) setPerformanceMetrics(metrics interface {
 	}); ok {
 		pg.SetRedemptionMetricsRecorder(metrics)
 	}
+
+	// Update metrics recorder for all cached coordination executors
+	// This is important because executors may be created before metrics are set
+	n.coordinationExecutorsMutex.Lock()
+	for _, executor := range n.coordinationExecutors {
+		executor.setMetricsRecorder(metrics)
+	}
+	n.coordinationExecutorsMutex.Unlock()
 }
 
 // operatorAddress returns the node's operator address.
@@ -403,6 +411,11 @@ func (n *node) getCoordinationExecutor(
 	executorKey := hex.EncodeToString(walletPublicKeyBytes)
 
 	if executor, exists := n.coordinationExecutors[executorKey]; exists {
+		// Ensure metrics recorder is set if metrics are available
+		// (executor may have been created before metrics were initialized)
+		if n.performanceMetrics != nil {
+			executor.setMetricsRecorder(n.performanceMetrics)
+		}
 		return executor, true, nil
 	}
 
@@ -1059,8 +1072,6 @@ func executeCoordinationProcedure(
 
 	procedureLogger.Infof("starting coordination procedure")
 
-	startTime := time.Now()
-
 	executor, ok, err := node.getCoordinationExecutor(walletPublicKey)
 	if err != nil {
 		procedureLogger.Errorf("cannot get coordination executor: [%v]", err)
@@ -1078,10 +1089,7 @@ func executeCoordinationProcedure(
 	result, err := executor.coordinate(window)
 	if err != nil {
 		procedureLogger.Errorf("coordination procedure failed: [%v]", err)
-		if node.performanceMetrics != nil {
-			node.performanceMetrics.IncrementCounter("coordination_failed_total", 1)
-			node.performanceMetrics.RecordDuration("coordination_duration_seconds", time.Since(startTime))
-		}
+		// Metrics are already recorded in executor.coordinate() for failures
 		return nil, false
 	}
 
@@ -1090,11 +1098,7 @@ func executeCoordinationProcedure(
 		result,
 	)
 
-	// Record successful coordination procedure
-	if node.performanceMetrics != nil {
-		node.performanceMetrics.IncrementCounter("coordination_procedures_executed_total", 1)
-		node.performanceMetrics.RecordDuration("coordination_duration_seconds", time.Since(startTime))
-	}
+	// Metrics are already recorded in executor.coordinate() for successful executions
 
 	return result, true
 }
