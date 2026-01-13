@@ -105,144 +105,6 @@ func NewTokenStaking(
 // ----- Non-const Methods ------
 
 // Transaction submission.
-func (ts *TokenStaking) ApproveApplication(
-	arg_application common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction approveApplication",
-		" params: ",
-		fmt.Sprint(
-			arg_application,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.ApproveApplication(
-		transactorOptions,
-		arg_application,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"approveApplication",
-			arg_application,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction approveApplication with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.ApproveApplication(
-				newTransactorOptions,
-				arg_application,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"approveApplication",
-					arg_application,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction approveApplication with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallApproveApplication(
-	arg_application common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"approveApplication",
-		&result,
-		arg_application,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) ApproveApplicationGasEstimate(
-	arg_application common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"approveApplication",
-		ts.contractABI,
-		ts.transactor,
-		arg_application,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
 func (ts *TokenStaking) ApproveAuthorizationDecrease(
 	arg_stakingProvider common.Address,
 
@@ -815,164 +677,6 @@ func (ts *TokenStaking) ForceDecreaseAuthorizationGasEstimate(
 }
 
 // Transaction submission.
-func (ts *TokenStaking) IncreaseAuthorization(
-	arg_stakingProvider common.Address,
-	arg_application common.Address,
-	arg_amount *big.Int,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction increaseAuthorization",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-			arg_application,
-			arg_amount,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.IncreaseAuthorization(
-		transactorOptions,
-		arg_stakingProvider,
-		arg_application,
-		arg_amount,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"increaseAuthorization",
-			arg_stakingProvider,
-			arg_application,
-			arg_amount,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction increaseAuthorization with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.IncreaseAuthorization(
-				newTransactorOptions,
-				arg_stakingProvider,
-				arg_application,
-				arg_amount,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"increaseAuthorization",
-					arg_stakingProvider,
-					arg_application,
-					arg_amount,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction increaseAuthorization with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallIncreaseAuthorization(
-	arg_stakingProvider common.Address,
-	arg_application common.Address,
-	arg_amount *big.Int,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"increaseAuthorization",
-		&result,
-		arg_stakingProvider,
-		arg_application,
-		arg_amount,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) IncreaseAuthorizationGasEstimate(
-	arg_stakingProvider common.Address,
-	arg_application common.Address,
-	arg_amount *big.Int,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"increaseAuthorization",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-		arg_application,
-		arg_amount,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
 func (ts *TokenStaking) Initialize(
 
 	transactionOptions ...chainutil.TransactionOptions,
@@ -1091,282 +795,6 @@ func (ts *TokenStaking) InitializeGasEstimate() (uint64, error) {
 		"initialize",
 		ts.contractABI,
 		ts.transactor,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) NotifyKeepStakeDiscrepancy(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction notifyKeepStakeDiscrepancy",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.NotifyKeepStakeDiscrepancy(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"notifyKeepStakeDiscrepancy",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction notifyKeepStakeDiscrepancy with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.NotifyKeepStakeDiscrepancy(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"notifyKeepStakeDiscrepancy",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction notifyKeepStakeDiscrepancy with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallNotifyKeepStakeDiscrepancy(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"notifyKeepStakeDiscrepancy",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) NotifyKeepStakeDiscrepancyGasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"notifyKeepStakeDiscrepancy",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) NotifyNuStakeDiscrepancy(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction notifyNuStakeDiscrepancy",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.NotifyNuStakeDiscrepancy(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"notifyNuStakeDiscrepancy",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction notifyNuStakeDiscrepancy with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.NotifyNuStakeDiscrepancy(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"notifyNuStakeDiscrepancy",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction notifyNuStakeDiscrepancy with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallNotifyNuStakeDiscrepancy(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"notifyNuStakeDiscrepancy",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) NotifyNuStakeDiscrepancyGasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"notifyNuStakeDiscrepancy",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
 	)
 
 	return result, err
@@ -1505,420 +933,6 @@ func (ts *TokenStaking) PauseApplicationGasEstimate(
 		ts.contractABI,
 		ts.transactor,
 		arg_application,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) ProcessSlashing(
-	arg_count *big.Int,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction processSlashing",
-		" params: ",
-		fmt.Sprint(
-			arg_count,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.ProcessSlashing(
-		transactorOptions,
-		arg_count,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"processSlashing",
-			arg_count,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction processSlashing with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.ProcessSlashing(
-				newTransactorOptions,
-				arg_count,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"processSlashing",
-					arg_count,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction processSlashing with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallProcessSlashing(
-	arg_count *big.Int,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"processSlashing",
-		&result,
-		arg_count,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) ProcessSlashingGasEstimate(
-	arg_count *big.Int,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"processSlashing",
-		ts.contractABI,
-		ts.transactor,
-		arg_count,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) PushNotificationReward(
-	arg_reward *big.Int,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction pushNotificationReward",
-		" params: ",
-		fmt.Sprint(
-			arg_reward,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.PushNotificationReward(
-		transactorOptions,
-		arg_reward,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"pushNotificationReward",
-			arg_reward,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction pushNotificationReward with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.PushNotificationReward(
-				newTransactorOptions,
-				arg_reward,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"pushNotificationReward",
-					arg_reward,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction pushNotificationReward with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallPushNotificationReward(
-	arg_reward *big.Int,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"pushNotificationReward",
-		&result,
-		arg_reward,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) PushNotificationRewardGasEstimate(
-	arg_reward *big.Int,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"pushNotificationReward",
-		ts.contractABI,
-		ts.transactor,
-		arg_reward,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) RefreshKeepStakeOwner(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction refreshKeepStakeOwner",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.RefreshKeepStakeOwner(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"refreshKeepStakeOwner",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction refreshKeepStakeOwner with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.RefreshKeepStakeOwner(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"refreshKeepStakeOwner",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction refreshKeepStakeOwner with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallRefreshKeepStakeOwner(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"refreshKeepStakeOwner",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) RefreshKeepStakeOwnerGasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"refreshKeepStakeOwner",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
 	)
 
 	return result, err
@@ -2077,144 +1091,6 @@ func (ts *TokenStaking) RequestAuthorizationDecreaseGasEstimate(
 		arg_stakingProvider,
 		arg_application,
 		arg_amount,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) RequestAuthorizationDecrease0(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction requestAuthorizationDecrease0",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.RequestAuthorizationDecrease0(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"requestAuthorizationDecrease0",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction requestAuthorizationDecrease0 with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.RequestAuthorizationDecrease0(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"requestAuthorizationDecrease0",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction requestAuthorizationDecrease0 with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallRequestAuthorizationDecrease0(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"requestAuthorizationDecrease0",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) RequestAuthorizationDecrease0GasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"requestAuthorizationDecrease0",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
 	)
 
 	return result, err
@@ -2665,144 +1541,6 @@ func (ts *TokenStaking) SetMinimumStakeAmountGasEstimate(
 }
 
 // Transaction submission.
-func (ts *TokenStaking) SetNotificationReward(
-	arg_reward *big.Int,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction setNotificationReward",
-		" params: ",
-		fmt.Sprint(
-			arg_reward,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.SetNotificationReward(
-		transactorOptions,
-		arg_reward,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"setNotificationReward",
-			arg_reward,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction setNotificationReward with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.SetNotificationReward(
-				newTransactorOptions,
-				arg_reward,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"setNotificationReward",
-					arg_reward,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction setNotificationReward with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallSetNotificationReward(
-	arg_reward *big.Int,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"setNotificationReward",
-		&result,
-		arg_reward,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) SetNotificationRewardGasEstimate(
-	arg_reward *big.Int,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"setNotificationReward",
-		ts.contractABI,
-		ts.transactor,
-		arg_reward,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
 func (ts *TokenStaking) SetPanicButton(
 	arg_application common.Address,
 	arg_panicButton common.Address,
@@ -2945,154 +1683,6 @@ func (ts *TokenStaking) SetPanicButtonGasEstimate(
 		ts.transactor,
 		arg_application,
 		arg_panicButton,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) SetStakeDiscrepancyPenalty(
-	arg_penalty *big.Int,
-	arg_rewardMultiplier *big.Int,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction setStakeDiscrepancyPenalty",
-		" params: ",
-		fmt.Sprint(
-			arg_penalty,
-			arg_rewardMultiplier,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.SetStakeDiscrepancyPenalty(
-		transactorOptions,
-		arg_penalty,
-		arg_rewardMultiplier,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"setStakeDiscrepancyPenalty",
-			arg_penalty,
-			arg_rewardMultiplier,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction setStakeDiscrepancyPenalty with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.SetStakeDiscrepancyPenalty(
-				newTransactorOptions,
-				arg_penalty,
-				arg_rewardMultiplier,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"setStakeDiscrepancyPenalty",
-					arg_penalty,
-					arg_rewardMultiplier,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction setStakeDiscrepancyPenalty with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallSetStakeDiscrepancyPenalty(
-	arg_penalty *big.Int,
-	arg_rewardMultiplier *big.Int,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"setStakeDiscrepancyPenalty",
-		&result,
-		arg_penalty,
-		arg_rewardMultiplier,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) SetStakeDiscrepancyPenaltyGasEstimate(
-	arg_penalty *big.Int,
-	arg_rewardMultiplier *big.Int,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"setStakeDiscrepancyPenalty",
-		ts.contractABI,
-		ts.transactor,
-		arg_penalty,
-		arg_rewardMultiplier,
 	)
 
 	return result, err
@@ -3247,894 +1837,6 @@ func (ts *TokenStaking) SlashGasEstimate(
 }
 
 // Transaction submission.
-func (ts *TokenStaking) Stake(
-	arg_stakingProvider common.Address,
-	arg_beneficiary common.Address,
-	arg_authorizer common.Address,
-	arg_amount *big.Int,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction stake",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-			arg_beneficiary,
-			arg_authorizer,
-			arg_amount,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.Stake(
-		transactorOptions,
-		arg_stakingProvider,
-		arg_beneficiary,
-		arg_authorizer,
-		arg_amount,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"stake",
-			arg_stakingProvider,
-			arg_beneficiary,
-			arg_authorizer,
-			arg_amount,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction stake with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.Stake(
-				newTransactorOptions,
-				arg_stakingProvider,
-				arg_beneficiary,
-				arg_authorizer,
-				arg_amount,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"stake",
-					arg_stakingProvider,
-					arg_beneficiary,
-					arg_authorizer,
-					arg_amount,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction stake with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallStake(
-	arg_stakingProvider common.Address,
-	arg_beneficiary common.Address,
-	arg_authorizer common.Address,
-	arg_amount *big.Int,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"stake",
-		&result,
-		arg_stakingProvider,
-		arg_beneficiary,
-		arg_authorizer,
-		arg_amount,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) StakeGasEstimate(
-	arg_stakingProvider common.Address,
-	arg_beneficiary common.Address,
-	arg_authorizer common.Address,
-	arg_amount *big.Int,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"stake",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-		arg_beneficiary,
-		arg_authorizer,
-		arg_amount,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) StakeKeep(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction stakeKeep",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.StakeKeep(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"stakeKeep",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction stakeKeep with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.StakeKeep(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"stakeKeep",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction stakeKeep with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallStakeKeep(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"stakeKeep",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) StakeKeepGasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"stakeKeep",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) StakeNu(
-	arg_stakingProvider common.Address,
-	arg_beneficiary common.Address,
-	arg_authorizer common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction stakeNu",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-			arg_beneficiary,
-			arg_authorizer,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.StakeNu(
-		transactorOptions,
-		arg_stakingProvider,
-		arg_beneficiary,
-		arg_authorizer,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"stakeNu",
-			arg_stakingProvider,
-			arg_beneficiary,
-			arg_authorizer,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction stakeNu with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.StakeNu(
-				newTransactorOptions,
-				arg_stakingProvider,
-				arg_beneficiary,
-				arg_authorizer,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"stakeNu",
-					arg_stakingProvider,
-					arg_beneficiary,
-					arg_authorizer,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction stakeNu with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallStakeNu(
-	arg_stakingProvider common.Address,
-	arg_beneficiary common.Address,
-	arg_authorizer common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"stakeNu",
-		&result,
-		arg_stakingProvider,
-		arg_beneficiary,
-		arg_authorizer,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) StakeNuGasEstimate(
-	arg_stakingProvider common.Address,
-	arg_beneficiary common.Address,
-	arg_authorizer common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"stakeNu",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-		arg_beneficiary,
-		arg_authorizer,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) TopUp(
-	arg_stakingProvider common.Address,
-	arg_amount *big.Int,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction topUp",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-			arg_amount,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.TopUp(
-		transactorOptions,
-		arg_stakingProvider,
-		arg_amount,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"topUp",
-			arg_stakingProvider,
-			arg_amount,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction topUp with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.TopUp(
-				newTransactorOptions,
-				arg_stakingProvider,
-				arg_amount,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"topUp",
-					arg_stakingProvider,
-					arg_amount,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction topUp with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallTopUp(
-	arg_stakingProvider common.Address,
-	arg_amount *big.Int,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"topUp",
-		&result,
-		arg_stakingProvider,
-		arg_amount,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) TopUpGasEstimate(
-	arg_stakingProvider common.Address,
-	arg_amount *big.Int,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"topUp",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-		arg_amount,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) TopUpKeep(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction topUpKeep",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.TopUpKeep(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"topUpKeep",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction topUpKeep with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.TopUpKeep(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"topUpKeep",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction topUpKeep with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallTopUpKeep(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"topUpKeep",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) TopUpKeepGasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"topUpKeep",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) TopUpNu(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction topUpNu",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.TopUpNu(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"topUpNu",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction topUpNu with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.TopUpNu(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"topUpNu",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction topUpNu with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallTopUpNu(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"topUpNu",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) TopUpNuGasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"topUpNu",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
 func (ts *TokenStaking) TransferGovernance(
 	arg_newGuvnor common.Address,
 
@@ -4267,430 +1969,6 @@ func (ts *TokenStaking) TransferGovernanceGasEstimate(
 		ts.contractABI,
 		ts.transactor,
 		arg_newGuvnor,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) UnstakeAll(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction unstakeAll",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.UnstakeAll(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"unstakeAll",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction unstakeAll with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.UnstakeAll(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"unstakeAll",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction unstakeAll with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallUnstakeAll(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"unstakeAll",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) UnstakeAllGasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"unstakeAll",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) UnstakeKeep(
-	arg_stakingProvider common.Address,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction unstakeKeep",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.UnstakeKeep(
-		transactorOptions,
-		arg_stakingProvider,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"unstakeKeep",
-			arg_stakingProvider,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction unstakeKeep with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.UnstakeKeep(
-				newTransactorOptions,
-				arg_stakingProvider,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"unstakeKeep",
-					arg_stakingProvider,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction unstakeKeep with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallUnstakeKeep(
-	arg_stakingProvider common.Address,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"unstakeKeep",
-		&result,
-		arg_stakingProvider,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) UnstakeKeepGasEstimate(
-	arg_stakingProvider common.Address,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"unstakeKeep",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-	)
-
-	return result, err
-}
-
-// Transaction submission.
-func (ts *TokenStaking) UnstakeNu(
-	arg_stakingProvider common.Address,
-	arg_amount *big.Int,
-
-	transactionOptions ...chainutil.TransactionOptions,
-) (*types.Transaction, error) {
-	tsLogger.Debug(
-		"submitting transaction unstakeNu",
-		" params: ",
-		fmt.Sprint(
-			arg_stakingProvider,
-			arg_amount,
-		),
-	)
-
-	ts.transactionMutex.Lock()
-	defer ts.transactionMutex.Unlock()
-
-	// create a copy
-	transactorOptions := new(bind.TransactOpts)
-	*transactorOptions = *ts.transactorOptions
-
-	if len(transactionOptions) > 1 {
-		return nil, fmt.Errorf(
-			"could not process multiple transaction options sets",
-		)
-	} else if len(transactionOptions) > 0 {
-		transactionOptions[0].Apply(transactorOptions)
-	}
-
-	nonce, err := ts.nonceManager.CurrentNonce()
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
-	}
-
-	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
-
-	transaction, err := ts.contract.UnstakeNu(
-		transactorOptions,
-		arg_stakingProvider,
-		arg_amount,
-	)
-	if err != nil {
-		return transaction, ts.errorResolver.ResolveError(
-			err,
-			ts.transactorOptions.From,
-			nil,
-			"unstakeNu",
-			arg_stakingProvider,
-			arg_amount,
-		)
-	}
-
-	tsLogger.Infof(
-		"submitted transaction unstakeNu with id: [%s] and nonce [%v]",
-		transaction.Hash(),
-		transaction.Nonce(),
-	)
-
-	go ts.miningWaiter.ForceMining(
-		transaction,
-		transactorOptions,
-		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
-			// If original transactor options has a non-zero gas limit, that
-			// means the client code set it on their own. In that case, we
-			// should rewrite the gas limit from the original transaction
-			// for each resubmission. If the gas limit is not set by the client
-			// code, let the the submitter re-estimate the gas limit on each
-			// resubmission.
-			if transactorOptions.GasLimit != 0 {
-				newTransactorOptions.GasLimit = transactorOptions.GasLimit
-			}
-
-			transaction, err := ts.contract.UnstakeNu(
-				newTransactorOptions,
-				arg_stakingProvider,
-				arg_amount,
-			)
-			if err != nil {
-				return nil, ts.errorResolver.ResolveError(
-					err,
-					ts.transactorOptions.From,
-					nil,
-					"unstakeNu",
-					arg_stakingProvider,
-					arg_amount,
-				)
-			}
-
-			tsLogger.Infof(
-				"submitted transaction unstakeNu with id: [%s] and nonce [%v]",
-				transaction.Hash(),
-				transaction.Nonce(),
-			)
-
-			return transaction, nil
-		},
-	)
-
-	ts.nonceManager.IncrementNonce()
-
-	return transaction, err
-}
-
-// Non-mutating call, not a transaction submission.
-func (ts *TokenStaking) CallUnstakeNu(
-	arg_stakingProvider common.Address,
-	arg_amount *big.Int,
-	blockNumber *big.Int,
-) error {
-	var result interface{} = nil
-
-	err := chainutil.CallAtBlock(
-		ts.transactorOptions.From,
-		blockNumber, nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"unstakeNu",
-		&result,
-		arg_stakingProvider,
-		arg_amount,
-	)
-
-	return err
-}
-
-func (ts *TokenStaking) UnstakeNuGasEstimate(
-	arg_stakingProvider common.Address,
-	arg_amount *big.Int,
-) (uint64, error) {
-	var result uint64
-
-	result, err := chainutil.EstimateGas(
-		ts.callerOptions.From,
-		ts.contractAddress,
-		"unstakeNu",
-		ts.contractABI,
-		ts.transactor,
-		arg_stakingProvider,
-		arg_amount,
 	)
 
 	return result, err
@@ -5346,14 +2624,12 @@ func (ts *TokenStaking) GetAvailableToAuthorizeAtBlock(
 	return result, err
 }
 
-func (ts *TokenStaking) GetMinStaked(
+func (ts *TokenStaking) GetMaxAuthorization(
 	arg_stakingProvider common.Address,
-	arg_stakeTypes uint8,
 ) (*big.Int, error) {
-	result, err := ts.contract.GetMinStaked(
+	result, err := ts.contract.GetMaxAuthorization(
 		ts.callerOptions,
 		arg_stakingProvider,
-		arg_stakeTypes,
 	)
 
 	if err != nil {
@@ -5361,18 +2637,16 @@ func (ts *TokenStaking) GetMinStaked(
 			err,
 			ts.callerOptions.From,
 			nil,
-			"getMinStaked",
+			"getMaxAuthorization",
 			arg_stakingProvider,
-			arg_stakeTypes,
 		)
 	}
 
 	return result, err
 }
 
-func (ts *TokenStaking) GetMinStakedAtBlock(
+func (ts *TokenStaking) GetMaxAuthorizationAtBlock(
 	arg_stakingProvider common.Address,
-	arg_stakeTypes uint8,
 	blockNumber *big.Int,
 ) (*big.Int, error) {
 	var result *big.Int
@@ -5385,10 +2659,9 @@ func (ts *TokenStaking) GetMinStakedAtBlock(
 		ts.caller,
 		ts.errorResolver,
 		ts.contractAddress,
-		"getMinStaked",
+		"getMaxAuthorization",
 		&result,
 		arg_stakingProvider,
-		arg_stakeTypes,
 	)
 
 	return result, err
@@ -5480,43 +2753,6 @@ func (ts *TokenStaking) GetPastVotesAtBlock(
 		&result,
 		arg_account,
 		arg_blockNumber,
-	)
-
-	return result, err
-}
-
-func (ts *TokenStaking) GetSlashingQueueLength() (*big.Int, error) {
-	result, err := ts.contract.GetSlashingQueueLength(
-		ts.callerOptions,
-	)
-
-	if err != nil {
-		return result, ts.errorResolver.ResolveError(
-			err,
-			ts.callerOptions.From,
-			nil,
-			"getSlashingQueueLength",
-		)
-	}
-
-	return result, err
-}
-
-func (ts *TokenStaking) GetSlashingQueueLengthAtBlock(
-	blockNumber *big.Int,
-) (*big.Int, error) {
-	var result *big.Int
-
-	err := chainutil.CallAtBlock(
-		ts.callerOptions.From,
-		blockNumber,
-		nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"getSlashingQueueLength",
-		&result,
 	)
 
 	return result, err
@@ -5682,43 +2918,6 @@ func (ts *TokenStaking) MinTStakeAmountAtBlock(
 	return result, err
 }
 
-func (ts *TokenStaking) NotificationReward() (*big.Int, error) {
-	result, err := ts.contract.NotificationReward(
-		ts.callerOptions,
-	)
-
-	if err != nil {
-		return result, ts.errorResolver.ResolveError(
-			err,
-			ts.callerOptions.From,
-			nil,
-			"notificationReward",
-		)
-	}
-
-	return result, err
-}
-
-func (ts *TokenStaking) NotificationRewardAtBlock(
-	blockNumber *big.Int,
-) (*big.Int, error) {
-	var result *big.Int
-
-	err := chainutil.CallAtBlock(
-		ts.callerOptions.From,
-		blockNumber,
-		nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"notificationReward",
-		&result,
-	)
-
-	return result, err
-}
-
 func (ts *TokenStaking) NotifiersTreasury() (*big.Int, error) {
 	result, err := ts.contract.NotifiersTreasury(
 		ts.callerOptions,
@@ -5848,169 +3047,10 @@ func (ts *TokenStaking) RolesOfAtBlock(
 	return result, err
 }
 
-type slashingQueue struct {
-	StakingProvider common.Address
-	Amount          *big.Int
-}
-
-func (ts *TokenStaking) SlashingQueue(
-	arg0 *big.Int,
-) (slashingQueue, error) {
-	result, err := ts.contract.SlashingQueue(
-		ts.callerOptions,
-		arg0,
-	)
-
-	if err != nil {
-		return result, ts.errorResolver.ResolveError(
-			err,
-			ts.callerOptions.From,
-			nil,
-			"slashingQueue",
-			arg0,
-		)
-	}
-
-	return result, err
-}
-
-func (ts *TokenStaking) SlashingQueueAtBlock(
-	arg0 *big.Int,
-	blockNumber *big.Int,
-) (slashingQueue, error) {
-	var result slashingQueue
-
-	err := chainutil.CallAtBlock(
-		ts.callerOptions.From,
-		blockNumber,
-		nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"slashingQueue",
-		&result,
-		arg0,
-	)
-
-	return result, err
-}
-
-func (ts *TokenStaking) SlashingQueueIndex() (*big.Int, error) {
-	result, err := ts.contract.SlashingQueueIndex(
-		ts.callerOptions,
-	)
-
-	if err != nil {
-		return result, ts.errorResolver.ResolveError(
-			err,
-			ts.callerOptions.From,
-			nil,
-			"slashingQueueIndex",
-		)
-	}
-
-	return result, err
-}
-
-func (ts *TokenStaking) SlashingQueueIndexAtBlock(
-	blockNumber *big.Int,
-) (*big.Int, error) {
-	var result *big.Int
-
-	err := chainutil.CallAtBlock(
-		ts.callerOptions.From,
-		blockNumber,
-		nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"slashingQueueIndex",
-		&result,
-	)
-
-	return result, err
-}
-
-func (ts *TokenStaking) StakeDiscrepancyPenalty() (*big.Int, error) {
-	result, err := ts.contract.StakeDiscrepancyPenalty(
-		ts.callerOptions,
-	)
-
-	if err != nil {
-		return result, ts.errorResolver.ResolveError(
-			err,
-			ts.callerOptions.From,
-			nil,
-			"stakeDiscrepancyPenalty",
-		)
-	}
-
-	return result, err
-}
-
-func (ts *TokenStaking) StakeDiscrepancyPenaltyAtBlock(
-	blockNumber *big.Int,
-) (*big.Int, error) {
-	var result *big.Int
-
-	err := chainutil.CallAtBlock(
-		ts.callerOptions.From,
-		blockNumber,
-		nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"stakeDiscrepancyPenalty",
-		&result,
-	)
-
-	return result, err
-}
-
-func (ts *TokenStaking) StakeDiscrepancyRewardMultiplier() (*big.Int, error) {
-	result, err := ts.contract.StakeDiscrepancyRewardMultiplier(
-		ts.callerOptions,
-	)
-
-	if err != nil {
-		return result, ts.errorResolver.ResolveError(
-			err,
-			ts.callerOptions.From,
-			nil,
-			"stakeDiscrepancyRewardMultiplier",
-		)
-	}
-
-	return result, err
-}
-
-func (ts *TokenStaking) StakeDiscrepancyRewardMultiplierAtBlock(
-	blockNumber *big.Int,
-) (*big.Int, error) {
-	var result *big.Int
-
-	err := chainutil.CallAtBlock(
-		ts.callerOptions.From,
-		blockNumber,
-		nil,
-		ts.contractABI,
-		ts.caller,
-		ts.errorResolver,
-		ts.contractAddress,
-		"stakeDiscrepancyRewardMultiplier",
-		&result,
-	)
-
-	return result, err
-}
-
-func (ts *TokenStaking) StakedNu(
+func (ts *TokenStaking) StakeAmount(
 	arg_stakingProvider common.Address,
 ) (*big.Int, error) {
-	result, err := ts.contract.StakedNu(
+	result, err := ts.contract.StakeAmount(
 		ts.callerOptions,
 		arg_stakingProvider,
 	)
@@ -6020,7 +3060,7 @@ func (ts *TokenStaking) StakedNu(
 			err,
 			ts.callerOptions.From,
 			nil,
-			"stakedNu",
+			"stakeAmount",
 			arg_stakingProvider,
 		)
 	}
@@ -6028,7 +3068,7 @@ func (ts *TokenStaking) StakedNu(
 	return result, err
 }
 
-func (ts *TokenStaking) StakedNuAtBlock(
+func (ts *TokenStaking) StakeAmountAtBlock(
 	arg_stakingProvider common.Address,
 	blockNumber *big.Int,
 ) (*big.Int, error) {
@@ -6042,7 +3082,7 @@ func (ts *TokenStaking) StakedNuAtBlock(
 		ts.caller,
 		ts.errorResolver,
 		ts.contractAddress,
-		"stakedNu",
+		"stakeAmount",
 		&result,
 		arg_stakingProvider,
 	)
@@ -7302,6 +4342,196 @@ func (ts *TokenStaking) PastAuthorizationInvoluntaryDecreasedEvents(
 	return events, nil
 }
 
+func (ts *TokenStaking) AutoIncreaseToggledEvent(
+	opts *ethereum.SubscribeOpts,
+	stakingProviderFilter []common.Address,
+) *TsAutoIncreaseToggledSubscription {
+	if opts == nil {
+		opts = new(ethereum.SubscribeOpts)
+	}
+	if opts.Tick == 0 {
+		opts.Tick = chainutil.DefaultSubscribeOptsTick
+	}
+	if opts.PastBlocks == 0 {
+		opts.PastBlocks = chainutil.DefaultSubscribeOptsPastBlocks
+	}
+
+	return &TsAutoIncreaseToggledSubscription{
+		ts,
+		opts,
+		stakingProviderFilter,
+	}
+}
+
+type TsAutoIncreaseToggledSubscription struct {
+	contract              *TokenStaking
+	opts                  *ethereum.SubscribeOpts
+	stakingProviderFilter []common.Address
+}
+
+type tokenStakingAutoIncreaseToggledFunc func(
+	StakingProvider common.Address,
+	AutoIncrease bool,
+	blockNumber uint64,
+)
+
+func (aits *TsAutoIncreaseToggledSubscription) OnEvent(
+	handler tokenStakingAutoIncreaseToggledFunc,
+) subscription.EventSubscription {
+	eventChan := make(chan *abi.TokenStakingAutoIncreaseToggled)
+	ctx, cancelCtx := context.WithCancel(context.Background())
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event := <-eventChan:
+				handler(
+					event.StakingProvider,
+					event.AutoIncrease,
+					event.Raw.BlockNumber,
+				)
+			}
+		}
+	}()
+
+	sub := aits.Pipe(eventChan)
+	return subscription.NewEventSubscription(func() {
+		sub.Unsubscribe()
+		cancelCtx()
+	})
+}
+
+func (aits *TsAutoIncreaseToggledSubscription) Pipe(
+	sink chan *abi.TokenStakingAutoIncreaseToggled,
+) subscription.EventSubscription {
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(aits.opts.Tick)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				lastBlock, err := aits.contract.blockCounter.CurrentBlock()
+				if err != nil {
+					tsLogger.Errorf(
+						"subscription failed to pull events: [%v]",
+						err,
+					)
+				}
+				fromBlock := lastBlock - aits.opts.PastBlocks
+
+				tsLogger.Infof(
+					"subscription monitoring fetching past AutoIncreaseToggled events "+
+						"starting from block [%v]",
+					fromBlock,
+				)
+				events, err := aits.contract.PastAutoIncreaseToggledEvents(
+					fromBlock,
+					nil,
+					aits.stakingProviderFilter,
+				)
+				if err != nil {
+					tsLogger.Errorf(
+						"subscription failed to pull events: [%v]",
+						err,
+					)
+					continue
+				}
+				tsLogger.Infof(
+					"subscription monitoring fetched [%v] past AutoIncreaseToggled events",
+					len(events),
+				)
+
+				for _, event := range events {
+					sink <- event
+				}
+			}
+		}
+	}()
+
+	sub := aits.contract.watchAutoIncreaseToggled(
+		sink,
+		aits.stakingProviderFilter,
+	)
+
+	return subscription.NewEventSubscription(func() {
+		sub.Unsubscribe()
+		cancelCtx()
+	})
+}
+
+func (ts *TokenStaking) watchAutoIncreaseToggled(
+	sink chan *abi.TokenStakingAutoIncreaseToggled,
+	stakingProviderFilter []common.Address,
+) event.Subscription {
+	subscribeFn := func(ctx context.Context) (event.Subscription, error) {
+		return ts.contract.WatchAutoIncreaseToggled(
+			&bind.WatchOpts{Context: ctx},
+			sink,
+			stakingProviderFilter,
+		)
+	}
+
+	thresholdViolatedFn := func(elapsed time.Duration) {
+		tsLogger.Warnf(
+			"subscription to event AutoIncreaseToggled had to be "+
+				"retried [%s] since the last attempt; please inspect "+
+				"host chain connectivity",
+			elapsed,
+		)
+	}
+
+	subscriptionFailedFn := func(err error) {
+		tsLogger.Errorf(
+			"subscription to event AutoIncreaseToggled failed "+
+				"with error: [%v]; resubscription attempt will be "+
+				"performed",
+			err,
+		)
+	}
+
+	return chainutil.WithResubscription(
+		chainutil.SubscriptionBackoffMax,
+		subscribeFn,
+		chainutil.SubscriptionAlertThreshold,
+		thresholdViolatedFn,
+		subscriptionFailedFn,
+	)
+}
+
+func (ts *TokenStaking) PastAutoIncreaseToggledEvents(
+	startBlock uint64,
+	endBlock *uint64,
+	stakingProviderFilter []common.Address,
+) ([]*abi.TokenStakingAutoIncreaseToggled, error) {
+	iterator, err := ts.contract.FilterAutoIncreaseToggled(
+		&bind.FilterOpts{
+			Start: startBlock,
+			End:   endBlock,
+		},
+		stakingProviderFilter,
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"error retrieving past AutoIncreaseToggled events: [%v]",
+			err,
+		)
+	}
+
+	events := make([]*abi.TokenStakingAutoIncreaseToggled, 0)
+
+	for iterator.Next() {
+		event := iterator.Event
+		events = append(events, event)
+	}
+
+	return events, nil
+}
+
 func (ts *TokenStaking) DelegateChangedEvent(
 	opts *ethereum.SubscribeOpts,
 	delegatorFilter []common.Address,
@@ -8064,6 +5294,191 @@ func (ts *TokenStaking) PastMinimumStakeAmountSetEvents(
 	return events, nil
 }
 
+func (ts *TokenStaking) NotificationReceivedEvent(
+	opts *ethereum.SubscribeOpts,
+) *TsNotificationReceivedSubscription {
+	if opts == nil {
+		opts = new(ethereum.SubscribeOpts)
+	}
+	if opts.Tick == 0 {
+		opts.Tick = chainutil.DefaultSubscribeOptsTick
+	}
+	if opts.PastBlocks == 0 {
+		opts.PastBlocks = chainutil.DefaultSubscribeOptsPastBlocks
+	}
+
+	return &TsNotificationReceivedSubscription{
+		ts,
+		opts,
+	}
+}
+
+type TsNotificationReceivedSubscription struct {
+	contract *TokenStaking
+	opts     *ethereum.SubscribeOpts
+}
+
+type tokenStakingNotificationReceivedFunc func(
+	Amount *big.Int,
+	RewardMultipier *big.Int,
+	Notifier common.Address,
+	StakingProviders []common.Address,
+	blockNumber uint64,
+)
+
+func (nrs *TsNotificationReceivedSubscription) OnEvent(
+	handler tokenStakingNotificationReceivedFunc,
+) subscription.EventSubscription {
+	eventChan := make(chan *abi.TokenStakingNotificationReceived)
+	ctx, cancelCtx := context.WithCancel(context.Background())
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event := <-eventChan:
+				handler(
+					event.Amount,
+					event.RewardMultipier,
+					event.Notifier,
+					event.StakingProviders,
+					event.Raw.BlockNumber,
+				)
+			}
+		}
+	}()
+
+	sub := nrs.Pipe(eventChan)
+	return subscription.NewEventSubscription(func() {
+		sub.Unsubscribe()
+		cancelCtx()
+	})
+}
+
+func (nrs *TsNotificationReceivedSubscription) Pipe(
+	sink chan *abi.TokenStakingNotificationReceived,
+) subscription.EventSubscription {
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(nrs.opts.Tick)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				lastBlock, err := nrs.contract.blockCounter.CurrentBlock()
+				if err != nil {
+					tsLogger.Errorf(
+						"subscription failed to pull events: [%v]",
+						err,
+					)
+				}
+				fromBlock := lastBlock - nrs.opts.PastBlocks
+
+				tsLogger.Infof(
+					"subscription monitoring fetching past NotificationReceived events "+
+						"starting from block [%v]",
+					fromBlock,
+				)
+				events, err := nrs.contract.PastNotificationReceivedEvents(
+					fromBlock,
+					nil,
+				)
+				if err != nil {
+					tsLogger.Errorf(
+						"subscription failed to pull events: [%v]",
+						err,
+					)
+					continue
+				}
+				tsLogger.Infof(
+					"subscription monitoring fetched [%v] past NotificationReceived events",
+					len(events),
+				)
+
+				for _, event := range events {
+					sink <- event
+				}
+			}
+		}
+	}()
+
+	sub := nrs.contract.watchNotificationReceived(
+		sink,
+	)
+
+	return subscription.NewEventSubscription(func() {
+		sub.Unsubscribe()
+		cancelCtx()
+	})
+}
+
+func (ts *TokenStaking) watchNotificationReceived(
+	sink chan *abi.TokenStakingNotificationReceived,
+) event.Subscription {
+	subscribeFn := func(ctx context.Context) (event.Subscription, error) {
+		return ts.contract.WatchNotificationReceived(
+			&bind.WatchOpts{Context: ctx},
+			sink,
+		)
+	}
+
+	thresholdViolatedFn := func(elapsed time.Duration) {
+		tsLogger.Warnf(
+			"subscription to event NotificationReceived had to be "+
+				"retried [%s] since the last attempt; please inspect "+
+				"host chain connectivity",
+			elapsed,
+		)
+	}
+
+	subscriptionFailedFn := func(err error) {
+		tsLogger.Errorf(
+			"subscription to event NotificationReceived failed "+
+				"with error: [%v]; resubscription attempt will be "+
+				"performed",
+			err,
+		)
+	}
+
+	return chainutil.WithResubscription(
+		chainutil.SubscriptionBackoffMax,
+		subscribeFn,
+		chainutil.SubscriptionAlertThreshold,
+		thresholdViolatedFn,
+		subscriptionFailedFn,
+	)
+}
+
+func (ts *TokenStaking) PastNotificationReceivedEvents(
+	startBlock uint64,
+	endBlock *uint64,
+) ([]*abi.TokenStakingNotificationReceived, error) {
+	iterator, err := ts.contract.FilterNotificationReceived(
+		&bind.FilterOpts{
+			Start: startBlock,
+			End:   endBlock,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"error retrieving past NotificationReceived events: [%v]",
+			err,
+		)
+	}
+
+	events := make([]*abi.TokenStakingNotificationReceived, 0)
+
+	for iterator.Next() {
+		event := iterator.Event
+		events = append(events, event)
+	}
+
+	return events, nil
+}
+
 func (ts *TokenStaking) NotificationRewardPushedEvent(
 	opts *ethereum.SubscribeOpts,
 ) *TsNotificationRewardPushedSubscription {
@@ -8793,216 +6208,6 @@ func (ts *TokenStaking) PastNotifierRewardedEvents(
 	return events, nil
 }
 
-func (ts *TokenStaking) OwnerRefreshedEvent(
-	opts *ethereum.SubscribeOpts,
-	stakingProviderFilter []common.Address,
-	oldOwnerFilter []common.Address,
-	newOwnerFilter []common.Address,
-) *TsOwnerRefreshedSubscription {
-	if opts == nil {
-		opts = new(ethereum.SubscribeOpts)
-	}
-	if opts.Tick == 0 {
-		opts.Tick = chainutil.DefaultSubscribeOptsTick
-	}
-	if opts.PastBlocks == 0 {
-		opts.PastBlocks = chainutil.DefaultSubscribeOptsPastBlocks
-	}
-
-	return &TsOwnerRefreshedSubscription{
-		ts,
-		opts,
-		stakingProviderFilter,
-		oldOwnerFilter,
-		newOwnerFilter,
-	}
-}
-
-type TsOwnerRefreshedSubscription struct {
-	contract              *TokenStaking
-	opts                  *ethereum.SubscribeOpts
-	stakingProviderFilter []common.Address
-	oldOwnerFilter        []common.Address
-	newOwnerFilter        []common.Address
-}
-
-type tokenStakingOwnerRefreshedFunc func(
-	StakingProvider common.Address,
-	OldOwner common.Address,
-	NewOwner common.Address,
-	blockNumber uint64,
-)
-
-func (ors *TsOwnerRefreshedSubscription) OnEvent(
-	handler tokenStakingOwnerRefreshedFunc,
-) subscription.EventSubscription {
-	eventChan := make(chan *abi.TokenStakingOwnerRefreshed)
-	ctx, cancelCtx := context.WithCancel(context.Background())
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case event := <-eventChan:
-				handler(
-					event.StakingProvider,
-					event.OldOwner,
-					event.NewOwner,
-					event.Raw.BlockNumber,
-				)
-			}
-		}
-	}()
-
-	sub := ors.Pipe(eventChan)
-	return subscription.NewEventSubscription(func() {
-		sub.Unsubscribe()
-		cancelCtx()
-	})
-}
-
-func (ors *TsOwnerRefreshedSubscription) Pipe(
-	sink chan *abi.TokenStakingOwnerRefreshed,
-) subscription.EventSubscription {
-	ctx, cancelCtx := context.WithCancel(context.Background())
-	go func() {
-		ticker := time.NewTicker(ors.opts.Tick)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				lastBlock, err := ors.contract.blockCounter.CurrentBlock()
-				if err != nil {
-					tsLogger.Errorf(
-						"subscription failed to pull events: [%v]",
-						err,
-					)
-				}
-				fromBlock := lastBlock - ors.opts.PastBlocks
-
-				tsLogger.Infof(
-					"subscription monitoring fetching past OwnerRefreshed events "+
-						"starting from block [%v]",
-					fromBlock,
-				)
-				events, err := ors.contract.PastOwnerRefreshedEvents(
-					fromBlock,
-					nil,
-					ors.stakingProviderFilter,
-					ors.oldOwnerFilter,
-					ors.newOwnerFilter,
-				)
-				if err != nil {
-					tsLogger.Errorf(
-						"subscription failed to pull events: [%v]",
-						err,
-					)
-					continue
-				}
-				tsLogger.Infof(
-					"subscription monitoring fetched [%v] past OwnerRefreshed events",
-					len(events),
-				)
-
-				for _, event := range events {
-					sink <- event
-				}
-			}
-		}
-	}()
-
-	sub := ors.contract.watchOwnerRefreshed(
-		sink,
-		ors.stakingProviderFilter,
-		ors.oldOwnerFilter,
-		ors.newOwnerFilter,
-	)
-
-	return subscription.NewEventSubscription(func() {
-		sub.Unsubscribe()
-		cancelCtx()
-	})
-}
-
-func (ts *TokenStaking) watchOwnerRefreshed(
-	sink chan *abi.TokenStakingOwnerRefreshed,
-	stakingProviderFilter []common.Address,
-	oldOwnerFilter []common.Address,
-	newOwnerFilter []common.Address,
-) event.Subscription {
-	subscribeFn := func(ctx context.Context) (event.Subscription, error) {
-		return ts.contract.WatchOwnerRefreshed(
-			&bind.WatchOpts{Context: ctx},
-			sink,
-			stakingProviderFilter,
-			oldOwnerFilter,
-			newOwnerFilter,
-		)
-	}
-
-	thresholdViolatedFn := func(elapsed time.Duration) {
-		tsLogger.Warnf(
-			"subscription to event OwnerRefreshed had to be "+
-				"retried [%s] since the last attempt; please inspect "+
-				"host chain connectivity",
-			elapsed,
-		)
-	}
-
-	subscriptionFailedFn := func(err error) {
-		tsLogger.Errorf(
-			"subscription to event OwnerRefreshed failed "+
-				"with error: [%v]; resubscription attempt will be "+
-				"performed",
-			err,
-		)
-	}
-
-	return chainutil.WithResubscription(
-		chainutil.SubscriptionBackoffMax,
-		subscribeFn,
-		chainutil.SubscriptionAlertThreshold,
-		thresholdViolatedFn,
-		subscriptionFailedFn,
-	)
-}
-
-func (ts *TokenStaking) PastOwnerRefreshedEvents(
-	startBlock uint64,
-	endBlock *uint64,
-	stakingProviderFilter []common.Address,
-	oldOwnerFilter []common.Address,
-	newOwnerFilter []common.Address,
-) ([]*abi.TokenStakingOwnerRefreshed, error) {
-	iterator, err := ts.contract.FilterOwnerRefreshed(
-		&bind.FilterOpts{
-			Start: startBlock,
-			End:   endBlock,
-		},
-		stakingProviderFilter,
-		oldOwnerFilter,
-		newOwnerFilter,
-	)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"error retrieving past OwnerRefreshed events: [%v]",
-			err,
-		)
-	}
-
-	events := make([]*abi.TokenStakingOwnerRefreshed, 0)
-
-	for iterator.Next() {
-		event := iterator.Event
-		events = append(events, event)
-	}
-
-	return events, nil
-}
-
 func (ts *TokenStaking) PanicButtonSetEvent(
 	opts *ethereum.SubscribeOpts,
 	applicationFilter []common.Address,
@@ -9385,187 +6590,6 @@ func (ts *TokenStaking) PastSlashingProcessedEvents(
 	}
 
 	events := make([]*abi.TokenStakingSlashingProcessed, 0)
-
-	for iterator.Next() {
-		event := iterator.Event
-		events = append(events, event)
-	}
-
-	return events, nil
-}
-
-func (ts *TokenStaking) StakeDiscrepancyPenaltySetEvent(
-	opts *ethereum.SubscribeOpts,
-) *TsStakeDiscrepancyPenaltySetSubscription {
-	if opts == nil {
-		opts = new(ethereum.SubscribeOpts)
-	}
-	if opts.Tick == 0 {
-		opts.Tick = chainutil.DefaultSubscribeOptsTick
-	}
-	if opts.PastBlocks == 0 {
-		opts.PastBlocks = chainutil.DefaultSubscribeOptsPastBlocks
-	}
-
-	return &TsStakeDiscrepancyPenaltySetSubscription{
-		ts,
-		opts,
-	}
-}
-
-type TsStakeDiscrepancyPenaltySetSubscription struct {
-	contract *TokenStaking
-	opts     *ethereum.SubscribeOpts
-}
-
-type tokenStakingStakeDiscrepancyPenaltySetFunc func(
-	Penalty *big.Int,
-	RewardMultiplier *big.Int,
-	blockNumber uint64,
-)
-
-func (sdpss *TsStakeDiscrepancyPenaltySetSubscription) OnEvent(
-	handler tokenStakingStakeDiscrepancyPenaltySetFunc,
-) subscription.EventSubscription {
-	eventChan := make(chan *abi.TokenStakingStakeDiscrepancyPenaltySet)
-	ctx, cancelCtx := context.WithCancel(context.Background())
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case event := <-eventChan:
-				handler(
-					event.Penalty,
-					event.RewardMultiplier,
-					event.Raw.BlockNumber,
-				)
-			}
-		}
-	}()
-
-	sub := sdpss.Pipe(eventChan)
-	return subscription.NewEventSubscription(func() {
-		sub.Unsubscribe()
-		cancelCtx()
-	})
-}
-
-func (sdpss *TsStakeDiscrepancyPenaltySetSubscription) Pipe(
-	sink chan *abi.TokenStakingStakeDiscrepancyPenaltySet,
-) subscription.EventSubscription {
-	ctx, cancelCtx := context.WithCancel(context.Background())
-	go func() {
-		ticker := time.NewTicker(sdpss.opts.Tick)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				lastBlock, err := sdpss.contract.blockCounter.CurrentBlock()
-				if err != nil {
-					tsLogger.Errorf(
-						"subscription failed to pull events: [%v]",
-						err,
-					)
-				}
-				fromBlock := lastBlock - sdpss.opts.PastBlocks
-
-				tsLogger.Infof(
-					"subscription monitoring fetching past StakeDiscrepancyPenaltySet events "+
-						"starting from block [%v]",
-					fromBlock,
-				)
-				events, err := sdpss.contract.PastStakeDiscrepancyPenaltySetEvents(
-					fromBlock,
-					nil,
-				)
-				if err != nil {
-					tsLogger.Errorf(
-						"subscription failed to pull events: [%v]",
-						err,
-					)
-					continue
-				}
-				tsLogger.Infof(
-					"subscription monitoring fetched [%v] past StakeDiscrepancyPenaltySet events",
-					len(events),
-				)
-
-				for _, event := range events {
-					sink <- event
-				}
-			}
-		}
-	}()
-
-	sub := sdpss.contract.watchStakeDiscrepancyPenaltySet(
-		sink,
-	)
-
-	return subscription.NewEventSubscription(func() {
-		sub.Unsubscribe()
-		cancelCtx()
-	})
-}
-
-func (ts *TokenStaking) watchStakeDiscrepancyPenaltySet(
-	sink chan *abi.TokenStakingStakeDiscrepancyPenaltySet,
-) event.Subscription {
-	subscribeFn := func(ctx context.Context) (event.Subscription, error) {
-		return ts.contract.WatchStakeDiscrepancyPenaltySet(
-			&bind.WatchOpts{Context: ctx},
-			sink,
-		)
-	}
-
-	thresholdViolatedFn := func(elapsed time.Duration) {
-		tsLogger.Warnf(
-			"subscription to event StakeDiscrepancyPenaltySet had to be "+
-				"retried [%s] since the last attempt; please inspect "+
-				"host chain connectivity",
-			elapsed,
-		)
-	}
-
-	subscriptionFailedFn := func(err error) {
-		tsLogger.Errorf(
-			"subscription to event StakeDiscrepancyPenaltySet failed "+
-				"with error: [%v]; resubscription attempt will be "+
-				"performed",
-			err,
-		)
-	}
-
-	return chainutil.WithResubscription(
-		chainutil.SubscriptionBackoffMax,
-		subscribeFn,
-		chainutil.SubscriptionAlertThreshold,
-		thresholdViolatedFn,
-		subscriptionFailedFn,
-	)
-}
-
-func (ts *TokenStaking) PastStakeDiscrepancyPenaltySetEvents(
-	startBlock uint64,
-	endBlock *uint64,
-) ([]*abi.TokenStakingStakeDiscrepancyPenaltySet, error) {
-	iterator, err := ts.contract.FilterStakeDiscrepancyPenaltySet(
-		&bind.FilterOpts{
-			Start: startBlock,
-			End:   endBlock,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"error retrieving past StakeDiscrepancyPenaltySet events: [%v]",
-			err,
-		)
-	}
-
-	events := make([]*abi.TokenStakingStakeDiscrepancyPenaltySet, 0)
 
 	for iterator.Next() {
 		event := iterator.Event

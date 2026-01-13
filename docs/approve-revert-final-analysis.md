@@ -96,3 +96,4 @@ This confirms the issue is not specific to Hardhat/ethers.js encoding.
 - `docs/approve-conditions-verification-results.md` - Complete verification results
 - `docs/dkg-hash-mismatch-issue.md` - Hash mismatch root cause (resolved)
 
+

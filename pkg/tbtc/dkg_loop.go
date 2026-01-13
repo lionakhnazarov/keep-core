@@ -5,8 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"github.com/keep-network/keep-core/pkg/protocol/announcer"
 	"math/big"
+
+	"github.com/keep-network/keep-core/pkg/protocol/announcer"
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/keep-network/keep-core/pkg/chain"
@@ -27,7 +28,11 @@ const (
 	dkgAttemptAnnouncementActiveBlocks = 10
 	// dkgAttemptProtocolBlocks determines the maximum block duration of the
 	// actual protocol computations.
-	dkgAttemptMaximumProtocolBlocks = 200
+	// Increased from 200 to 1200 for development with 100 members to allow enough
+	// time for prime generation and TSS protocol rounds. With 100 members, prime
+	// generation alone can take 2-3 minutes, and the protocol rounds need
+	// additional time for communication and computation.
+	dkgAttemptMaximumProtocolBlocks = 1200
 	// dkgAttemptCoolDownBlocks determines the duration of the cool down
 	// period that is preserved between subsequent DKG attempts.
 	dkgAttemptCoolDownBlocks = 5

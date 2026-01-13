@@ -2,29 +2,13 @@ import { ethers } from "hardhat"
 import hre from "hardhat"
 
 async function main() {
-  // Get Bridge address from deployments
+  // Get Bridge address - use walletOwner as source of truth
   const fs = require("fs")
   const path = require("path")
-  const bridgePath = path.resolve(__dirname, "../../tbtc-stub/deployments/development/Bridge.json")
+  const bridgePathStub = path.resolve(__dirname, "../../tbtc-stub/deployments/development/Bridge.json")
+  const bridgePathV2 = path.resolve(__dirname, "../../../tmp/tbtc-v2/solidity/deployments/development/Bridge.json")
   
-  let bridgeAddress: string
-  if (fs.existsSync(bridgePath)) {
-    const bridgeData = JSON.parse(fs.readFileSync(bridgePath, "utf8"))
-    bridgeAddress = bridgeData.address
-  } else {
-    console.error("Error: Bridge deployment not found at:", bridgePath)
-    console.error("Please deploy Bridge first or provide Bridge address manually")
-    process.exit(1)
-  }
-  
-  console.log("==========================================")
-  console.log("Requesting New Wallet (Triggering DKG)")
-  console.log("==========================================")
-  console.log("")
-  console.log(`Bridge address: ${bridgeAddress}`)
-  console.log("")
-  
-  // Verify walletOwner is set correctly
+  // First, check what walletOwner is set to (this is the authoritative source)
   const WalletRegistry = await hre.deployments.get("WalletRegistry")
   const wr = await ethers.getContractAt(
     [
@@ -35,15 +19,68 @@ async function main() {
     ],
     WalletRegistry.address
   )
+  const walletOwnerAddress = await wr.walletOwner()
+  
+  let bridgeAddress: string
+  let bridgePath: string
+  let bridgeSource: string
+  
+  // Use walletOwner as the Bridge address (it's already set correctly)
+  bridgeAddress = walletOwnerAddress
+  
+  // Determine which Bridge this is based on deployment files
+  if (fs.existsSync(bridgePathStub)) {
+    const bridgeStubData = JSON.parse(fs.readFileSync(bridgePathStub, "utf8"))
+    if (bridgeStubData.address.toLowerCase() === bridgeAddress.toLowerCase()) {
+      bridgePath = bridgePathStub
+      bridgeSource = "Bridge stub (walletOwner)"
+    }
+  }
+  
+  if (!bridgePath && fs.existsSync(bridgePathV2)) {
+    const bridgeV2Data = JSON.parse(fs.readFileSync(bridgePathV2, "utf8"))
+    if (bridgeV2Data.address.toLowerCase() === bridgeAddress.toLowerCase()) {
+      bridgePath = bridgePathV2
+      bridgeSource = "Bridge v2 (walletOwner)"
+    }
+  }
+  
+  // If we couldn't match to a deployment file, use walletOwner address directly
+  if (!bridgePath) {
+    bridgeSource = `Bridge (walletOwner: ${bridgeAddress.slice(0, 10)}...)`
+    console.log(`⚠️  Bridge address from walletOwner doesn't match known deployments`)
+    console.log(`   Using walletOwner address: ${bridgeAddress}`)
+  }
+  
+  // Verify Bridge has code
+  const bridgeCode = await ethers.provider.getCode(bridgeAddress)
+  if (bridgeCode === "0x" || bridgeCode === "0x0") {
+    console.error(`⚠️  ERROR: Bridge contract at ${bridgeAddress} has no code!`)
+    console.error(`   The Bridge contract is not deployed at this address.`)
+    process.exit(1)
+  }
+  
+  console.log("==========================================")
+  console.log("Requesting New Wallet (Triggering DKG)")
+  console.log("==========================================")
+  console.log("")
+  console.log(`Bridge address: ${bridgeAddress}`)
+  console.log(`Bridge source: ${bridgeSource}`)
+  console.log("")
+  
+  // Verify walletOwner matches Bridge address
   const walletOwner = await wr.walletOwner()
   console.log(`WalletRegistry walletOwner: ${walletOwner}`)
   
   if (walletOwner.toLowerCase() !== bridgeAddress.toLowerCase()) {
     console.error(`⚠️  ERROR: WalletOwner mismatch!`)
-    console.error(`   Expected: ${bridgeAddress}`)
+    console.error(`   Expected: ${bridgeAddress} (${bridgeSource})`)
     console.error(`   Got: ${walletOwner}`)
     console.error(`   Please update walletOwner to match Bridge address`)
     console.error(`   Run: cd solidity/ecdsa && npx hardhat run scripts/init-wallet-owner.ts --network development`)
+    console.error("")
+    console.error(`   Note: The script prefers Bridge stub (has callback function) over Bridge v2.`)
+    console.error(`   If walletOwner is set to Bridge v2, update it to Bridge stub for DKG to work correctly.`)
     process.exit(1)
   }
   
@@ -192,18 +229,93 @@ async function main() {
   }
 
   // Alternative: Try calling Bridge.requestNewWallet() directly
-  // This will work if Bridge contract has the function and can call WalletRegistry
+  // Bridge.requestNewWallet takes a BitcoinTx.UTXO parameter (bytes32 txHash, uint32 outputIndex, uint64 amount)
+  // For NO_MAIN_UTXO (no active wallet), we pass zeros
   console.log(`Trying Bridge.requestNewWallet()...`)
   try {
-    const bridge = await ethers.getContractAt(
-      ["function requestNewWallet() external"],
-      bridgeAddress
-    )
+    // First verify the contract exists and has code
+    const bridgeCode = await ethers.provider.getCode(bridgeAddress)
+    if (bridgeCode === "0x" || bridgeCode === "0x0") {
+      console.error(`⚠️  ERROR: Bridge contract at ${bridgeAddress} has no code!`)
+      console.error(`   The Bridge contract is not deployed at this address.`)
+      console.error(`   WalletRegistry walletOwner is set to this address, but the contract doesn't exist.`)
+      console.error("")
+      console.error("Options:")
+      console.error("  1. Deploy the Bridge contract:")
+      console.error("     cd tmp/tbtc-v2/solidity && npx hardhat deploy --network development --tags Bridge")
+      console.error("")
+      console.error("  2. Or, if using tbtc-stub Bridge:")
+      console.error("     cd solidity/tbtc-stub && npx hardhat deploy --network development --tags TBTCStubs")
+      console.error("")
+      console.error("  3. After deploying, update WalletRegistry walletOwner:")
+      console.error("     cd solidity/ecdsa && npx hardhat run scripts/init-wallet-owner.ts --network development")
+      console.error("")
+      throw new Error(`Bridge contract at ${bridgeAddress} has no code - contract may not be deployed`)
+    }
+    
+    // Try to load full Bridge ABI from deployment file, or use minimal signature
+    let bridgeAbi: any[]
+    let useFullAbi = false
+    let hasStructParam = false
+    
+    const bridgeDeploymentPath = path.resolve(__dirname, "../../../tmp/tbtc-v2/solidity/deployments/development/Bridge.json")
+    const bridgeStubPath = path.resolve(__dirname, "../../tbtc-stub/deployments/development/Bridge.json")
+    
+    // Prefer Bridge stub (has callback), then Bridge v2
+    if (fs.existsSync(bridgeStubPath)) {
+      // Bridge stub - requestNewWallet() takes NO parameters
+      const bridgeDeployment = JSON.parse(fs.readFileSync(bridgeStubPath, "utf8"))
+      bridgeAbi = bridgeDeployment.abi
+      useFullAbi = true
+      // Bridge stub's requestNewWallet() has no inputs
+      hasStructParam = false
+    } else if (fs.existsSync(bridgeDeploymentPath)) {
+      // Bridge v2 - may have struct parameter
+      const bridgeDeployment = JSON.parse(fs.readFileSync(bridgeDeploymentPath, "utf8"))
+      bridgeAbi = bridgeDeployment.abi
+      useFullAbi = true
+      // Check if Bridge v2 has requestNewWallet with struct parameter
+      const hasStruct = bridgeAbi.some((item: any) => 
+        item.type === "function" && 
+        item.name === "requestNewWallet" && 
+        item.inputs && item.inputs.length > 0
+      )
+      hasStructParam = hasStruct
+    } else {
+      // Fallback: try without params first (Bridge stub signature)
+      bridgeAbi = [
+        "function requestNewWallet() external",
+        "function requestNewWallet((bytes32,uint32,uint64)) external"
+      ]
+      useFullAbi = false
+      hasStructParam = false // Will try no-param version first
+    }
+    
+    const bridge = await ethers.getContractAt(bridgeAbi, bridgeAddress)
+    
+    // NO_MAIN_UTXO: zero txHash, zero outputIndex, zero amount
+    // Use object format if full ABI (has struct definition), array format if minimal ABI
+    const NO_MAIN_UTXO = useFullAbi && hasStructParam
+      ? {
+          txHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+          txOutputIndex: 0,
+          txOutputValue: 0
+        }
+      : [
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+          0,
+          0
+        ]
     
     // First, try a static call to simulate the transaction and get revert reason
     console.log(`Simulating transaction with static call...`)
     try {
-      await bridge.connect(signer).callStatic.requestNewWallet({ gasLimit: 500000 })
+      // Try calling without parameters first (for Bridge stub contracts)
+      if (!hasStructParam) {
+        await bridge.connect(signer).callStatic.requestNewWallet({ gasLimit: 500000 })
+      } else {
+        await bridge.connect(signer).callStatic.requestNewWallet(NO_MAIN_UTXO, { gasLimit: 500000 })
+      }
       console.log(`✓ Static call succeeded - transaction should work`)
     } catch (staticCallError: any) {
       console.error(`⚠️  Static call failed - transaction will revert`)
@@ -228,7 +340,10 @@ async function main() {
       if (!errorData || errorData === "0x" || errorData.length < 10) {
         console.log(`   Trying direct RPC call to get error details...`)
         try {
-          const callData = bridge.interface.encodeFunctionData("requestNewWallet", [])
+          // Try encoding with or without parameters based on Bridge ABI
+          const callData = hasStructParam
+            ? bridge.interface.encodeFunctionData("requestNewWallet", [NO_MAIN_UTXO])
+            : bridge.interface.encodeFunctionData("requestNewWallet", [])
           const result = await hre.network.provider.send("eth_call", [{
             to: bridgeAddress,
             from: signer.address,
@@ -451,43 +566,110 @@ async function main() {
       
       // Fall back to original method
       console.log(`Sending transaction through Bridge...`)
-      const tx = await bridge.connect(signer).requestNewWallet({ 
-        gasLimit: 500000,
-        gasPrice: ethers.utils.parseUnits("1", "gwei")
-      })
-      console.log(`Transaction submitted: ${tx.hash}`)
-      const receipt = await tx.wait()
-      if (receipt.status === 1) {
-        console.log(`✓ DKG triggered successfully!`)
-        console.log(`   Transaction confirmed in block: ${receipt.blockNumber}`)
-        console.log(`   You can monitor DKG progress in node logs`)
-        console.log("")
-        console.log("==========================================")
-        console.log("DKG Request Complete!")
-        console.log("==========================================")
-        return
-      } else {
-        // Transaction reverted - try to get revert reason from trace
-        console.error(`⚠️  Transaction reverted (status: 0)`)
-        console.error(`   Transaction hash: ${receipt.transactionHash}`)
-        console.error(`   Block: ${receipt.blockNumber}`)
-        console.error(`   Gas used: ${receipt.gasUsed.toString()}`)
-        
-        // Try to get revert reason using debug_traceTransaction
-        try {
-          const trace = await hre.network.provider.send("debug_traceTransaction", [
-            receipt.transactionHash,
-            { tracer: "callTracer" }
-          ])
-          if (trace.error) {
-            console.error(`   Revert reason from trace: ${trace.error}`)
-          }
-        } catch (traceError) {
-          // Trace might not be available
-          console.error(`   Could not get transaction trace (this is normal for some nodes)`)
+      try {
+        // Ensure bridge and NO_MAIN_UTXO are available
+        if (!bridge || !NO_MAIN_UTXO) {
+          throw new Error("Bridge contract or NO_MAIN_UTXO not initialized")
         }
         
-        throw new Error("Transaction reverted - see details above")
+        // Try encoding the function call manually first to catch encoding errors
+        let encodedData: string
+        try {
+          // Try calling without parameters first (for Bridge stub contracts)
+          if (!hasStructParam) {
+            encodedData = bridge.interface.encodeFunctionData("requestNewWallet", [])
+          } else {
+            encodedData = bridge.interface.encodeFunctionData("requestNewWallet", [NO_MAIN_UTXO])
+          }
+          console.log(`Function call encoded successfully`)
+        } catch (encodeError: any) {
+          console.error(`Failed to encode function call: ${encodeError.message}`)
+          console.error(`This might indicate the Bridge contract ABI doesn't match`)
+          // Try the other signature as fallback
+          try {
+            if (hasStructParam) {
+              encodedData = bridge.interface.encodeFunctionData("requestNewWallet", [])
+              console.log(`Fallback: Using requestNewWallet() without parameters`)
+              hasStructParam = false
+            } else {
+              encodedData = bridge.interface.encodeFunctionData("requestNewWallet", [NO_MAIN_UTXO])
+              console.log(`Fallback: Using requestNewWallet() with struct parameter`)
+              hasStructParam = true
+            }
+          } catch (fallbackError: any) {
+            throw new Error(`Function encoding failed: ${encodeError.message}`)
+          }
+        }
+        
+        // Try using populateTransaction to build the tx object first
+        let populatedTx: any
+        try {
+          if (!hasStructParam) {
+            populatedTx = await bridge.connect(signer).populateTransaction.requestNewWallet({
+              gasLimit: 500000,
+              gasPrice: ethers.utils.parseUnits("1", "gwei")
+            })
+          } else {
+            populatedTx = await bridge.connect(signer).populateTransaction.requestNewWallet(NO_MAIN_UTXO, {
+              gasLimit: 500000,
+              gasPrice: ethers.utils.parseUnits("1", "gwei")
+            })
+          }
+          console.log(`Transaction populated successfully`)
+        } catch (populateError: any) {
+          console.error(`Failed to populate transaction: ${populateError.message}`)
+          // If populateTransaction fails, try direct call anyway
+          console.log(`Attempting direct call despite populateTransaction failure...`)
+        }
+        
+        // Send the transaction
+        const txOptions = {
+          gasLimit: 500000,
+          gasPrice: ethers.utils.parseUnits("1", "gwei")
+        }
+        
+        console.log(`Sending transaction...`)
+        const tx = !hasStructParam
+          ? await bridge.connect(signer).requestNewWallet(txOptions)
+          : await bridge.connect(signer).requestNewWallet(NO_MAIN_UTXO, txOptions)
+        console.log(`Transaction submitted: ${tx.hash}`)
+        const receipt = await tx.wait()
+        
+        if (receipt.status === 1) {
+          console.log(`✓ DKG triggered successfully!`)
+          console.log(`   Transaction confirmed in block: ${receipt.blockNumber}`)
+          console.log(`   You can monitor DKG progress in node logs`)
+          console.log("")
+          console.log("==========================================")
+          console.log("DKG Request Complete!")
+          console.log("==========================================")
+          return
+        } else {
+          // Transaction reverted - try to get revert reason from trace
+          console.error(`⚠️  Transaction reverted (status: 0)`)
+          console.error(`   Transaction hash: ${receipt.transactionHash}`)
+          console.error(`   Block: ${receipt.blockNumber}`)
+          console.error(`   Gas used: ${receipt.gasUsed.toString()}`)
+          
+          // Try to get revert reason using debug_traceTransaction
+          try {
+            const trace = await hre.network.provider.send("debug_traceTransaction", [
+              receipt.transactionHash,
+              { tracer: "callTracer" }
+            ])
+            if (trace.error) {
+              console.error(`   Revert reason from trace: ${trace.error}`)
+            }
+          } catch (traceError) {
+            // Trace might not be available
+            console.error(`   Could not get transaction trace (this is normal for some nodes)`)
+          }
+          
+          throw new Error("Transaction reverted - see details above")
+        }
+      } catch (bridgeCallError: any) {
+        console.error(`Bridge.requestNewWallet() call failed: ${bridgeCallError.message}`)
+        throw bridgeCallError
       }
     }
   } catch (error: any) {
@@ -532,8 +714,15 @@ async function main() {
   console.log(`   # First, unlock an account in Geth:`)
   console.log(`   geth attach http://localhost:8545`)
   console.log(`   > personal.unlockAccount(eth.accounts[0], "", 0)`)
-  console.log(`   # Then use cast:`)
+  console.log(`   # Then use cast (try without parameters first):`)
   console.log(`   cast send ${bridgeAddress} "requestNewWallet()" \\`)
+  console.log(`     --rpc-url http://localhost:8545 \\`)
+  console.log(`     --unlocked \\`)
+  console.log(`     --from $(cast rpc eth_accounts --rpc-url http://localhost:8545 | jq -r '.[0]')`)
+  console.log("")
+  console.log(`   # If that fails, try with struct parameter:`)
+  console.log(`   cast send ${bridgeAddress} "requestNewWallet((bytes32,uint32,uint64))" \\`)
+  console.log(`     "(0x0000000000000000000000000000000000000000000000000000000000000000,0,0)" \\`)
   console.log(`     --rpc-url http://localhost:8545 \\`)
   console.log(`     --unlocked \\`)
   console.log(`     --from $(cast rpc eth_accounts --rpc-url http://localhost:8545 | jq -r '.[0]')`)

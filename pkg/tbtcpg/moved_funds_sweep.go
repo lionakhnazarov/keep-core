@@ -3,6 +3,7 @@ package tbtcpg
 import (
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/ipfs/go-log/v2"
 	"go.uber.org/zap"
@@ -59,6 +60,13 @@ func (mfst *MovedFundsSweepTask) Run(request *tbtc.CoordinationProposalRequest) 
 	// Check if the wallet is eligible for moved funds sweep.
 	walletChainData, err := mfst.chain.GetWallet(walletPublicKeyHash)
 	if err != nil {
+		// If wallet doesn't exist in Bridge contract, skip this task gracefully.
+		// This can happen if the wallet was created in WalletRegistry but never
+		// registered in Bridge, or if the wallet was closed/terminated.
+		if strings.Contains(err.Error(), "no wallet for public key hash") {
+			taskLogger.Infof("wallet does not exist in Bridge contract, skipping MovedFundsSweep")
+			return nil, false, nil
+		}
 		return nil, false, fmt.Errorf(
 			"cannot get wallet's chain data: [%w]",
 			err,

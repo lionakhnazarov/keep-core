@@ -85,3 +85,4 @@ npx hardhat run scripts/approve-dkg-from-event.ts --network development
 
 The transaction should succeed and `unlock()` should not revert.
 
+

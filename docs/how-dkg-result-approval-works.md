@@ -376,3 +376,4 @@ DKG result approval is a **two-phase process**:
 - Result hash mismatch because local result doesn't match on-chain result
 - **Solution**: Always use the exact result from the `DkgResultSubmitted` event
 
+

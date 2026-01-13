@@ -5,12 +5,35 @@ async function main() {
   const { getNamedAccounts, deployments } = hre
   const { deployer, governance } = await getNamedAccounts()
   
-  // Get Bridge address from tbtc-stub deployments
+  // Get Bridge address from deployments
+  // IMPORTANT: Prefer Bridge stub (has callback) over Bridge v2 (may not have callback)
   const fs = require("fs")
   const path = require("path")
-  const bridgePath = path.resolve(__dirname, "../../tbtc-stub/deployments/development/Bridge.json")
-  const bridgeData = JSON.parse(fs.readFileSync(bridgePath, "utf8"))
-  const bridgeAddress = bridgeData.address
+  const bridgePathStub = path.resolve(__dirname, "../../tbtc-stub/deployments/development/Bridge.json")
+  const bridgePathV2 = path.resolve(__dirname, "../../../tmp/tbtc-v2/solidity/deployments/development/Bridge.json")
+  
+  let bridgeAddress: string
+  let bridgePath: string
+  
+  // Prefer Bridge stub first (has callback function)
+  if (fs.existsSync(bridgePathStub)) {
+    bridgePath = bridgePathStub
+    const bridgeData = JSON.parse(fs.readFileSync(bridgePath, "utf8"))
+    bridgeAddress = bridgeData.address
+    console.log("Using Bridge stub (has callback function):", bridgeAddress)
+  } else if (fs.existsSync(bridgePathV2)) {
+    bridgePath = bridgePathV2
+    const bridgeData = JSON.parse(fs.readFileSync(bridgePath, "utf8"))
+    bridgeAddress = bridgeData.address
+    console.log("Using Bridge v2 (may not have callback):", bridgeAddress)
+    console.warn("⚠️  Bridge v2 may not have callback function - DKG approvals may fail")
+  } else {
+    console.error("Error: Bridge deployment not found at:")
+    console.error("  -", bridgePathStub)
+    console.error("  -", bridgePathV2)
+    console.error("Please deploy Bridge first or provide Bridge address manually")
+    process.exit(1)
+  }
   
   const WalletRegistryGovernance = await deployments.get("WalletRegistryGovernance")
   const WalletRegistry = await deployments.get("WalletRegistry")

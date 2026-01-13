@@ -58,6 +58,7 @@ func init() {
 		bDepositsCommand(),
 		bFraudChallengesCommand(),
 		bFraudParametersCommand(),
+		bGetRebateStakingCommand(),
 		bGetRedemptionWatchtowerCommand(),
 		bGovernanceCommand(),
 		bIsVaultTrustedCommand(),
@@ -87,6 +88,7 @@ func init() {
 		bResetMovingFundsTimeoutCommand(),
 		bRevealDepositCommand(),
 		bRevealDepositWithExtraDataCommand(),
+		bSetRebateStakingCommand(),
 		bSetRedemptionWatchtowerCommand(),
 		bSetSpvMaintainerStatusCommand(),
 		bSetVaultStatusCommand(),
@@ -319,6 +321,40 @@ func bFraudParameters(c *cobra.Command, args []string) error {
 	}
 
 	result, err := contract.FraudParametersAtBlock(
+		cmd.BlockFlagValue.Int,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	cmd.PrintOutput(result)
+
+	return nil
+}
+
+func bGetRebateStakingCommand() *cobra.Command {
+	c := &cobra.Command{
+		Use:                   "get-rebate-staking",
+		Short:                 "Calls the view method getRebateStaking on the Bridge contract.",
+		Args:                  cmd.ArgCountChecker(0),
+		RunE:                  bGetRebateStaking,
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
+	}
+
+	cmd.InitConstFlags(c)
+
+	return c
+}
+
+func bGetRebateStaking(c *cobra.Command, args []string) error {
+	contract, err := initializeBridge(c)
+	if err != nil {
+		return err
+	}
+
+	result, err := contract.GetRebateStakingAtBlock(
 		cmd.BlockFlagValue.Int,
 	)
 
@@ -2009,6 +2045,71 @@ func bRevealDepositWithExtraData(c *cobra.Command, args []string) error {
 			arg_fundingTx_json,
 			arg_reveal_json,
 			arg_extraData,
+			cmd.BlockFlagValue.Int,
+		)
+		if err != nil {
+			return err
+		}
+
+		cmd.PrintOutput("success")
+
+		cmd.PrintOutput(
+			"the transaction was not submitted to the chain; " +
+				"please add the `--submit` flag",
+		)
+	}
+
+	return nil
+}
+
+func bSetRebateStakingCommand() *cobra.Command {
+	c := &cobra.Command{
+		Use:                   "set-rebate-staking [arg_rebateStaking]",
+		Short:                 "Calls the nonpayable method setRebateStaking on the Bridge contract.",
+		Args:                  cmd.ArgCountChecker(1),
+		RunE:                  bSetRebateStaking,
+		SilenceUsage:          true,
+		DisableFlagsInUseLine: true,
+	}
+
+	c.PreRunE = cmd.NonConstArgsChecker
+	cmd.InitNonConstFlags(c)
+
+	return c
+}
+
+func bSetRebateStaking(c *cobra.Command, args []string) error {
+	contract, err := initializeBridge(c)
+	if err != nil {
+		return err
+	}
+
+	arg_rebateStaking, err := chainutil.AddressFromHex(args[0])
+	if err != nil {
+		return fmt.Errorf(
+			"couldn't parse parameter arg_rebateStaking, a address, from passed value %v",
+			args[0],
+		)
+	}
+
+	var (
+		transaction *types.Transaction
+	)
+
+	if shouldSubmit, _ := c.Flags().GetBool(cmd.SubmitFlag); shouldSubmit {
+		// Do a regular submission. Take payable into account.
+		transaction, err = contract.SetRebateStaking(
+			arg_rebateStaking,
+		)
+		if err != nil {
+			return err
+		}
+
+		cmd.PrintOutput(transaction.Hash())
+	} else {
+		// Do a call.
+		err = contract.CallSetRebateStaking(
+			arg_rebateStaking,
 			cmd.BlockFlagValue.Int,
 		)
 		if err != nil {

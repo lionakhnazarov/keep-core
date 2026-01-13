@@ -1,26 +1,12 @@
 {
-  "depositor": "0xc9a0f047245b13762ba6e882ff9178ce8257a862",
+  "depositor": "0x7966c178f466b060aaeb2b91e9149a5fb2ec9c53",
   "amount": 100000000,
-  "amountBTC": 1.00000000,
-  "fundingTxHash": "0xb5be568caaf69362a07e7c25e0f303c34d30c391d4c02b83439b6c192f4b53e4",
+  "amountBTC": 1.0,
+  "fundingTxHash": "0x90befc5fda49eec17427dabca25e6279189f47fbb34ce9bbaf27d772d1d61807",
   "fundingOutputIndex": 0,
-  "walletID": "0xf90fe699c1ad0877d0df2d35d974e5a2b2c0171041257dc5809b2c2fb3945db9",
-  "walletPublicKeyHash": "0x13a1d18b1d6b7ffb58d2bec05d3ae89f664b8bcf",
-  "blindingFactor": "0x1e4bf5fc367e4be1",
-  "refundPublicKeyHash": "0x70c9a47466af558dad5aad1397126ae1deddfad5",
-  "refundLocktime": "0x695ed64d",
-  "fundingTxInfo": {
-    "version": "0x01000000",
-    "inputVector": "0x0163dc327bb451b3dd29596aa15798812953d2d93e2e17f8cc0b236dc05eeaee150b66c0d7cc8991c2d02fe7922216d3e9bf3be792c6ce78b7a3f1622ce5fec30affffffff",
-    "outputVector": "0x010017c9a0f047245b13762ba6e882ff9178ce8257a862",
-    "locktime": "0x00000000"
-  },
-  "depositRevealInfo": {
-    "fundingOutputIndex": 0,
-    "blindingFactor": "0x1e4bf5fc367e4be1",
-    "walletPubKeyHash": "0x13a1d18b1d6b7ffb58d2bec05d3ae89f664b8bcf",
-    "refundPubKeyHash": "0x70c9a47466af558dad5aad1397126ae1deddfad5",
-    "refundLocktime": "0x695ed64d",
-    "vault": "0x0000000000000000000000000000000000000000"
-  }
+  "walletID": "",
+  "walletPublicKeyHash": "0x49be77e65eaa59efe636c5757fd3c31fc5efbb66",
+  "blindingFactor": "0xb38f43c15fa6b10d",
+  "refundPublicKeyHash": "0x46d05fc787bb47d4264689d24b9d8ed22ec9829b",
+  "refundLocktime": "0x696e1f9a"
 }

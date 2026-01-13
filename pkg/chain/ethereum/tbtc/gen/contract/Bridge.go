@@ -3027,6 +3027,144 @@ func (b *Bridge) RevealDepositWithExtraDataGasEstimate(
 }
 
 // Transaction submission.
+func (b *Bridge) SetRebateStaking(
+	arg_rebateStaking common.Address,
+
+	transactionOptions ...chainutil.TransactionOptions,
+) (*types.Transaction, error) {
+	bLogger.Debug(
+		"submitting transaction setRebateStaking",
+		" params: ",
+		fmt.Sprint(
+			arg_rebateStaking,
+		),
+	)
+
+	b.transactionMutex.Lock()
+	defer b.transactionMutex.Unlock()
+
+	// create a copy
+	transactorOptions := new(bind.TransactOpts)
+	*transactorOptions = *b.transactorOptions
+
+	if len(transactionOptions) > 1 {
+		return nil, fmt.Errorf(
+			"could not process multiple transaction options sets",
+		)
+	} else if len(transactionOptions) > 0 {
+		transactionOptions[0].Apply(transactorOptions)
+	}
+
+	nonce, err := b.nonceManager.CurrentNonce()
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
+	}
+
+	transactorOptions.Nonce = new(big.Int).SetUint64(nonce)
+
+	transaction, err := b.contract.SetRebateStaking(
+		transactorOptions,
+		arg_rebateStaking,
+	)
+	if err != nil {
+		return transaction, b.errorResolver.ResolveError(
+			err,
+			b.transactorOptions.From,
+			nil,
+			"setRebateStaking",
+			arg_rebateStaking,
+		)
+	}
+
+	bLogger.Infof(
+		"submitted transaction setRebateStaking with id: [%s] and nonce [%v]",
+		transaction.Hash(),
+		transaction.Nonce(),
+	)
+
+	go b.miningWaiter.ForceMining(
+		transaction,
+		transactorOptions,
+		func(newTransactorOptions *bind.TransactOpts) (*types.Transaction, error) {
+			// If original transactor options has a non-zero gas limit, that
+			// means the client code set it on their own. In that case, we
+			// should rewrite the gas limit from the original transaction
+			// for each resubmission. If the gas limit is not set by the client
+			// code, let the the submitter re-estimate the gas limit on each
+			// resubmission.
+			if transactorOptions.GasLimit != 0 {
+				newTransactorOptions.GasLimit = transactorOptions.GasLimit
+			}
+
+			transaction, err := b.contract.SetRebateStaking(
+				newTransactorOptions,
+				arg_rebateStaking,
+			)
+			if err != nil {
+				return nil, b.errorResolver.ResolveError(
+					err,
+					b.transactorOptions.From,
+					nil,
+					"setRebateStaking",
+					arg_rebateStaking,
+				)
+			}
+
+			bLogger.Infof(
+				"submitted transaction setRebateStaking with id: [%s] and nonce [%v]",
+				transaction.Hash(),
+				transaction.Nonce(),
+			)
+
+			return transaction, nil
+		},
+	)
+
+	b.nonceManager.IncrementNonce()
+
+	return transaction, err
+}
+
+// Non-mutating call, not a transaction submission.
+func (b *Bridge) CallSetRebateStaking(
+	arg_rebateStaking common.Address,
+	blockNumber *big.Int,
+) error {
+	var result interface{} = nil
+
+	err := chainutil.CallAtBlock(
+		b.transactorOptions.From,
+		blockNumber, nil,
+		b.contractABI,
+		b.caller,
+		b.errorResolver,
+		b.contractAddress,
+		"setRebateStaking",
+		&result,
+		arg_rebateStaking,
+	)
+
+	return err
+}
+
+func (b *Bridge) SetRebateStakingGasEstimate(
+	arg_rebateStaking common.Address,
+) (uint64, error) {
+	var result uint64
+
+	result, err := chainutil.EstimateGas(
+		b.callerOptions.From,
+		b.contractAddress,
+		"setRebateStaking",
+		b.contractABI,
+		b.transactor,
+		arg_rebateStaking,
+	)
+
+	return result, err
+}
+
+// Transaction submission.
 func (b *Bridge) SetRedemptionWatchtower(
 	arg_redemptionWatchtower common.Address,
 
@@ -5955,6 +6093,43 @@ func (b *Bridge) FraudParametersAtBlock(
 		b.errorResolver,
 		b.contractAddress,
 		"fraudParameters",
+		&result,
+	)
+
+	return result, err
+}
+
+func (b *Bridge) GetRebateStaking() (common.Address, error) {
+	result, err := b.contract.GetRebateStaking(
+		b.callerOptions,
+	)
+
+	if err != nil {
+		return result, b.errorResolver.ResolveError(
+			err,
+			b.callerOptions.From,
+			nil,
+			"getRebateStaking",
+		)
+	}
+
+	return result, err
+}
+
+func (b *Bridge) GetRebateStakingAtBlock(
+	blockNumber *big.Int,
+) (common.Address, error) {
+	var result common.Address
+
+	err := chainutil.CallAtBlock(
+		b.callerOptions.From,
+		blockNumber,
+		nil,
+		b.contractABI,
+		b.caller,
+		b.errorResolver,
+		b.contractAddress,
+		"getRebateStaking",
 		&result,
 	)
 
@@ -10145,6 +10320,185 @@ func (b *Bridge) PastNewWalletRequestedEvents(
 	}
 
 	events := make([]*abi.BridgeNewWalletRequested, 0)
+
+	for iterator.Next() {
+		event := iterator.Event
+		events = append(events, event)
+	}
+
+	return events, nil
+}
+
+func (b *Bridge) RebateStakingSetEvent(
+	opts *ethereum.SubscribeOpts,
+) *BRebateStakingSetSubscription {
+	if opts == nil {
+		opts = new(ethereum.SubscribeOpts)
+	}
+	if opts.Tick == 0 {
+		opts.Tick = chainutil.DefaultSubscribeOptsTick
+	}
+	if opts.PastBlocks == 0 {
+		opts.PastBlocks = chainutil.DefaultSubscribeOptsPastBlocks
+	}
+
+	return &BRebateStakingSetSubscription{
+		b,
+		opts,
+	}
+}
+
+type BRebateStakingSetSubscription struct {
+	contract *Bridge
+	opts     *ethereum.SubscribeOpts
+}
+
+type bridgeRebateStakingSetFunc func(
+	RebateStaking common.Address,
+	blockNumber uint64,
+)
+
+func (rsss *BRebateStakingSetSubscription) OnEvent(
+	handler bridgeRebateStakingSetFunc,
+) subscription.EventSubscription {
+	eventChan := make(chan *abi.BridgeRebateStakingSet)
+	ctx, cancelCtx := context.WithCancel(context.Background())
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case event := <-eventChan:
+				handler(
+					event.RebateStaking,
+					event.Raw.BlockNumber,
+				)
+			}
+		}
+	}()
+
+	sub := rsss.Pipe(eventChan)
+	return subscription.NewEventSubscription(func() {
+		sub.Unsubscribe()
+		cancelCtx()
+	})
+}
+
+func (rsss *BRebateStakingSetSubscription) Pipe(
+	sink chan *abi.BridgeRebateStakingSet,
+) subscription.EventSubscription {
+	ctx, cancelCtx := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(rsss.opts.Tick)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				lastBlock, err := rsss.contract.blockCounter.CurrentBlock()
+				if err != nil {
+					bLogger.Errorf(
+						"subscription failed to pull events: [%v]",
+						err,
+					)
+				}
+				fromBlock := lastBlock - rsss.opts.PastBlocks
+
+				bLogger.Infof(
+					"subscription monitoring fetching past RebateStakingSet events "+
+						"starting from block [%v]",
+					fromBlock,
+				)
+				events, err := rsss.contract.PastRebateStakingSetEvents(
+					fromBlock,
+					nil,
+				)
+				if err != nil {
+					bLogger.Errorf(
+						"subscription failed to pull events: [%v]",
+						err,
+					)
+					continue
+				}
+				bLogger.Infof(
+					"subscription monitoring fetched [%v] past RebateStakingSet events",
+					len(events),
+				)
+
+				for _, event := range events {
+					sink <- event
+				}
+			}
+		}
+	}()
+
+	sub := rsss.contract.watchRebateStakingSet(
+		sink,
+	)
+
+	return subscription.NewEventSubscription(func() {
+		sub.Unsubscribe()
+		cancelCtx()
+	})
+}
+
+func (b *Bridge) watchRebateStakingSet(
+	sink chan *abi.BridgeRebateStakingSet,
+) event.Subscription {
+	subscribeFn := func(ctx context.Context) (event.Subscription, error) {
+		return b.contract.WatchRebateStakingSet(
+			&bind.WatchOpts{Context: ctx},
+			sink,
+		)
+	}
+
+	thresholdViolatedFn := func(elapsed time.Duration) {
+		bLogger.Warnf(
+			"subscription to event RebateStakingSet had to be "+
+				"retried [%s] since the last attempt; please inspect "+
+				"host chain connectivity",
+			elapsed,
+		)
+	}
+
+	subscriptionFailedFn := func(err error) {
+		bLogger.Errorf(
+			"subscription to event RebateStakingSet failed "+
+				"with error: [%v]; resubscription attempt will be "+
+				"performed",
+			err,
+		)
+	}
+
+	return chainutil.WithResubscription(
+		chainutil.SubscriptionBackoffMax,
+		subscribeFn,
+		chainutil.SubscriptionAlertThreshold,
+		thresholdViolatedFn,
+		subscriptionFailedFn,
+	)
+}
+
+func (b *Bridge) PastRebateStakingSetEvents(
+	startBlock uint64,
+	endBlock *uint64,
+) ([]*abi.BridgeRebateStakingSet, error) {
+	iterator, err := b.contract.FilterRebateStakingSet(
+		&bind.FilterOpts{
+			Start: startBlock,
+			End:   endBlock,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"error retrieving past RebateStakingSet events: [%v]",
+			err,
+		)
+	}
+
+	events := make([]*abi.BridgeRebateStakingSet, 0)
 
 	for iterator.Next() {
 		event := iterator.Event

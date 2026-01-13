@@ -124,11 +124,14 @@ main() {
     echo "  - Clean all deployment files"
     echo "  - Redeploy all contracts"
     echo "  - Deploy and setup ReimbursementPool (authorize WalletRegistry, fund with ETH)"
+    echo "  - Ensure WalletRegistry uses correct ReimbursementPool address (update via governance if needed)"
+    echo "  - Deploy Bridge contract (if not already deployed)"
     echo "  - Initialize WalletRegistry walletOwner"
     echo "  - Initialize all operators"
     echo "  - Fund operators with ETH"
     echo "  - Join operators to sortition pools"
     echo "  - Set DKG parameters"
+    echo "  - Update DKG resultSubmissionTimeout to 4000 blocks (for 100-member DKG with retries)"
     echo "  - Update config files"
     echo "  - Restart all nodes"
     echo "  - Fix RandomBeacon configuration (upgrade and authorize)"
@@ -157,6 +160,127 @@ main() {
         log_info "No chaindata found"
     fi
     
+    # Step 2.5: Initialize genesis.json with Clique consensus (1 second block time)
+    log_info "Step 2.5: Initializing genesis.json with Clique consensus..."
+    GETH_DATA_DIR="$HOME/ethereum/data"
+    GENESIS_FILE="$GETH_DATA_DIR/genesis.json"
+    mkdir -p "$GETH_DATA_DIR"
+    
+    # Get signer account (first account in keystore)
+    SIGNER_ACCOUNT=""
+    if [ -d "$GETH_DATA_DIR/keystore" ]; then
+        SIGNER_ACCOUNT=$(geth account list --keystore "$GETH_DATA_DIR/keystore" 2>/dev/null | head -1 | grep -o '{[^}]*}' | sed 's/{//;s/}//' | sed 's/^/0x/' || echo "")
+    fi
+    
+    # If no signer found, use default or create one
+    if [ -z "$SIGNER_ACCOUNT" ]; then
+        log_warning "No signer account found, will use first account from start-geth-fast.sh"
+        SIGNER_ACCOUNT="0x7966c178f466b060aaeb2b91e9149a5fb2ec9c53"  # Default fallback
+    fi
+    
+    log_info "Using signer account: $SIGNER_ACCOUNT"
+    
+    # Check if genesis.json exists
+    if [ -f "$GENESIS_FILE" ]; then
+        log_info "Updating existing genesis.json with Clique config..."
+        # Backup existing genesis
+        cp "$GENESIS_FILE" "${GENESIS_FILE}.backup"
+        
+        # Update genesis.json to include Clique config with 1 second period
+        SIGNER_HEX="${SIGNER_ACCOUNT#0x}"
+        EXTRA_DATA="0x$(printf '0%.0s' {1..64})${SIGNER_HEX}$(printf '0%.0s' {1..130})"
+        
+        # Update genesis.json using jq
+        if command -v jq >/dev/null 2>&1; then
+            # Add Clique config if not present
+            if ! jq -e '.config.clique' "$GENESIS_FILE" >/dev/null 2>&1; then
+                jq '.config.clique = {"period": 1, "epoch": 30000}' "$GENESIS_FILE" > "${GENESIS_FILE}.tmp" && mv "${GENESIS_FILE}.tmp" "$GENESIS_FILE"
+                log_success "Added Clique config to genesis.json"
+            else
+                # Update period to 1 second
+                jq '.config.clique.period = 1' "$GENESIS_FILE" > "${GENESIS_FILE}.tmp" && mv "${GENESIS_FILE}.tmp" "$GENESIS_FILE"
+                log_success "Updated Clique period to 1 second"
+            fi
+            
+            # Update extraData with signer
+            jq --arg extraData "$EXTRA_DATA" '.extraData = $extraData' "$GENESIS_FILE" > "${GENESIS_FILE}.tmp" && mv "${GENESIS_FILE}.tmp" "$GENESIS_FILE"
+            log_success "Updated extraData with signer"
+        else
+            log_warning "jq not found, cannot update genesis.json automatically"
+            log_info "Please ensure genesis.json has Clique config with period: 1"
+        fi
+    else
+        log_info "Creating new genesis.json with Clique PoA (1 second block time)..."
+        
+        # Prepare extraData with signer
+        SIGNER_HEX="${SIGNER_ACCOUNT#0x}"
+        EXTRA_DATA="0x$(printf '0%.0s' {1..64})${SIGNER_HEX}$(printf '0%.0s' {1..130})"
+        
+        # Create genesis.json with Clique PoA configuration
+        # Use jq to create properly formatted JSON
+        if command -v jq >/dev/null 2>&1; then
+            jq -n \
+                --arg extraData "$EXTRA_DATA" \
+                '{
+                  "config": {
+                    "chainId": 1101,
+                    "homesteadBlock": 0,
+                    "eip150Block": 0,
+                    "eip155Block": 0,
+                    "eip158Block": 0,
+                    "byzantiumBlock": 0,
+                    "constantinopleBlock": 0,
+                    "petersburgBlock": 0,
+                    "istanbulBlock": 0,
+                    "clique": {
+                      "period": 1,
+                      "epoch": 30000
+                    }
+                  },
+                  "difficulty": "0x1",
+                  "gasLimit": "0x7A1200",
+                  "extraData": $extraData,
+                  "alloc": {}
+                }' > "$GENESIS_FILE"
+            log_success "Created genesis.json with Clique PoA (period: 1s)"
+        else
+            # Fallback: create JSON manually (less reliable)
+            cat > "$GENESIS_FILE" <<GENESIS_EOF
+{
+  "config": {
+    "chainId": 1101,
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "clique": {
+      "period": 1,
+      "epoch": 30000
+    }
+  },
+  "difficulty": "0x1",
+  "gasLimit": "0x7A1200",
+  "extraData": "${EXTRA_DATA}",
+  "alloc": {}
+}
+GENESIS_EOF
+            log_success "Created genesis.json with Clique PoA (period: 1s)"
+        fi
+    fi
+    
+    # Initialize chain with genesis.json
+    log_info "Initializing chain with genesis.json..."
+    if geth --datadir="$GETH_DATA_DIR" init "$GENESIS_FILE" 2>&1 | grep -E "(Successfully|Writing|Fatal)" | tail -3; then
+        log_success "Chain initialized with Clique consensus (1 second block time)"
+    else
+        log_warning "Chain initialization may have issues - check output above"
+    fi
+    echo ""
+    
     # Step 3: Clean deployment files
     log_info "Step 3: Cleaning deployment files..."
     
@@ -184,6 +308,12 @@ main() {
         log_success "tBTC stub deployments cleaned"
     fi
     
+    # Clean tBTC v2 deployments (including Bridge)
+    if [ -d "$PROJECT_ROOT/tmp/tbtc-v2/solidity/deployments/development" ]; then
+        rm -f "$PROJECT_ROOT/tmp/tbtc-v2/solidity/deployments/development"/*.json 2>/dev/null || true
+        log_success "tBTC v2 deployments cleaned"
+    fi
+    
     # Clean T token deployments
     if [ -d "$PROJECT_ROOT/tmp/solidity-contracts/deployments/development" ]; then
         rm -f "$PROJECT_ROOT/tmp/solidity-contracts/deployments/development"/*.json 2>/dev/null || true
@@ -195,11 +325,12 @@ main() {
     echo ""
     
     # Step 4: Start Geth
-    log_info "Step 4: Starting Geth..."
+    log_info "Step 4: Starting Geth with Clique consensus (1 second block time)..."
     if [ -f "$PROJECT_ROOT/scripts/start-geth-fast.sh" ]; then
         log_info "Found start-geth-fast.sh, starting Geth in background..."
         cd "$PROJECT_ROOT"
-        nohup ./scripts/start-geth-fast.sh > /tmp/geth.log 2>&1 &
+        # Start with 1 second block period (fastest Clique supports)
+        BLOCK_PERIOD=1 nohup ./scripts/start-geth-fast.sh "$HOME/ethereum/data" 1 > /tmp/geth.log 2>&1 &
         GETH_PID=$!
         log_info "Geth started (PID: $GETH_PID)"
         log_info "Logs: tail -f /tmp/geth.log"
@@ -384,6 +515,152 @@ main() {
     fi
     echo ""
     
+    # Step 10.6: Ensure WalletRegistry uses correct ReimbursementPool address and it's configured properly
+    log_info "Step 10.6: Ensuring WalletRegistry uses correct ReimbursementPool address..."
+    cd "$PROJECT_ROOT"
+    
+    WALLET_REGISTRY=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistry.json" 2>/dev/null || echo "")
+    REIMBURSEMENT_POOL=$(jq -r '.address' "$PROJECT_ROOT/solidity/random-beacon/deployments/development/ReimbursementPool.json" 2>/dev/null || echo "")
+    WALLET_REGISTRY_GOV=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistryGovernance.json" 2>/dev/null || echo "")
+    
+    if [ -n "$WALLET_REGISTRY" ] && [ "$WALLET_REGISTRY" != "null" ] && \
+       [ -n "$REIMBURSEMENT_POOL" ] && [ "$REIMBURSEMENT_POOL" != "null" ] && \
+       [ -n "$WALLET_REGISTRY_GOV" ] && [ "$WALLET_REGISTRY_GOV" != "null" ]; then
+        
+        # Get current ReimbursementPool address from WalletRegistry
+        CURRENT_POOL=$(cast call "$WALLET_REGISTRY" "reimbursementPool()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "")
+        
+        if [ "$CURRENT_POOL" = "$REIMBURSEMENT_POOL" ]; then
+            log_success "WalletRegistry is using the correct ReimbursementPool address"
+        else
+            log_warning "WalletRegistry is using wrong ReimbursementPool address"
+            log_info "Current: $CURRENT_POOL"
+            log_info "Expected: $REIMBURSEMENT_POOL"
+            log_info "Updating via governance..."
+            
+            # Get governance owner
+            OWNER=$(cast call "$WALLET_REGISTRY_GOV" "owner()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "0x23d5975f6D72A57ba984886d3dF40Dca7f10ceca")
+            
+            # Begin update
+            BEGIN_TX=$(cast send "$WALLET_REGISTRY_GOV" \
+                "beginReimbursementPoolUpdate(address)" "$REIMBURSEMENT_POOL" \
+                --rpc-url "$RPC_URL" \
+                --unlocked \
+                --from "$OWNER" \
+                --gas-limit 200000 2>&1 | grep -E "transactionHash" | grep -oE '0x[a-fA-F0-9]{64}' || echo "")
+            
+            if [ -n "$BEGIN_TX" ]; then
+                log_success "Governance update initiated (tx: ${BEGIN_TX:0:10}...)"
+                
+                # Wait for governance delay (65 seconds for development)
+                log_info "Waiting for governance delay (65 seconds)..."
+                sleep 65
+                
+                # Finalize update
+                log_info "Finalizing governance update..."
+                FINALIZE_TX=$(cast send "$WALLET_REGISTRY_GOV" \
+                    "finalizeReimbursementPoolUpdate()" \
+                    --rpc-url "$RPC_URL" \
+                    --unlocked \
+                    --from "$OWNER" \
+                    --gas-limit 200000 2>&1 | grep -E "transactionHash|status" | head -3)
+                
+                sleep 3
+                
+                # Verify update
+                NEW_POOL=$(cast call "$WALLET_REGISTRY" "reimbursementPool()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "")
+                
+                if [ "$NEW_POOL" = "$REIMBURSEMENT_POOL" ]; then
+                    log_success "ReimbursementPool address updated successfully"
+                else
+                    log_warning "Update may have failed (current: $NEW_POOL, expected: $REIMBURSEMENT_POOL)"
+                    log_info "You may need to update manually via governance"
+                fi
+            else
+                log_warning "Failed to initiate governance update"
+                log_info "You may need to update manually: cast send $WALLET_REGISTRY_GOV beginReimbursementPoolUpdate $REIMBURSEMENT_POOL --rpc-url $RPC_URL --unlocked --from $OWNER"
+            fi
+        fi
+        
+        # Ensure ReimbursementPool is funded with ETH
+        POOL_BALANCE=$(cast balance "$REIMBURSEMENT_POOL" --rpc-url "$RPC_URL" 2>/dev/null || echo "0")
+        MIN_BALANCE="1000000000000000000"  # 1 ETH minimum
+        
+        if [ -n "$POOL_BALANCE" ] && [ "$POOL_BALANCE" != "0" ] && [ "$POOL_BALANCE" != "0x0" ]; then
+            # Convert hex to decimal for comparison
+            POOL_BALANCE_DEC=$(printf "%d" "$POOL_BALANCE" 2>/dev/null || echo "0")
+            MIN_BALANCE_DEC=$(printf "%d" "$MIN_BALANCE" 2>/dev/null || echo "1000000000000000000")
+            
+            if [ "$POOL_BALANCE_DEC" -lt "$MIN_BALANCE_DEC" ]; then
+                log_info "ReimbursementPool balance is low ($POOL_BALANCE_DEC wei), funding with 10 ETH..."
+                FUND_TX=$(cast send --value 10ether "$REIMBURSEMENT_POOL" \
+                    --rpc-url "$RPC_URL" \
+                    --unlocked \
+                    --from "$OWNER" \
+                    2>&1 | grep -E "transactionHash" | grep -oE '0x[a-fA-F0-9]{64}' || echo "")
+                
+                if [ -n "$FUND_TX" ]; then
+                    log_success "ReimbursementPool funded (tx: ${FUND_TX:0:10}...)"
+                else
+                    log_warning "Failed to fund ReimbursementPool"
+                fi
+            else
+                log_success "ReimbursementPool has sufficient balance"
+            fi
+        else
+            log_info "ReimbursementPool has no balance, funding with 10 ETH..."
+            FUND_TX=$(cast send --value 10ether "$REIMBURSEMENT_POOL" \
+                --rpc-url "$RPC_URL" \
+                --unlocked \
+                --from "$OWNER" \
+                2>&1 | grep -E "transactionHash" | grep -oE '0x[a-fA-F0-9]{64}' || echo "")
+            
+            if [ -n "$FUND_TX" ]; then
+                log_success "ReimbursementPool funded (tx: ${FUND_TX:0:10}...)"
+            else
+                log_warning "Failed to fund ReimbursementPool"
+            fi
+        fi
+        
+        # Ensure WalletRegistry is authorized in ReimbursementPool
+        IS_AUTHORIZED=$(cast call "$REIMBURSEMENT_POOL" "isAuthorized(address)(bool)" "$WALLET_REGISTRY" --rpc-url "$RPC_URL" 2>/dev/null || echo "false")
+        
+        if [ "$IS_AUTHORIZED" = "true" ]; then
+            log_success "WalletRegistry is authorized in ReimbursementPool"
+        else
+            log_info "Authorizing WalletRegistry in ReimbursementPool..."
+            
+            # Get ReimbursementPool owner
+            POOL_OWNER=$(cast call "$REIMBURSEMENT_POOL" "owner()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "$OWNER")
+            
+            AUTH_TX=$(cast send "$REIMBURSEMENT_POOL" \
+                "authorize(address)" "$WALLET_REGISTRY" \
+                --rpc-url "$RPC_URL" \
+                --unlocked \
+                --from "$POOL_OWNER" \
+                --gas-limit 200000 2>&1 | grep -E "transactionHash" | grep -oE '0x[a-fA-F0-9]{64}' || echo "")
+            
+            if [ -n "$AUTH_TX" ]; then
+                sleep 2
+                # Verify authorization
+                IS_AUTHORIZED=$(cast call "$REIMBURSEMENT_POOL" "isAuthorized(address)(bool)" "$WALLET_REGISTRY" --rpc-url "$RPC_URL" 2>/dev/null || echo "false")
+                
+                if [ "$IS_AUTHORIZED" = "true" ]; then
+                    log_success "WalletRegistry authorized in ReimbursementPool (tx: ${AUTH_TX:0:10}...)"
+                else
+                    log_warning "Authorization may have failed"
+                fi
+            else
+                log_warning "Failed to authorize WalletRegistry"
+                log_info "You may need to authorize manually: cast send $REIMBURSEMENT_POOL authorize $WALLET_REGISTRY --rpc-url $RPC_URL --unlocked --from $POOL_OWNER"
+            fi
+        fi
+    else
+        log_warning "Could not verify ReimbursementPool configuration (missing contracts)"
+        log_info "You may need to configure ReimbursementPool manually"
+    fi
+    echo ""
+    
     # Step 11: Approve RandomBeacon in TokenStaking
     log_info "Step 11: Approving RandomBeacon in TokenStaking..."
     cd "$PROJECT_ROOT/solidity/random-beacon"
@@ -404,64 +681,239 @@ main() {
     log_success "tBTC stubs deployed"
     echo ""
     
-    # Step 12.5: Initialize WalletRegistry walletOwner
-    log_info "Step 12.5: Initializing WalletRegistry walletOwner..."
+    # Step 12.5: Deploy Bridge contract (if not already deployed)
+    log_info "Step 12.5: Deploying Bridge contract..."
     cd "$PROJECT_ROOT"
     
-    BRIDGE=$(jq -r '.address' "$PROJECT_ROOT/solidity/tbtc-stub/deployments/development/Bridge.json" 2>/dev/null || echo "")
+    # Try new Bridge deployment location first, then fall back to old location
+    BRIDGE_PATH_NEW="$PROJECT_ROOT/tmp/tbtc-v2/solidity/deployments/development/Bridge.json"
+    BRIDGE_PATH_OLD="$PROJECT_ROOT/solidity/tbtc-stub/deployments/development/Bridge.json"
     
-    if [ -n "$BRIDGE" ] && [ "$BRIDGE" != "null" ]; then
-        log_info "Bridge address: $BRIDGE"
-        
-        # Check if walletOwner is already set correctly
-        WALLET_REGISTRY=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistry.json" 2>/dev/null || echo "")
-        
-        if [ -n "$WALLET_REGISTRY" ] && [ "$WALLET_REGISTRY" != "null" ]; then
-            CURRENT_OWNER=$(cast call "$WALLET_REGISTRY" "walletOwner()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "0x0000000000000000000000000000000000000000")
-            
-            if [ "$CURRENT_OWNER" = "$BRIDGE" ]; then
-                log_success "WalletOwner already set correctly to Bridge address"
+    BRIDGE=""
+    BRIDGE_HAS_CODE=false
+    
+    # Check if Bridge exists and has code
+    if [ -f "$BRIDGE_PATH_NEW" ]; then
+        BRIDGE=$(jq -r '.address' "$BRIDGE_PATH_NEW" 2>/dev/null || echo "")
+        if [ -n "$BRIDGE" ] && [ "$BRIDGE" != "null" ]; then
+            BRIDGE_CODE=$(cast code "$BRIDGE" --rpc-url "$RPC_URL" 2>/dev/null || echo "0x")
+            if [ "$BRIDGE_CODE" != "0x" ] && [ -n "$BRIDGE_CODE" ]; then
+                BRIDGE_HAS_CODE=true
+                log_info "Found existing Bridge at: $BRIDGE_PATH_NEW"
+                log_success "Bridge already deployed at $BRIDGE (has code)"
             else
-                log_info "Current walletOwner: $CURRENT_OWNER"
-                log_info "Setting walletOwner to Bridge address..."
-                
-                # Use the init-wallet-owner.ts script
-                cd "$PROJECT_ROOT/solidity/ecdsa"
-                INIT_OUTPUT=$(npx hardhat run scripts/init-wallet-owner.ts --network development 2>&1) || {
-                    INIT_EXIT_CODE=$?
-                    # Check if it's already initialized (not an error)
-                    if echo "$INIT_OUTPUT" | grep -qE "(already|already set|already initialized)"; then
-                        log_success "WalletOwner already initialized"
-                    else
-                        log_warning "WalletOwner initialization script failed (exit code: $INIT_EXIT_CODE)"
-                        echo "$INIT_OUTPUT" | grep -E "(Error|error|Failed|failed)" | head -5 | sed 's/^/  /' || true
-                        
-                        # Try using the Hardhat task as fallback
-                        log_info "Trying alternative method (Hardhat task)..."
-                        if npx hardhat initialize-wallet-owner --wallet-owner-address "$BRIDGE" --network development >/dev/null 2>&1; then
-                            log_success "WalletOwner initialized via Hardhat task"
-                        else
-                            log_warning "WalletOwner initialization failed - you may need to set it manually"
-                            log_info "Run: cd solidity/ecdsa && npx hardhat run scripts/init-wallet-owner.ts --network development"
-                        fi
-                    fi
+                log_warning "Bridge deployment file exists but contract has no code at $BRIDGE"
+                log_info "Will redeploy Bridge..."
+            fi
+        fi
+    elif [ -f "$BRIDGE_PATH_OLD" ]; then
+        BRIDGE=$(jq -r '.address' "$BRIDGE_PATH_OLD" 2>/dev/null || echo "")
+        if [ -n "$BRIDGE" ] && [ "$BRIDGE" != "null" ]; then
+            BRIDGE_CODE=$(cast code "$BRIDGE" --rpc-url "$RPC_URL" 2>/dev/null || echo "0x")
+            if [ "$BRIDGE_CODE" != "0x" ] && [ -n "$BRIDGE_CODE" ]; then
+                BRIDGE_HAS_CODE=true
+                log_info "Found existing Bridge at: $BRIDGE_PATH_OLD"
+                log_success "Bridge already deployed at $BRIDGE (has code)"
+            else
+                log_warning "Bridge deployment file exists but contract has no code at $BRIDGE"
+                log_info "Will redeploy Bridge..."
+            fi
+        fi
+    fi
+    
+    # Deploy Bridge if it doesn't exist or has no code
+    if [ "$BRIDGE_HAS_CODE" != "true" ]; then
+        log_info "Deploying Bridge contract..."
+        
+        # Try deploying from tmp/tbtc-v2 first (preferred location)
+        if [ -d "$PROJECT_ROOT/tmp/tbtc-v2/solidity" ]; then
+            cd "$PROJECT_ROOT/tmp/tbtc-v2/solidity"
+            log_info "Deploying Bridge from tmp/tbtc-v2/solidity..."
+            DEPLOY_OUTPUT=$(npx hardhat deploy --network development --tags Bridge 2>&1) || {
+                log_warning "Bridge deployment from tmp/tbtc-v2 failed, trying tbtc-stub..."
+                cd "$PROJECT_ROOT/solidity/tbtc-stub"
+                npx hardhat deploy --network development --tags TBTCStubs 2>&1 || {
+                    log_error "Bridge deployment failed from both locations"
+                    log_info "You may need to deploy Bridge manually"
                 }
-                
-                # Verify walletOwner was set correctly
-                sleep 1
-                VERIFY_OWNER=$(cast call "$WALLET_REGISTRY" "walletOwner()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "0x0000000000000000000000000000000000000000")
-                if [ "$VERIFY_OWNER" = "$BRIDGE" ]; then
-                    log_success "WalletOwner verified: $VERIFY_OWNER"
-                else
-                    log_warning "WalletOwner verification failed (current: $VERIFY_OWNER, expected: $BRIDGE)"
+            }
+            
+            # Check if deployment succeeded
+            if [ -f "$BRIDGE_PATH_NEW" ]; then
+                BRIDGE=$(jq -r '.address' "$BRIDGE_PATH_NEW" 2>/dev/null || echo "")
+                if [ -n "$BRIDGE" ] && [ "$BRIDGE" != "null" ]; then
+                    BRIDGE_CODE=$(cast code "$BRIDGE" --rpc-url "$RPC_URL" 2>/dev/null || echo "0x")
+                    if [ "$BRIDGE_CODE" != "0x" ] && [ -n "$BRIDGE_CODE" ]; then
+                        BRIDGE_HAS_CODE=true
+                        log_success "Bridge deployed at $BRIDGE"
+                    fi
                 fi
             fi
         else
-            log_warning "WalletRegistry contract not found, skipping walletOwner initialization"
+            log_warning "tmp/tbtc-v2/solidity directory not found, Bridge may need manual deployment"
         fi
-    else
-        log_warning "Bridge contract not found, skipping walletOwner initialization"
     fi
+    
+    echo ""
+    
+    # Step 12.6: Initialize WalletRegistry walletOwner
+    # IMPORTANT: Prefer Bridge stub (has callback) over Bridge v2 (may not have callback)
+    log_info "Step 12.6: Initializing WalletRegistry walletOwner..."
+    cd "$PROJECT_ROOT"
+    
+    WALLET_REGISTRY=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistry.json" 2>/dev/null || echo "")
+    WALLET_REGISTRY_GOV=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistryGovernance.json" 2>/dev/null || echo "")
+    
+    if [ -z "$WALLET_REGISTRY" ] || [ "$WALLET_REGISTRY" = "null" ] || \
+       [ -z "$WALLET_REGISTRY_GOV" ] || [ "$WALLET_REGISTRY_GOV" = "null" ]; then
+        log_warning "WalletRegistry or WalletRegistryGovernance not found, skipping walletOwner initialization"
+        echo ""
+    else
+    
+    # Find Bridge stub first (has callback function), then fall back to Bridge v2
+    BRIDGE_STUB_PATH="$PROJECT_ROOT/solidity/tbtc-stub/deployments/development/Bridge.json"
+    BRIDGE_V2_PATH="$PROJECT_ROOT/tmp/tbtc-v2/solidity/deployments/development/Bridge.json"
+    
+    TARGET_BRIDGE=""
+    BRIDGE_SOURCE=""
+    
+    # Prefer Bridge stub (has callback function)
+    if [ -f "$BRIDGE_STUB_PATH" ]; then
+        BRIDGE_STUB=$(jq -r '.address' "$BRIDGE_STUB_PATH" 2>/dev/null || echo "")
+        if [ -n "$BRIDGE_STUB" ] && [ "$BRIDGE_STUB" != "null" ]; then
+            BRIDGE_STUB_CODE=$(cast code "$BRIDGE_STUB" --rpc-url "$RPC_URL" 2>/dev/null | head -c 10 || echo "0x")
+            if [ "$BRIDGE_STUB_CODE" != "0x" ]; then
+                # Verify it has the callback function
+                if cast call "$BRIDGE_STUB" "__ecdsaWalletCreatedCallback(bytes32,bytes32,bytes32)" \
+                    "0x0000000000000000000000000000000000000000000000000000000000000000" \
+                    "0x0000000000000000000000000000000000000000000000000000000000000000" \
+                    "0x0000000000000000000000000000000000000000000000000000000000000000" \
+                    --rpc-url "$RPC_URL" >/dev/null 2>&1; then
+                    TARGET_BRIDGE="$BRIDGE_STUB"
+                    BRIDGE_SOURCE="Bridge stub (tbtc-stub)"
+                    log_info "Found Bridge stub with callback function: $TARGET_BRIDGE"
+                fi
+            fi
+        fi
+    fi
+    
+    # Fall back to Bridge v2 if stub not found
+    if [ -z "$TARGET_BRIDGE" ] && [ -f "$BRIDGE_V2_PATH" ]; then
+        BRIDGE_V2=$(jq -r '.address' "$BRIDGE_V2_PATH" 2>/dev/null || echo "")
+        if [ -n "$BRIDGE_V2" ] && [ "$BRIDGE_V2" != "null" ]; then
+            BRIDGE_V2_CODE=$(cast code "$BRIDGE_V2" --rpc-url "$RPC_URL" 2>/dev/null | head -c 10 || echo "0x")
+            if [ "$BRIDGE_V2_CODE" != "0x" ]; then
+                TARGET_BRIDGE="$BRIDGE_V2"
+                BRIDGE_SOURCE="Bridge v2 (tmp/tbtc-v2)"
+                log_info "Found Bridge v2: $TARGET_BRIDGE"
+                log_warning "Bridge v2 may not have callback function - DKG approvals may fail"
+            fi
+        fi
+    fi
+    
+    if [ -z "$TARGET_BRIDGE" ]; then
+        log_warning "No Bridge contract found with code, skipping walletOwner initialization"
+        log_info "You may need to deploy Bridge manually and then run:"
+        log_info "  cd solidity/ecdsa && npx hardhat run scripts/init-wallet-owner.ts --network development"
+    else
+    
+    log_info "Using $BRIDGE_SOURCE: $TARGET_BRIDGE"
+    
+    # Check current walletOwner
+    CURRENT_OWNER=$(cast call "$WALLET_REGISTRY" "walletOwner()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "0x0000000000000000000000000000000000000000")
+    
+    if [ "$CURRENT_OWNER" = "$TARGET_BRIDGE" ]; then
+        log_success "WalletOwner already set correctly to Bridge address"
+    else
+        log_info "Current walletOwner: $CURRENT_OWNER"
+        log_info "Setting walletOwner to Bridge address ($BRIDGE_SOURCE)..."
+        
+        # Get governance owner
+        OWNER=$(cast call "$WALLET_REGISTRY_GOV" "owner()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "")
+        if [ -z "$OWNER" ] || [ "$OWNER" = "0x0000000000000000000000000000000000000000" ]; then
+            log_warning "Could not get governance owner, trying init-wallet-owner.ts script..."
+            cd "$PROJECT_ROOT/solidity/ecdsa"
+            INIT_OUTPUT=$(npx hardhat run scripts/init-wallet-owner.ts --network development 2>&1) || {
+                INIT_EXIT_CODE=$?
+                if echo "$INIT_OUTPUT" | grep -qE "(already|already set|already initialized)"; then
+                    log_success "WalletOwner already initialized"
+                else
+                    log_warning "WalletOwner initialization script failed (exit code: $INIT_EXIT_CODE)"
+                    echo "$INIT_OUTPUT" | grep -E "(Error|error|Failed|failed)" | head -5 | sed 's/^/  /' || true
+                fi
+            }
+        else
+            # Use governance to update walletOwner
+            if [ "$CURRENT_OWNER" = "0x0000000000000000000000000000000000000000" ]; then
+                # Initialize (no delay)
+                log_info "Initializing walletOwner (no governance delay)..."
+                INIT_TX=$(cast send "$WALLET_REGISTRY_GOV" \
+                    "initializeWalletOwner(address)" "$TARGET_BRIDGE" \
+                    --rpc-url "$RPC_URL" \
+                    --unlocked \
+                    --from "$OWNER" \
+                    --gas-limit 200000 2>&1 | grep -E "transactionHash" | grep -oE '0x[a-fA-F0-9]{64}' || echo "")
+                
+                if [ -n "$INIT_TX" ]; then
+                    log_success "WalletOwner initialized (tx: ${INIT_TX:0:10}...)"
+                else
+                    log_warning "Failed to initialize walletOwner"
+                fi
+            else
+                # Update (requires governance delay)
+                log_info "Updating walletOwner (requires governance delay)..."
+                BEGIN_TX=$(cast send "$WALLET_REGISTRY_GOV" \
+                    "beginWalletOwnerUpdate(address)" "$TARGET_BRIDGE" \
+                    --rpc-url "$RPC_URL" \
+                    --unlocked \
+                    --from "$OWNER" \
+                    --gas-limit 200000 2>&1 | grep -E "transactionHash" | grep -oE '0x[a-fA-F0-9]{64}' || echo "")
+                
+                if [ -n "$BEGIN_TX" ]; then
+                    log_success "Update initiated (tx: ${BEGIN_TX:0:10}...)"
+                    log_info "Waiting for governance delay (65 seconds)..."
+                    sleep 65
+                    
+                    log_info "Finalizing walletOwner update..."
+                    FINALIZE_TX=$(cast send "$WALLET_REGISTRY_GOV" \
+                        "finalizeWalletOwnerUpdate()" \
+                        --rpc-url "$RPC_URL" \
+                        --unlocked \
+                        --from "$OWNER" \
+                        --gas-limit 200000 2>&1 | grep -E "transactionHash|status" | head -3)
+                    
+                    sleep 2
+                else
+                    log_warning "Failed to initiate walletOwner update"
+                fi
+            fi
+        fi
+        
+        # Verify walletOwner was set correctly
+        sleep 2
+        VERIFY_OWNER=$(cast call "$WALLET_REGISTRY" "walletOwner()(address)" --rpc-url "$RPC_URL" 2>/dev/null || echo "0x0000000000000000000000000000000000000000")
+        if [ "$VERIFY_OWNER" = "$TARGET_BRIDGE" ]; then
+            log_success "WalletOwner verified: $VERIFY_OWNER ($BRIDGE_SOURCE)"
+            
+            # Verify callback function if Bridge stub
+            if [ "$BRIDGE_SOURCE" = "Bridge stub (tbtc-stub)" ]; then
+                if cast call "$TARGET_BRIDGE" "__ecdsaWalletCreatedCallback(bytes32,bytes32,bytes32)" \
+                    "0x0000000000000000000000000000000000000000000000000000000000000000" \
+                    "0x0000000000000000000000000000000000000000000000000000000000000000" \
+                    "0x0000000000000000000000000000000000000000000000000000000000000000" \
+                    --rpc-url "$RPC_URL" >/dev/null 2>&1; then
+                    log_success "Callback function verified - Bridge is properly configured"
+                else
+                    log_warning "Callback function verification failed"
+                fi
+            fi
+        else
+            log_warning "WalletOwner verification failed (current: $VERIFY_OWNER, expected: $TARGET_BRIDGE)"
+            log_info "You may need to update manually via governance"
+        fi
+    fi
+    fi  # Close else block for TARGET_BRIDGE found
+    fi  # Close else block for contracts found
     echo ""
     
     # Step 13: Initialize all operators (stake and authorize)
@@ -846,6 +1298,80 @@ main() {
     fi
     echo ""
     
+    # Step 14.5: Update DKG resultSubmissionTimeout to 4000 blocks (for 100-member DKG with 3 retries × 1200 blocks)
+    log_info "Step 14.5: Updating DKG resultSubmissionTimeout to 4000 blocks..."
+    cd "$PROJECT_ROOT"
+    
+    WALLET_REGISTRY_GOV=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistryGovernance.json" 2>/dev/null || echo "")
+    OWNER_ADDRESS="0x23d5975f6D72A57ba984886d3dF40Dca7f10ceca"  # Default owner for development
+    
+    if [ -n "$WALLET_REGISTRY_GOV" ] && [ "$WALLET_REGISTRY_GOV" != "null" ]; then
+        log_info "WalletRegistryGovernance: $WALLET_REGISTRY_GOV"
+        
+        # Check current timeout
+        CURRENT_TIMEOUT=$(cast abi-decode "dkgParameters()(uint256,uint256,uint256,uint256)" \
+            $(cast call "$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistry.json")" \
+                "dkgParameters()" --rpc-url "$RPC_URL") 2>&1 | tail -1 | grep -oE '[0-9]+' || echo "120")
+        
+        if [ "$CURRENT_TIMEOUT" = "4000" ]; then
+            log_success "DKG resultSubmissionTimeout already set to 4000 blocks"
+        else
+            log_info "Current resultSubmissionTimeout: $CURRENT_TIMEOUT blocks"
+            log_info "Updating to 4000 blocks (required for 100-member DKG with 3 retries × 1200 blocks)..."
+            
+            # Begin update
+            log_info "Initiating governance update..."
+            BEGIN_TX=$(cast send "$WALLET_REGISTRY_GOV" \
+                "beginDkgResultSubmissionTimeoutUpdate(uint256)" 4000 \
+                --rpc-url "$RPC_URL" \
+                --unlocked \
+                --from "$OWNER_ADDRESS" \
+                --gas-limit 200000 2>&1 | grep -E "transactionHash" | grep -oE '0x[a-fA-F0-9]{64}' || echo "")
+            
+            if [ -n "$BEGIN_TX" ]; then
+                log_success "Governance update initiated (tx: ${BEGIN_TX:0:10}...)"
+                
+                # Wait for governance delay (65 seconds for development)
+                log_info "Waiting for governance delay (65 seconds)..."
+                sleep 65
+                
+                # Finalize update
+                log_info "Finalizing governance update..."
+                FINALIZE_TX=$(cast send "$WALLET_REGISTRY_GOV" \
+                    "finalizeDkgResultSubmissionTimeoutUpdate()" \
+                    --rpc-url "$RPC_URL" \
+                    --unlocked \
+                    --from "$OWNER_ADDRESS" \
+                    --gas-limit 200000 2>&1 | grep -E "transactionHash" | grep -oE '0x[a-fA-F0-9]{64}' || echo "")
+                
+                if [ -n "$FINALIZE_TX" ]; then
+                    sleep 3
+                    # Verify update
+                    NEW_TIMEOUT=$(cast abi-decode "dkgParameters()(uint256,uint256,uint256,uint256)" \
+                        $(cast call "$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistry.json")" \
+                            "dkgParameters()" --rpc-url "$RPC_URL") 2>&1 | tail -1 | grep -oE '[0-9]+' || echo "")
+                    
+                    if [ "$NEW_TIMEOUT" = "4000" ]; then
+                        log_success "DKG resultSubmissionTimeout updated to 4000 blocks"
+                    else
+                        log_warning "Update may have failed (current: $NEW_TIMEOUT, expected: 4000)"
+                        log_info "You may need to update manually via governance"
+                    fi
+                else
+                    log_warning "Failed to finalize governance update"
+                    log_info "You may need to finalize manually: cast send $WALLET_REGISTRY_GOV finalizeDkgResultSubmissionTimeoutUpdate() --rpc-url $RPC_URL --unlocked --from $OWNER_ADDRESS"
+                fi
+            else
+                log_warning "Failed to initiate governance update"
+                log_info "You may need to update manually: cast send $WALLET_REGISTRY_GOV beginDkgResultSubmissionTimeoutUpdate 536 --rpc-url $RPC_URL --unlocked --from $OWNER_ADDRESS"
+            fi
+        fi
+    else
+        log_warning "WalletRegistryGovernance contract not found, skipping timeout update"
+        log_info "You may need to update DKG parameters manually after deployment"
+    fi
+    echo ""
+    
     # Step 15: Update config files
     log_info "Step 15: Updating config files with new contract addresses..."
     
@@ -853,7 +1379,16 @@ main() {
     WALLET_REGISTRY=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/WalletRegistry.json" 2>/dev/null || echo "")
     RANDOM_BEACON=$(jq -r '.address' "$PROJECT_ROOT/solidity/random-beacon/deployments/development/RandomBeacon.json" 2>/dev/null || echo "")
     TOKEN_STAKING=$(jq -r '.address' "$PROJECT_ROOT/solidity/ecdsa/deployments/development/ExtendedTokenStaking.json" 2>/dev/null || echo "")
-    BRIDGE=$(jq -r '.address' "$PROJECT_ROOT/solidity/tbtc-stub/deployments/development/Bridge.json" 2>/dev/null || echo "")
+    
+    # Try new Bridge deployment location first, then fall back to old location
+    BRIDGE_PATH_NEW="$PROJECT_ROOT/tmp/tbtc-v2/solidity/deployments/development/Bridge.json"
+    BRIDGE_PATH_OLD="$PROJECT_ROOT/solidity/tbtc-stub/deployments/development/Bridge.json"
+    BRIDGE=""
+    if [ -f "$BRIDGE_PATH_NEW" ]; then
+        BRIDGE=$(jq -r '.address' "$BRIDGE_PATH_NEW" 2>/dev/null || echo "")
+    elif [ -f "$BRIDGE_PATH_OLD" ]; then
+        BRIDGE=$(jq -r '.address' "$BRIDGE_PATH_OLD" 2>/dev/null || echo "")
+    fi
     MAINTAINER_PROXY=$(jq -r '.address' "$PROJECT_ROOT/solidity/tbtc-stub/deployments/development/MaintainerProxy.json" 2>/dev/null || echo "")
     WALLET_PROPOSAL_VALIDATOR=$(jq -r '.address' "$PROJECT_ROOT/solidity/tbtc-stub/deployments/development/WalletProposalValidator.json" 2>/dev/null || echo "")
     

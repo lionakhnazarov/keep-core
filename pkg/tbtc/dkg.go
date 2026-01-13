@@ -45,7 +45,8 @@ const (
 	// dkgAttemptsLimit determines the maximum number of attempts to execute
 	// the DKG protocol. If the limit is reached, the protocol execution is
 	// aborted.
-	dkgAttemptsLimit = 1
+	// Increased from 1 to 3 for development to allow retries when DKG times out
+	dkgAttemptsLimit = 3
 )
 
 // dkgExecutor is a component responsible for the full execution of ECDSA

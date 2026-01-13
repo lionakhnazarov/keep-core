@@ -83,3 +83,4 @@ echo "  1. Verify the exact result structure used during submission"
 echo "  2. Ensure the same encoding method is used for approval"
 echo "  3. Check if there's a hash encoding issue in the Go code"
 
+

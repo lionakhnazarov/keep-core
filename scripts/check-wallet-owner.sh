@@ -103,3 +103,4 @@ else
   echo "⚠️  Could not check DKG state"
 fi
 
+

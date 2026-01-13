@@ -49,8 +49,16 @@ if [ -z "$WALLET_EVENTS" ] || [ "$WALLET_EVENTS" = "[]" ]; then
   exit 1
 fi
 
-# Get the first wallet's public key
-WALLET_ID=$(echo "$WALLET_EVENTS" | jq -r '.[0].topics[1]')
+# Get the latest wallet's public key (last in the array)
+WALLET_COUNT=$(echo "$WALLET_EVENTS" | jq -r 'length' 2>/dev/null || echo "0")
+if [ "$WALLET_COUNT" = "0" ]; then
+  echo "⚠️  No wallets found. Create a wallet first:"
+  echo "   ./scripts/request-new-wallet.sh"
+  exit 1
+fi
+# Get the last wallet (most recently created)
+WALLET_INDEX=$((WALLET_COUNT - 1))
+WALLET_ID=$(echo "$WALLET_EVENTS" | jq -r ".[$WALLET_INDEX].topics[1]")
 
 echo "  Wallet ID: $WALLET_ID"
 
@@ -112,12 +120,23 @@ echo "⚠️  Note: BridgeStub doesn't implement revealDeposit()"
 echo "   This script shows how to prepare deposit data for a full Bridge contract."
 echo ""
 
-# Generate random values for deposit
-DEPOSITOR="${1:-0x$(openssl rand -hex 20)}"
+# Get the account that will call revealDeposit (msg.sender)
+# This should be an account with ETH for gas
+ACCOUNT=$(cast rpc eth_accounts --rpc-url "$RPC_URL" 2>/dev/null | jq -r '.[0]' 2>/dev/null || echo "")
+if [ -z "$ACCOUNT" ] || [ "$ACCOUNT" = "null" ]; then
+  echo "⚠️  Warning: No accounts found. Using random depositor."
+  DEPOSITOR="${1:-0x$(openssl rand -hex 20)}"
+else
+  # Use the first account as depositor (msg.sender in revealDeposit)
+  DEPOSITOR="${1:-$ACCOUNT}"
+fi
+
 AMOUNT="${2:-100000000}"  # 1 BTC in satoshis (default)
 BLINDING_FACTOR="0x$(openssl rand -hex 8)"
 REFUND_PUBKEY_HASH="0x$(openssl rand -hex 20)"
-REFUND_LOCKTIME="0x$(printf '%08x' $(date +%s))"
+# Refund locktime must be far enough in the future (at least 24 hours recommended)
+# Add 7 days to current timestamp to ensure it's far enough
+REFUND_LOCKTIME="0x$(printf '%08x' $(($(date +%s) + 604800)))"
 
 echo "Deposit Parameters:"
 echo "  Depositor: $DEPOSITOR"
@@ -161,13 +180,43 @@ mkdir -p "$OUTPUT_DIR"
 FUNDING_TX_HASH="0x$(openssl rand -hex 32)"
 FUNDING_OUTPUT_INDEX=0
 
+# Create deposit script
+# Format: 14<depositor20>7508<blinding8>7576a914<walletPKH20>8763ac6776a914<refundPKH20>8804<locktime4>b175ac68
+DEPOSITOR_CLEAN=$(echo "$DEPOSITOR" | sed 's/^0x//')
+BLINDING_CLEAN=$(echo "$BLINDING_FACTOR" | sed 's/^0x//')
+WALLET_PKH_CLEAN=$(echo "$WALLET_PKH" | sed 's/^0x//')
+REFUND_PKH_CLEAN=$(echo "$REFUND_PUBKEY_HASH" | sed 's/^0x//')
+REFUND_LOCKTIME_CLEAN=$(echo "$REFUND_LOCKTIME" | sed 's/^0x//')
+
+DEPOSIT_SCRIPT="14${DEPOSITOR_CLEAN}7508${BLINDING_CLEAN}7576a914${WALLET_PKH_CLEAN}8763ac6776a914${REFUND_PKH_CLEAN}8804${REFUND_LOCKTIME_CLEAN}b175ac68"
+
+# Calculate witness script hash (SHA256 of deposit script) for P2WSH output
+DEPOSIT_SCRIPT_BYTES=$(echo -n "$DEPOSIT_SCRIPT" | xxd -r -p)
+WITNESS_SCRIPT_HASH=$(echo -n "$DEPOSIT_SCRIPT_BYTES" | sha256sum | awk '{print $1}')
+
 # Create mock BitcoinTxInfo
 # Note: In real scenario, this would come from actual Bitcoin transaction
+# inputVector: compact size (1) + previous tx hash (32) + output index (4) + script (var) + sequence (4)
+# For testing, we use a simple input
+INPUT_TX_HASH=$(openssl rand -hex 32)
+INPUT_OUTPUT_INDEX="00000000"
+INPUT_SEQUENCE="ffffffff"
+INPUT_SCRIPT_LEN="00"  # Empty script for testing
+INPUT_VECTOR="01${INPUT_TX_HASH}${INPUT_OUTPUT_INDEX}${INPUT_SCRIPT_LEN}${INPUT_SEQUENCE}"
+
+# outputVector: compact size (1) + value (8) + script length (1) + P2WSH script (34 bytes: 0x0020<32-byte-hash>)
+# Amount in little-endian 8 bytes
+AMOUNT_LE=$(printf '%016x' $AMOUNT | sed 's/\(..\)/\1\n/g' | tac | tr -d '\n')
+# P2WSH script: 0x0020<32-byte-witness-script-hash> = 34 bytes total
+P2WSH_SCRIPT="0020${WITNESS_SCRIPT_HASH}"
+P2WSH_SCRIPT_LEN="22"  # 34 bytes = 0x22
+OUTPUT_VECTOR="01${AMOUNT_LE}${P2WSH_SCRIPT_LEN}${P2WSH_SCRIPT}"
+
 BITCOIN_TX_INFO=$(cat <<EOF
 {
   "version": "0x01000000",
-  "inputVector": "0x01$(openssl rand -hex 64)ffffffff",
-  "outputVector": "0x01$(printf '%016x' $AMOUNT | sed 's/\(..\)/\\x\1/g' | xxd -r -p | xxd -p)$(printf '%02x' 23)$(echo -n "$DEPOSITOR" | sed 's/0x//' | xxd -r -p | xxd -p)",
+  "inputVector": "0x${INPUT_VECTOR}",
+  "outputVector": "0x${OUTPUT_VECTOR}",
   "locktime": "0x00000000"
 }
 EOF

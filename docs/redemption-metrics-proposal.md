@@ -346,3 +346,4 @@ histogram_quantile(0.95, rate(redemption_duration_seconds_bucket[5m]))
 - [Measuring Redemption Speed](./measuring-redemption-speed.md) - User guide
 - [Measuring Node Performance](./measuring-node-performance.md) - General metrics guide
 
+

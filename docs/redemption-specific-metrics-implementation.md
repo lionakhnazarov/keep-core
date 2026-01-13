@@ -350,3 +350,4 @@ func classifyRedemptionError(err error) string {
 - [Redemption Metrics Proposal](./redemption-metrics-proposal.md) - Detailed implementation proposal
 - [Measuring Redemption Speed](./measuring-redemption-speed.md) - User guide
 
+

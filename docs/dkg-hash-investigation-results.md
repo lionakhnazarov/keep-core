@@ -57,3 +57,4 @@ npx hardhat run scripts/compare-dkg-hash.ts --network development
 - `solidity/ecdsa/scripts/approve-dkg-from-event.ts` - Approval script using event data
 - `docs/dkg-approval-revert-root-cause.md` - Previous investigation on unlock() revert
 
+

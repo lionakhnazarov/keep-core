@@ -84,3 +84,4 @@ The `unlock()` call needs to be made in a way where `msg.sender` is WalletRegist
 2. Check if there's a workaround or fix already implemented
 3. Consider implementing one of the solutions above
 
+

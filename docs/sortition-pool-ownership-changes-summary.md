@@ -107,3 +107,4 @@ The transaction should succeed and `unlock()` should not revert.
 2. **For existing deployments:** Run `./scripts/complete-reset.sh` to fix ownership
 3. **Verify:** Test that `approveDkgResult()` works without reverting
 
+

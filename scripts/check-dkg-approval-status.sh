@@ -38,3 +38,4 @@ echo "4. Result hash doesn't match submitted result"
 echo "5. Result already approved"
 echo ""
 
+

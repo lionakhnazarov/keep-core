@@ -59,3 +59,4 @@ echo ""
 echo "For now, the deployment script has been modified to keep deployer as owner."
 echo "For existing deployments, you'll need to add a function to WalletRegistry."
 
+

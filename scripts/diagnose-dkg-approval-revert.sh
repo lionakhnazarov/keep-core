@@ -178,3 +178,4 @@ echo ""
 echo "To manually approve, use:"
 echo "  cast send $WALLET_REGISTRY_ADDRESS \"approveDkgResult(...)\" --rpc-url $RPC_URL --unlocked"
 
+

@@ -128,3 +128,4 @@ echo ""
 echo -e "${YELLOW}For detailed revert reason decoding, the TypeScript script is recommended${NC}"
 echo "as it can properly encode the full DKG result structure."
 
+
