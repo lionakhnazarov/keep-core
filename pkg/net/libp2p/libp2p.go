@@ -333,7 +333,6 @@ func Connect(
 		return nil, err
 	}
 
-
 	broadcastChannelManager, err := newChannelManager(ctx, identity, host, ticker)
 	if err != nil {
 		return nil, err
