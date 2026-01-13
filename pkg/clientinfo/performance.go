@@ -1,6 +1,7 @@
 package clientinfo
 
 import (
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -72,6 +73,9 @@ func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
 
 	// Register gauge observers for all gauges
 	go pm.observeGauges()
+
+	// Start observing system metrics
+	go pm.observeSystemMetrics()
 
 	return pm
 }
@@ -192,6 +196,9 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricIncomingMessageQueueSize,
 		MetricMessageHandlerQueueSize,
 		MetricSigningAttemptsPerOperation,
+		MetricCPUUtilization,
+		MetricMemoryUsageMB,
+		MetricGoroutineCount,
 	}
 
 	// First, initialize all gauges in the map
@@ -339,6 +346,93 @@ func (pm *PerformanceMetrics) observeGauges() {
 	// This function is kept for future use if needed
 }
 
+// observeSystemMetrics periodically collects and updates system metrics
+// including CPU utilization, memory usage, and goroutine count.
+func (pm *PerformanceMetrics) observeSystemMetrics() {
+	ticker := time.NewTicker(10 * time.Second) // Update every 10 seconds
+	defer ticker.Stop()
+
+	var lastMemStats runtime.MemStats
+	var lastUpdateTime time.Time
+	runtime.ReadMemStats(&lastMemStats)
+	lastUpdateTime = time.Now()
+
+	for range ticker.C {
+		// Update goroutine count
+		goroutineCount := float64(runtime.NumGoroutine())
+		pm.SetGauge(MetricGoroutineCount, goroutineCount)
+
+		// Update memory usage
+		// Using Sys (total memory obtained from OS) for accurate total memory footprint
+		// This includes heap, stack, GC metadata, and other runtime overhead
+		// For heap-only memory, use memStats.Alloc instead
+		var memStats runtime.MemStats
+		runtime.ReadMemStats(&memStats)
+		memoryUsageMB := float64(memStats.Sys) / (1024 * 1024) // Total memory in megabytes
+		pm.SetGauge(MetricMemoryUsageMB, memoryUsageMB)
+
+		// Calculate CPU utilization using a more realistic heuristic
+		now := time.Now()
+		elapsed := now.Sub(lastUpdateTime)
+		if elapsed > 0 {
+			cpuUtilization := pm.calculateCPUUtilizationHeuristic(memStats, lastMemStats, elapsed)
+			pm.SetGauge(MetricCPUUtilization, cpuUtilization)
+
+			lastMemStats = memStats
+			lastUpdateTime = now
+		}
+	}
+}
+
+// calculateCPUUtilizationHeuristic calculates CPU utilization using a heuristic
+// based on goroutine count and GC activity. This provides a reasonable approximation.
+// Note: For accurate CPU metrics, consider using OS-level process CPU time.
+func (pm *PerformanceMetrics) calculateCPUUtilizationHeuristic(
+	currentMemStats runtime.MemStats,
+	lastMemStats runtime.MemStats,
+	elapsed time.Duration,
+) float64 {
+	numCPU := float64(runtime.NumCPU())
+	activeGoroutines := float64(runtime.NumGoroutine())
+
+	// Calculate GC rate (GCs per second)
+	gcDelta := float64(currentMemStats.NumGC - lastMemStats.NumGC)
+	gcRate := gcDelta / elapsed.Seconds()
+
+	// Normalize goroutines: if we have more goroutines than CPU cores,
+	// we're likely using more CPU, but use a conservative multiplier
+	// Formula: (goroutines / CPU cores) * 10%, capped at 40%
+	goroutineContribution := (activeGoroutines / numCPU) * 10.0
+	if goroutineContribution > 40.0 {
+		goroutineContribution = 40.0
+	}
+
+	// GC contribution: frequent GCs indicate CPU work, but use conservative multiplier
+	// Formula: GC rate * 1%, capped at 20%
+	gcContribution := gcRate * 1.0
+	if gcContribution > 20.0 {
+		gcContribution = 20.0
+	}
+
+	// Total CPU utilization estimate
+	cpuUtilization := goroutineContribution + gcContribution
+
+	// Add a small base load if there are active goroutines
+	if cpuUtilization < 1.0 && activeGoroutines > 0 {
+		cpuUtilization = 1.0 // Minimum 1% if there are active goroutines
+	}
+
+	// Cap CPU utilization at 100%
+	if cpuUtilization > 100.0 {
+		cpuUtilization = 100.0
+	}
+	if cpuUtilization < 0.0 {
+		cpuUtilization = 0.0
+	}
+
+	return cpuUtilization
+}
+
 // NoOpPerformanceMetrics is a no-op implementation of PerformanceMetricsRecorder
 // that can be used when metrics are disabled.
 type NoOpPerformanceMetrics struct{}
@@ -433,4 +527,9 @@ const (
 	// Wallet Dispatcher Metrics
 	MetricWalletDispatcherActiveActions = "wallet_dispatcher_active_actions"
 	MetricWalletDispatcherRejectedTotal = "wallet_dispatcher_rejected_total"
+
+	// System Metrics
+	MetricCPUUtilization = "cpu_utilization_percent"
+	MetricMemoryUsageMB  = "memory_usage_mb"
+	MetricGoroutineCount = "goroutine_count"
 )

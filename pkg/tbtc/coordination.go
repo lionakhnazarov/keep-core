@@ -371,7 +371,7 @@ func (ce *coordinationExecutor) coordinate(
 	execLogger.Info("starting coordination")
 
 	startTime := time.Now()
-	
+
 	// Record duration metric once at the end using defer
 	var coordinationFailed bool
 	defer func() {

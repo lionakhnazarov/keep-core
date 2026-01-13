@@ -255,17 +255,10 @@ func (r *RPCHealthChecker) GetBitcoinHealthStatus() (isHealthy bool, lastCheck t
 
 // registerMetrics registers metrics observers for RPC health status.
 func (r *RPCHealthChecker) registerMetrics() {
-	// Ethereum RPC health status and response time
+	// Ethereum RPC response time
 	r.registry.ObserveApplicationSource(
 		"performance",
 		map[string]Source{
-			"rpc_eth_health_status": func() float64 {
-				isHealthy, _, _, _, _ := r.GetEthereumHealthStatus()
-				if isHealthy {
-					return 1
-				}
-				return 0
-			},
 			"rpc_eth_response_time_seconds": func() float64 {
 				_, _, _, _, lastDuration := r.GetEthereumHealthStatus()
 				return lastDuration.Seconds()
@@ -273,17 +266,10 @@ func (r *RPCHealthChecker) registerMetrics() {
 		},
 	)
 
-	// Bitcoin RPC health status and response time
+	// Bitcoin RPC response time
 	r.registry.ObserveApplicationSource(
 		"performance",
 		map[string]Source{
-			"rpc_btc_health_status": func() float64 {
-				isHealthy, _, _, _, _ := r.GetBitcoinHealthStatus()
-				if isHealthy {
-					return 1
-				}
-				return 0
-			},
 			"rpc_btc_response_time_seconds": func() float64 {
 				_, _, _, _, lastDuration := r.GetBitcoinHealthStatus()
 				return lastDuration.Seconds()
