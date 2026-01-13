@@ -55,6 +55,8 @@ type channel struct {
 
 	name string
 
+	ctx context.Context
+
 	clientIdentity *identity
 	peerStore      peerstore.Peerstore
 
@@ -450,18 +452,15 @@ func (c *channel) setMetricsRecorder(recorder interface {
 	c.metricsRecorder = recorder
 	// Start periodic queue size monitoring
 	if recorder != nil {
-		go c.monitorQueueSizes(recorder)
+		go c.monitorQueueSizes(c.ctx, recorder)
 	}
 }
 
 // monitorQueueSizes periodically records queue sizes as metrics.
-func (c *channel) monitorQueueSizes(recorder interface {
+// It stops when the provided context is cancelled (e.g., when the channel is closed).
+func (c *channel) monitorQueueSizes(ctx context.Context, recorder interface {
 	SetGauge(name string, value float64)
 }) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Stop monitoring when channel is closed (we'll use a simple ticker for now)
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 

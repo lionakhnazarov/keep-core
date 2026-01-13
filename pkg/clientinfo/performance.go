@@ -71,9 +71,6 @@ func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
 	// Register all metrics upfront with 0 values so they appear in /metrics endpoint
 	pm.registerAllMetrics()
 
-	// Register gauge observers for all gauges
-	go pm.observeGauges()
-
 	// Start observing system metrics
 	go pm.observeSystemMetrics()
 
@@ -157,37 +154,38 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 	// Then, register observers (this prevents concurrent map read/write)
 	for _, name := range durationMetrics {
 		metricName := name
-		pm.registry.ObserveApplicationSource(
-			"performance",
-			map[string]Source{
-				metricName: func() float64 {
-					pm.histogramsMutex.RLock()
-					h, exists := pm.histograms[metricName]
-					pm.histogramsMutex.RUnlock()
-					if !exists {
-						return 0
-					}
-					h.mutex.RLock()
-					defer h.mutex.RUnlock()
-					count := h.buckets[-1]
-					if count == 0 {
-						return 0
-					}
-					return h.buckets[-2] / count // average
-				},
-				metricName + "_count": func() float64 {
-					pm.histogramsMutex.RLock()
-					h, exists := pm.histograms[metricName]
-					pm.histogramsMutex.RUnlock()
-					if !exists {
-						return 0
-					}
-					h.mutex.RLock()
-					defer h.mutex.RUnlock()
-					return h.buckets[-1]
-				},
+		sources := map[string]Source{
+			metricName: func() float64 {
+				pm.histogramsMutex.RLock()
+				h, exists := pm.histograms[metricName]
+				pm.histogramsMutex.RUnlock()
+				if !exists {
+					return 0
+				}
+				h.mutex.RLock()
+				defer h.mutex.RUnlock()
+				count := h.buckets[-1]
+				if count == 0 {
+					return 0
+				}
+				return h.buckets[-2] / count // average
 			},
-		)
+		}
+		// Skip _count variant for ping_test_duration_seconds
+		if metricName != "ping_test_duration_seconds" {
+			sources[metricName+"_count"] = func() float64 {
+				pm.histogramsMutex.RLock()
+				h, exists := pm.histograms[metricName]
+				pm.histogramsMutex.RUnlock()
+				if !exists {
+					return 0
+				}
+				h.mutex.RLock()
+				defer h.mutex.RUnlock()
+				return h.buckets[-1]
+			}
+		}
+		pm.registry.ObserveApplicationSource("performance", sources)
 	}
 
 	// Register all gauge metrics with 0 initial value
@@ -290,26 +288,26 @@ func (pm *PerformanceMetrics) RecordDuration(name string, duration time.Duration
 		metricName = name + "_duration_seconds"
 	}
 
-	// Expose as gauge for now (Prometheus-style histograms would be better)
-	pm.registry.ObserveApplicationSource(
-		"performance",
-		map[string]Source{
-			metricName: func() float64 {
-				h.mutex.RLock()
-				defer h.mutex.RUnlock()
-				count := h.buckets[-1]
-				if count == 0 {
-					return 0
-				}
-				return h.buckets[-2] / count // average
-			},
-			metricName + "_count": func() float64 {
-				h.mutex.RLock()
-				defer h.mutex.RUnlock()
-				return h.buckets[-1]
-			},
+	sources := map[string]Source{
+		metricName: func() float64 {
+			h.mutex.RLock()
+			defer h.mutex.RUnlock()
+			count := h.buckets[-1]
+			if count == 0 {
+				return 0
+			}
+			return h.buckets[-2] / count // average
 		},
-	)
+	}
+	// Skip _count variant for ping_test_duration_seconds
+	if metricName != "ping_test_duration_seconds" {
+		sources[metricName+"_count"] = func() float64 {
+			h.mutex.RLock()
+			defer h.mutex.RUnlock()
+			return h.buckets[-1]
+		}
+	}
+	pm.registry.ObserveApplicationSource("performance", sources)
 }
 
 // SetGauge sets a gauge metric to the given value.
@@ -337,13 +335,6 @@ func (pm *PerformanceMetrics) SetGauge(name string, value float64) {
 			},
 		},
 	)
-}
-
-// observeGauges periodically updates gauge observers.
-// This is handled automatically by ObserveApplicationSource.
-func (pm *PerformanceMetrics) observeGauges() {
-	// Gauges are observed automatically via ObserveApplicationSource
-	// This function is kept for future use if needed
 }
 
 // observeSystemMetrics periodically collects and updates system metrics

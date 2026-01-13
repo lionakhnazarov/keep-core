@@ -161,6 +161,7 @@ func (cm *channelManager) newChannel(name string) (*channel, error) {
 
 	channel := &channel{
 		name:                 name,
+		ctx:                  cm.ctx,
 		clientIdentity:       cm.identity,
 		peerStore:            cm.peerStore,
 		validator:            cm.pubsub,

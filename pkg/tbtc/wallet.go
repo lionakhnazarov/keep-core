@@ -179,9 +179,7 @@ func (wd *walletDispatcher) dispatch(action walletAction) error {
 
 	// Update metrics
 	if wd.metricsRecorder != nil {
-		wd.actionsMutex.Lock()
 		activeCount := float64(len(wd.actions))
-		wd.actionsMutex.Unlock()
 		wd.metricsRecorder.SetGauge("wallet_dispatcher_active_actions", activeCount)
 		wd.metricsRecorder.IncrementCounter("wallet_actions_total", 1)
 	}

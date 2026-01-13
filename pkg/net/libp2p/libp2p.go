@@ -333,9 +333,6 @@ func Connect(
 		return nil, err
 	}
 
-	// Build notifiee with metrics recorder (will be set later if available)
-	notifiee := buildNotifiee(host, nil)
-	host.Network().Notify(notifiee)
 
 	broadcastChannelManager, err := newChannelManager(ctx, identity, host, ticker)
 	if err != nil {
@@ -374,6 +371,10 @@ func Connect(
 
 	provider.connectionManager = newConnectionManager(ctx, provider.host)
 
+	// Register notifiee - it will reference provider.metricsRecorder which can be updated later
+	notifiee := buildNotifiee(provider.host, &provider.metricsRecorder)
+	provider.host.Network().Notify(notifiee)
+
 	// Instantiates and starts the connection management background process.
 	watchtower.NewGuard(
 		ctx,
@@ -397,8 +398,6 @@ func (p *provider) SetMetricsRecorder(recorder interface {
 	if p.broadcastChannelManager != nil {
 		p.broadcastChannelManager.setMetricsRecorder(recorder)
 	}
-	// Update notifiee with metrics recorder
-	p.host.Network().Notify(buildNotifiee(p.host, recorder))
 }
 
 func discoverAndListen(
@@ -558,7 +557,7 @@ func extractMultiAddrFromPeers(peers []string) ([]peer.AddrInfo, error) {
 	return peerInfos, nil
 }
 
-func buildNotifiee(libp2pHost host.Host, metricsRecorder interface {
+func buildNotifiee(libp2pHost host.Host, metricsRecorder *interface {
 	IncrementCounter(name string, value float64)
 	SetGauge(name string, value float64)
 	RecordDuration(name string, duration time.Duration)
@@ -575,11 +574,17 @@ func buildNotifiee(libp2pHost host.Host, metricsRecorder interface {
 
 		logger.Infof("established connection to [%v]", peerMultiaddress)
 
-		if metricsRecorder != nil {
-			metricsRecorder.IncrementCounter("peer_connections_total", 1)
+		var recorder interface {
+			IncrementCounter(name string, value float64)
+			SetGauge(name string, value float64)
+			RecordDuration(name string, duration time.Duration)
+		}
+		if metricsRecorder != nil && *metricsRecorder != nil {
+			recorder = *metricsRecorder
+			recorder.IncrementCounter("peer_connections_total", 1)
 		}
 
-		go executePingTest(libp2pHost, peerID, peerMultiaddress, metricsRecorder)
+		go executePingTest(libp2pHost, peerID, peerMultiaddress, recorder)
 	}
 	notifyBundle.DisconnectedF = func(_ libp2pnet.Network, connection libp2pnet.Conn) {
 		logger.Infof(
@@ -590,8 +595,8 @@ func buildNotifiee(libp2pHost host.Host, metricsRecorder interface {
 			),
 		)
 
-		if metricsRecorder != nil {
-			metricsRecorder.IncrementCounter("peer_disconnections_total", 1)
+		if metricsRecorder != nil && *metricsRecorder != nil {
+			(*metricsRecorder).IncrementCounter("peer_disconnections_total", 1)
 		}
 	}
 
