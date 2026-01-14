@@ -512,10 +512,10 @@ const (
 	MetricPeerDisconnectionsTotal  = "peer_disconnections_total"
 	MetricMessageBroadcastTotal    = "message_broadcast_total"
 	MetricMessageReceivedTotal     = "message_received_total"
-	MetricPingTestsTotal            = "ping_test_total"
-	MetricPingTestSuccessTotal      = "ping_test_success_total"
-	MetricPingTestFailedTotal       = "ping_test_failed_total"
-	MetricPingTestDurationSeconds   = "ping_test_duration_seconds"
+	MetricPingTestsTotal           = "ping_test_total"
+	MetricPingTestSuccessTotal     = "ping_test_success_total"
+	MetricPingTestFailedTotal      = "ping_test_failed_total"
+	MetricPingTestDurationSeconds  = "ping_test_duration_seconds"
 
 	// Wallet Dispatcher Metrics
 	MetricWalletDispatcherActiveActions = "wallet_dispatcher_active_actions"

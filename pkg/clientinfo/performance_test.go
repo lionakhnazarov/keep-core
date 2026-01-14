@@ -252,15 +252,15 @@ func TestHistogramBucketPlacement(t *testing.T) {
 		bucket    float64
 		shouldRun bool
 	}{
-		{500 * time.Microsecond, 0.001, true},  // < 1ms
-		{5 * time.Millisecond, 0.01, true},     // < 10ms
-		{50 * time.Millisecond, 0.1, true},     // < 100ms
-		{500 * time.Millisecond, 1, true},      // < 1s
-		{5 * time.Second, 10, true},            // < 10s
-		{30 * time.Second, 60, true},           // < 60s
-		{200 * time.Second, 300, true},         // < 300s
-		{500 * time.Second, 600, true},         // < 600s
-		{1000 * time.Second, 0, false},         // > 600s (overflow)
+		{500 * time.Microsecond, 0.001, true}, // < 1ms
+		{5 * time.Millisecond, 0.01, true},    // < 10ms
+		{50 * time.Millisecond, 0.1, true},    // < 100ms
+		{500 * time.Millisecond, 1, true},     // < 1s
+		{5 * time.Second, 10, true},           // < 10s
+		{30 * time.Second, 60, true},          // < 60s
+		{200 * time.Second, 300, true},        // < 300s
+		{500 * time.Second, 600, true},        // < 600s
+		{1000 * time.Second, 0, false},        // > 600s (overflow)
 	}
 
 	for _, tc := range testCases {
