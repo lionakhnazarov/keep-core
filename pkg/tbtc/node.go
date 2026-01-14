@@ -12,6 +12,7 @@ import (
 	"github.com/keep-network/keep-common/pkg/chain/ethereum"
 	"github.com/keep-network/keep-core/pkg/bitcoin"
 	"github.com/keep-network/keep-core/pkg/chain"
+	"github.com/keep-network/keep-core/pkg/clientinfo"
 
 	"go.uber.org/zap"
 
@@ -1005,7 +1006,7 @@ func (n *node) runCoordinationLayer(
 	onWindowFn := func(window *coordinationWindow) {
 		// Track coordination window detection
 		if n.performanceMetrics != nil {
-			n.performanceMetrics.IncrementCounter("coordination_windows_detected_total", 1)
+			n.performanceMetrics.IncrementCounter(clientinfo.MetricCoordinationWindowsDetectedTotal, 1)
 		}
 
 		// Fetch all wallets controlled by the node. It is important to

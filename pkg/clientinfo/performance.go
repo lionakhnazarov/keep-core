@@ -4,7 +4,6 @@ import (
 	"context"
 	"math"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 )
@@ -61,6 +60,12 @@ type gauge struct {
 	value float64
 	mutex sync.RWMutex
 }
+
+// Histogram bucket keys for internal tracking
+const (
+	histogramCountKey = -1.0
+	histogramSumKey   = -2.0
+)
 
 // NewPerformanceMetrics creates a new performance metrics instance.
 func NewPerformanceMetrics(ctx context.Context, registry *Registry) *PerformanceMetrics {
@@ -174,11 +179,11 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 				}
 				h.mutex.RLock()
 				defer h.mutex.RUnlock()
-				count := h.buckets[-1]
+				count := h.buckets[histogramCountKey]
 				if count == 0 {
 					return 0
 				}
-				return h.buckets[-2] / count // average
+				return h.buckets[histogramSumKey] / count // average
 			},
 		}
 		// Skip _count variant for ping_test_duration_seconds
@@ -192,7 +197,7 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 				}
 				h.mutex.RLock()
 				defer h.mutex.RUnlock()
-				return h.buckets[-1]
+				return h.buckets[histogramCountKey]
 			}
 		}
 		pm.registry.ObserveApplicationSource("performance", sources)
@@ -238,34 +243,43 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 }
 
 // IncrementCounter increments a counter metric by the given value.
+// Observers are already registered in registerAllMetrics, so this method
+// only updates the counter value without re-registering observers.
 func (pm *PerformanceMetrics) IncrementCounter(name string, value float64) {
-	pm.countersMutex.Lock()
+	pm.countersMutex.RLock()
 	c, exists := pm.counters[name]
+	pm.countersMutex.RUnlock()
+
+	// Fast path: if counter exists, just increment it
+	if exists {
+		c.mutex.Lock()
+		c.value += value
+		c.mutex.Unlock()
+		return
+	}
+
+	// Slow path: counter doesn't exist, need to create it
+	// Upgrade to write lock and check/create
+	pm.countersMutex.Lock()
+	c, exists = pm.counters[name]
 	if !exists {
-		c = &counter{value: 0}
+		c = &counter{value: value}
 		pm.counters[name] = c
+		pm.countersMutex.Unlock()
+		return
 	}
 	pm.countersMutex.Unlock()
 
+	// Counter was created by another goroutine after our first check
 	c.mutex.Lock()
 	c.value += value
 	c.mutex.Unlock()
-
-	// Update the gauge observer for this counter
-	pm.registry.ObserveApplicationSource(
-		"performance",
-		map[string]Source{
-			name: func() float64 {
-				c.mutex.RLock()
-				defer c.mutex.RUnlock()
-				return c.value
-			},
-		},
-	)
 }
 
 // RecordDuration records a duration value in a histogram.
 // The duration is recorded in seconds.
+// Observers are already registered in registerAllMetrics, so this method
+// only updates the histogram without re-registering observers.
 func (pm *PerformanceMetrics) RecordDuration(name string, duration time.Duration) {
 	pm.histogramsMutex.Lock()
 	h, exists := pm.histograms[name]
@@ -295,62 +309,28 @@ func (pm *PerformanceMetrics) RecordDuration(name string, duration time.Duration
 		h.buckets[math.Inf(1)]++
 	}
 	// Also track total count and sum for average calculation
-	h.buckets[-1]++          // -1 = count
-	h.buckets[-2] += seconds // -2 = sum
+	h.buckets[histogramCountKey]++ // count
+	h.buckets[histogramSumKey] += seconds
 	h.mutex.Unlock()
-
-	metricName := name
-	if !strings.HasSuffix(name, "_duration_seconds") {
-		metricName = name + "_duration_seconds"
-	}
-
-	sources := map[string]Source{
-		metricName: func() float64 {
-			h.mutex.RLock()
-			defer h.mutex.RUnlock()
-			count := h.buckets[-1]
-			if count == 0 {
-				return 0
-			}
-			return h.buckets[-2] / count // average
-		},
-	}
-	// Skip _count variant for ping_test_duration_seconds
-	if metricName != "ping_test_duration_seconds" {
-		sources[metricName+"_count"] = func() float64 {
-			h.mutex.RLock()
-			defer h.mutex.RUnlock()
-			return h.buckets[-1]
-		}
-	}
-	pm.registry.ObserveApplicationSource("performance", sources)
 }
 
 // SetGauge sets a gauge metric to the given value.
+// Observers are already registered in registerAllMetrics, so this method
+// only updates the gauge value without re-registering observers.
 func (pm *PerformanceMetrics) SetGauge(name string, value float64) {
 	pm.gaugesMutex.Lock()
 	g, exists := pm.gauges[name]
 	if !exists {
-		g = &gauge{value: 0}
+		g = &gauge{value: value}
 		pm.gauges[name] = g
+		pm.gaugesMutex.Unlock()
+		return
 	}
 	pm.gaugesMutex.Unlock()
 
 	g.mutex.Lock()
 	g.value = value
 	g.mutex.Unlock()
-
-	// Register gauge observer if not already registered
-	pm.registry.ObserveApplicationSource(
-		"performance",
-		map[string]Source{
-			name: func() float64 {
-				g.mutex.RLock()
-				defer g.mutex.RUnlock()
-				return g.value
-			},
-		},
-	)
 }
 
 // observeSystemMetrics periodically collects and updates system metrics

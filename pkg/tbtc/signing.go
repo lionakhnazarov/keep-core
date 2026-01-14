@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/keep-network/keep-core/pkg/clientinfo"
 	"github.com/keep-network/keep-core/pkg/generator"
 	"github.com/keep-network/keep-core/pkg/net"
 	"github.com/keep-network/keep-core/pkg/protocol/announcer"
@@ -155,9 +156,7 @@ func (se *signingExecutor) signBatch(
 
 		signature, _, endBlock, err := se.sign(ctx, message, signingStartBlock)
 		if err != nil {
-			// Note: Error metrics are recorded in sign() method only for certain
-			// error paths (signing failures in the default case). Some early returns
-			// may not record metrics.
+			// Error metrics are recorded in the sign() method for all error paths.
 			return nil, err
 		}
 
@@ -187,6 +186,11 @@ func (se *signingExecutor) sign(
 	startBlock uint64,
 ) (*tecdsa.Signature, *signingActivityReport, uint64, error) {
 	if lockAcquired := se.lock.TryAcquire(1); !lockAcquired {
+		// Record failure metrics for lock acquisition failure
+		if se.metricsRecorder != nil {
+			se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningOperationsTotal, 1)
+			se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningFailedTotal, 1)
+		}
 		return nil, nil, 0, errSigningExecutorBusy
 	}
 	defer se.lock.Release(1)
@@ -194,13 +198,17 @@ func (se *signingExecutor) sign(
 	startTime := time.Now()
 
 	if se.metricsRecorder != nil {
-		se.metricsRecorder.IncrementCounter("signing_operations_total", 1)
+		se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningOperationsTotal, 1)
 	}
 
 	wallet := se.wallet()
 
 	walletPublicKeyBytes, err := marshalPublicKey(wallet.publicKey)
 	if err != nil {
+		// Record failure metrics for marshal error
+		if se.metricsRecorder != nil {
+			se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningFailedTotal, 1)
+		}
 		return nil, nil, 0, fmt.Errorf("cannot marshal wallet public key: [%v]", err)
 	}
 
@@ -404,17 +412,17 @@ func (se *signingExecutor) sign(
 	select {
 	case outcome := <-signingOutcomeChan:
 		if se.metricsRecorder != nil {
-			se.metricsRecorder.IncrementCounter("signing_success_total", 1)
-			se.metricsRecorder.RecordDuration("signing_duration_seconds", time.Since(startTime))
+			se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningSuccessTotal, 1)
+			se.metricsRecorder.RecordDuration(clientinfo.MetricSigningDurationSeconds, time.Since(startTime))
 		}
 		return outcome.signature, outcome.activityReport, outcome.endBlock, nil
 	default:
 		if se.metricsRecorder != nil {
 			// All signers failed to produce a signature within the timeout period.
 			// This is counted as both a failure and a timeout.
-			se.metricsRecorder.IncrementCounter("signing_failed_total", 1)
-			se.metricsRecorder.IncrementCounter("signing_timeouts_total", 1)
-			se.metricsRecorder.RecordDuration("signing_duration_seconds", time.Since(startTime))
+			se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningFailedTotal, 1)
+			se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningTimeoutsTotal, 1)
+			se.metricsRecorder.RecordDuration(clientinfo.MetricSigningDurationSeconds, time.Since(startTime))
 		}
 		return nil, nil, 0, fmt.Errorf("all signers failed")
 	}
