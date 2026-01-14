@@ -122,9 +122,6 @@ func Initialize(
 			},
 		)
 
-		// Use provided performance metrics instance, or create a new one if not provided
-		// This prevents duplicate metric registrations when perfMetrics is already
-		// initialized in cmd/start.go for network provider metrics
 		if perfMetrics == nil {
 			perfMetrics = clientinfo.NewPerformanceMetrics(clientInfo)
 		}
