@@ -92,7 +92,7 @@ func start(cmd *cobra.Command) error {
 	// Wire performance metrics into network provider if available
 	var perfMetrics *clientinfo.PerformanceMetrics
 	if clientInfoRegistry != nil {
-		perfMetrics = clientinfo.NewPerformanceMetrics(clientInfoRegistry)
+		perfMetrics = clientinfo.NewPerformanceMetrics(ctx, clientInfoRegistry)
 		// Type assert to libp2p provider to set metrics recorder
 		// The provider struct is not exported, so we use interface assertion
 		if setter, ok := netProvider.(interface {
@@ -125,14 +125,14 @@ func start(cmd *cobra.Command) error {
 
 		scheduler := generator.StartScheduler()
 
-		clientInfoRegistry.ObserveBtcConnectivity(
-			btcChain,
-			clientConfig.ClientInfo.BitcoinMetricsTick,
-		)
-
-		clientInfoRegistry.RegisterBtcChainInfoSource(btcChain)
-
 		if clientInfoRegistry != nil {
+			clientInfoRegistry.ObserveBtcConnectivity(
+				btcChain,
+				clientConfig.ClientInfo.BitcoinMetricsTick,
+			)
+
+			clientInfoRegistry.RegisterBtcChainInfoSource(btcChain)
+
 			rpcHealthChecker := clientinfo.NewRPCHealthChecker(
 				clientInfoRegistry,
 				blockCounter,

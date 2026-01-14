@@ -15,6 +15,7 @@ import (
 	"github.com/ipfs/go-log/v2"
 	"github.com/keep-network/keep-common/pkg/persistence"
 	"github.com/keep-network/keep-core/pkg/chain"
+	"github.com/keep-network/keep-core/pkg/clientinfo"
 	"github.com/keep-network/keep-core/pkg/generator"
 	"github.com/keep-network/keep-core/pkg/net"
 	"github.com/keep-network/keep-core/pkg/protocol/announcer"
@@ -171,7 +172,7 @@ func (de *dkgExecutor) executeDkgIfEligible(
 		)
 
 		if de.metricsRecorder != nil {
-			de.metricsRecorder.IncrementCounter("dkg_joined_total", float64(membersCount))
+			de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGJoinedTotal, float64(membersCount))
 		}
 
 		de.generateSigningGroup(
@@ -412,8 +413,8 @@ func (de *dkgExecutor) generateSigningGroup(
 			)
 			if err != nil {
 				if de.metricsRecorder != nil {
-					de.metricsRecorder.IncrementCounter("dkg_failed_total", 1)
-					de.metricsRecorder.RecordDuration("dkg_duration_seconds", time.Since(dkgStartTime))
+					de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGFailedTotal, 1)
+					de.metricsRecorder.RecordDuration(clientinfo.MetricDKGDurationSeconds, time.Since(dkgStartTime))
 				}
 				if errors.Is(err, context.Canceled) {
 					dkgLogger.Infof(
@@ -449,7 +450,7 @@ func (de *dkgExecutor) generateSigningGroup(
 
 			// Record successful DKG completion
 			if de.metricsRecorder != nil {
-				de.metricsRecorder.RecordDuration("dkg_duration_seconds", time.Since(dkgStartTime))
+				de.metricsRecorder.RecordDuration(clientinfo.MetricDKGDurationSeconds, time.Since(dkgStartTime))
 			}
 
 			err = de.publishDkgResult(
@@ -590,7 +591,7 @@ func (de *dkgExecutor) executeDkgValidation(
 	dkgLogger.Infof("starting DKG result validation")
 
 	if de.metricsRecorder != nil {
-		de.metricsRecorder.IncrementCounter("dkg_validation_total", 1)
+		de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGValidationTotal, 1)
 	}
 
 	isValid, err := de.chain.IsDKGResultValid(result)
@@ -623,7 +624,7 @@ func (de *dkgExecutor) executeDkgValidation(
 			}
 
 			if de.metricsRecorder != nil {
-				de.metricsRecorder.IncrementCounter("dkg_challenges_submitted_total", 1)
+				de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGChallengesSubmittedTotal, 1)
 			}
 
 			confirmationBlock := submissionBlock +
@@ -773,7 +774,7 @@ func (de *dkgExecutor) executeDkgValidation(
 			}
 
 			if de.metricsRecorder != nil {
-				de.metricsRecorder.IncrementCounter("dkg_approvals_submitted_total", 1)
+				de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGApprovalsSubmittedTotal, 1)
 			}
 
 			dkgLogger.Infof("[member:%v] approving DKG result", memberIndex)

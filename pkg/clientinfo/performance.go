@@ -1,8 +1,9 @@
 package clientinfo
 
 import (
+	"context"
+	"math"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 )
@@ -27,6 +28,7 @@ type PerformanceMetricsRecorder interface {
 // It implements PerformanceMetricsRecorder interface.
 type PerformanceMetrics struct {
 	registry *Registry
+	cancel   context.CancelFunc
 
 	// Counters track cumulative counts of events
 	countersMutex sync.RWMutex
@@ -59,10 +61,18 @@ type gauge struct {
 	mutex sync.RWMutex
 }
 
+// Histogram bucket keys for internal tracking
+const (
+	histogramCountKey = -1.0
+	histogramSumKey   = -2.0
+)
+
 // NewPerformanceMetrics creates a new performance metrics instance.
-func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
+func NewPerformanceMetrics(ctx context.Context, registry *Registry) *PerformanceMetrics {
+	ctx, cancel := context.WithCancel(ctx)
 	pm := &PerformanceMetrics{
 		registry:   registry,
+		cancel:     cancel,
 		counters:   make(map[string]*counter),
 		histograms: make(map[string]*histogram),
 		gauges:     make(map[string]*gauge),
@@ -72,9 +82,14 @@ func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
 	pm.registerAllMetrics()
 
 	// Start observing system metrics
-	go pm.observeSystemMetrics()
+	go pm.observeSystemMetrics(ctx)
 
 	return pm
+}
+
+// Stop stops the performance metrics collection goroutines.
+func (pm *PerformanceMetrics) Stop() {
+	pm.cancel()
 }
 
 // registerAllMetrics registers all performance metrics with 0 values
@@ -137,11 +152,11 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 	// Register all duration/histogram metrics with 0 initial values
 	// Note: These use the actual metric names as used in the codebase
 	durationMetrics := []string{
-		"dkg_duration_seconds",
-		"signing_duration_seconds",
-		"wallet_action_duration_seconds",
-		"coordination_duration_seconds",
-		"ping_test_duration_seconds",
+		MetricDKGDurationSeconds,
+		MetricSigningDurationSeconds,
+		MetricWalletActionDurationSeconds,
+		MetricCoordinationDurationSeconds,
+		MetricPingTestDurationSeconds,
 	}
 
 	// First, initialize all histograms in the map
@@ -164,11 +179,11 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 				}
 				h.mutex.RLock()
 				defer h.mutex.RUnlock()
-				count := h.buckets[-1]
+				count := h.buckets[histogramCountKey]
 				if count == 0 {
 					return 0
 				}
-				return h.buckets[-2] / count // average
+				return h.buckets[histogramSumKey] / count // average
 			},
 		}
 		// Skip _count variant for ping_test_duration_seconds
@@ -182,7 +197,7 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 				}
 				h.mutex.RLock()
 				defer h.mutex.RUnlock()
-				return h.buckets[-1]
+				return h.buckets[histogramCountKey]
 			}
 		}
 		pm.registry.ObserveApplicationSource("performance", sources)
@@ -228,34 +243,43 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 }
 
 // IncrementCounter increments a counter metric by the given value.
+// Observers are already registered in registerAllMetrics, so this method
+// only updates the counter value without re-registering observers.
 func (pm *PerformanceMetrics) IncrementCounter(name string, value float64) {
-	pm.countersMutex.Lock()
+	pm.countersMutex.RLock()
 	c, exists := pm.counters[name]
+	pm.countersMutex.RUnlock()
+
+	// Fast path: if counter exists, just increment it
+	if exists {
+		c.mutex.Lock()
+		c.value += value
+		c.mutex.Unlock()
+		return
+	}
+
+	// Slow path: counter doesn't exist, need to create it
+	// Upgrade to write lock and check/create
+	pm.countersMutex.Lock()
+	c, exists = pm.counters[name]
 	if !exists {
-		c = &counter{value: 0}
+		c = &counter{value: value}
 		pm.counters[name] = c
+		pm.countersMutex.Unlock()
+		return
 	}
 	pm.countersMutex.Unlock()
 
+	// Counter was created by another goroutine after our first check
 	c.mutex.Lock()
 	c.value += value
 	c.mutex.Unlock()
-
-	// Update the gauge observer for this counter
-	pm.registry.ObserveApplicationSource(
-		"performance",
-		map[string]Source{
-			name: func() float64 {
-				c.mutex.RLock()
-				defer c.mutex.RUnlock()
-				return c.value
-			},
-		},
-	)
 }
 
 // RecordDuration records a duration value in a histogram.
 // The duration is recorded in seconds.
+// Observers are already registered in registerAllMetrics, so this method
+// only updates the histogram without re-registering observers.
 func (pm *PerformanceMetrics) RecordDuration(name string, duration time.Duration) {
 	pm.histogramsMutex.Lock()
 	h, exists := pm.histograms[name]
@@ -270,76 +294,48 @@ func (pm *PerformanceMetrics) RecordDuration(name string, duration time.Duration
 	seconds := duration.Seconds()
 	h.mutex.Lock()
 	// Simple histogram: increment bucket counts
-	// Buckets: 0.001, 0.01, 0.1, 1, 10, 60, 300, 600
+	// Buckets: 0.001, 0.01, 0.1, 1, 10, 60, 300, 600, +Inf (overflow)
 	buckets := []float64{0.001, 0.01, 0.1, 1, 10, 60, 300, 600}
+	bucketed := false
 	for _, bucket := range buckets {
 		if seconds <= bucket {
 			h.buckets[bucket]++
+			bucketed = true
 			break
 		}
 	}
+	// Track overflow for values > 600 seconds
+	if !bucketed {
+		h.buckets[math.Inf(1)]++
+	}
 	// Also track total count and sum for average calculation
-	h.buckets[-1]++          // -1 = count
-	h.buckets[-2] += seconds // -2 = sum
+	h.buckets[histogramCountKey]++ // count
+	h.buckets[histogramSumKey] += seconds
 	h.mutex.Unlock()
-
-	metricName := name
-	if !strings.HasSuffix(name, "_duration_seconds") {
-		metricName = name + "_duration_seconds"
-	}
-
-	sources := map[string]Source{
-		metricName: func() float64 {
-			h.mutex.RLock()
-			defer h.mutex.RUnlock()
-			count := h.buckets[-1]
-			if count == 0 {
-				return 0
-			}
-			return h.buckets[-2] / count // average
-		},
-	}
-	// Skip _count variant for ping_test_duration_seconds
-	if metricName != "ping_test_duration_seconds" {
-		sources[metricName+"_count"] = func() float64 {
-			h.mutex.RLock()
-			defer h.mutex.RUnlock()
-			return h.buckets[-1]
-		}
-	}
-	pm.registry.ObserveApplicationSource("performance", sources)
 }
 
 // SetGauge sets a gauge metric to the given value.
+// Observers are already registered in registerAllMetrics, so this method
+// only updates the gauge value without re-registering observers.
 func (pm *PerformanceMetrics) SetGauge(name string, value float64) {
 	pm.gaugesMutex.Lock()
 	g, exists := pm.gauges[name]
 	if !exists {
-		g = &gauge{value: 0}
+		g = &gauge{value: value}
 		pm.gauges[name] = g
+		pm.gaugesMutex.Unlock()
+		return
 	}
 	pm.gaugesMutex.Unlock()
 
 	g.mutex.Lock()
 	g.value = value
 	g.mutex.Unlock()
-
-	// Register gauge observer if not already registered
-	pm.registry.ObserveApplicationSource(
-		"performance",
-		map[string]Source{
-			name: func() float64 {
-				g.mutex.RLock()
-				defer g.mutex.RUnlock()
-				return g.value
-			},
-		},
-	)
 }
 
 // observeSystemMetrics periodically collects and updates system metrics
 // including CPU utilization, memory usage, and goroutine count.
-func (pm *PerformanceMetrics) observeSystemMetrics() {
+func (pm *PerformanceMetrics) observeSystemMetrics(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second) // Update every 10 seconds
 	defer ticker.Stop()
 
@@ -348,29 +344,34 @@ func (pm *PerformanceMetrics) observeSystemMetrics() {
 	runtime.ReadMemStats(&lastMemStats)
 	lastUpdateTime = time.Now()
 
-	for range ticker.C {
-		// Update goroutine count
-		goroutineCount := float64(runtime.NumGoroutine())
-		pm.SetGauge(MetricGoroutineCount, goroutineCount)
+	for {
+		select {
+		case <-ticker.C:
+			// Update goroutine count
+			goroutineCount := float64(runtime.NumGoroutine())
+			pm.SetGauge(MetricGoroutineCount, goroutineCount)
 
-		// Update memory usage
-		// Using Sys (total memory obtained from OS) for accurate total memory footprint
-		// This includes heap, stack, GC metadata, and other runtime overhead
-		// For heap-only memory, use memStats.Alloc instead
-		var memStats runtime.MemStats
-		runtime.ReadMemStats(&memStats)
-		memoryUsageMB := float64(memStats.Sys) / (1024 * 1024) // Total memory in megabytes
-		pm.SetGauge(MetricMemoryUsageMB, memoryUsageMB)
+			// Update memory usage
+			// Using Sys (total memory obtained from OS) for accurate total memory footprint
+			// This includes heap, stack, GC metadata, and other runtime overhead
+			// For heap-only memory, use memStats.Alloc instead
+			var memStats runtime.MemStats
+			runtime.ReadMemStats(&memStats)
+			memoryUsageMB := float64(memStats.Sys) / (1024 * 1024) // Total memory in megabytes
+			pm.SetGauge(MetricMemoryUsageMB, memoryUsageMB)
 
-		// Calculate CPU utilization using a more realistic heuristic
-		now := time.Now()
-		elapsed := now.Sub(lastUpdateTime)
-		if elapsed > 0 {
-			cpuUtilization := pm.calculateCPUUtilizationHeuristic(memStats, lastMemStats, elapsed)
-			pm.SetGauge(MetricCPUUtilization, cpuUtilization)
+			// Calculate CPU utilization using a more realistic heuristic
+			now := time.Now()
+			elapsed := now.Sub(lastUpdateTime)
+			if elapsed > 0 {
+				cpuUtilization := pm.calculateCPUUtilizationHeuristic(memStats, lastMemStats, elapsed)
+				pm.SetGauge(MetricCPUUtilization, cpuUtilization)
 
-			lastMemStats = memStats
-			lastUpdateTime = now
+				lastMemStats = memStats
+				lastUpdateTime = now
+			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }
@@ -511,9 +512,10 @@ const (
 	MetricPeerDisconnectionsTotal  = "peer_disconnections_total"
 	MetricMessageBroadcastTotal    = "message_broadcast_total"
 	MetricMessageReceivedTotal     = "message_received_total"
-	MetricPingTestsTotal           = "ping_test_total"
-	MetricPingTestSuccessTotal     = "ping_test_success_total"
-	MetricPingTestFailedTotal      = "ping_test_failed_total"
+	MetricPingTestsTotal            = "ping_test_total"
+	MetricPingTestSuccessTotal      = "ping_test_success_total"
+	MetricPingTestFailedTotal       = "ping_test_failed_total"
+	MetricPingTestDurationSeconds   = "ping_test_duration_seconds"
 
 	// Wallet Dispatcher Metrics
 	MetricWalletDispatcherActiveActions = "wallet_dispatcher_active_actions"

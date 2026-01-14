@@ -12,7 +12,7 @@ import (
 func getGlobalMetricsRecorder() interface {
 	IncrementCounter(name string, value float64)
 } {
-	return globalMetricsRecorder
+	return getMetricsRecorder()
 }
 
 // SubmitRedemptionProof prepares redemption proof for the given transaction

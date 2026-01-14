@@ -15,6 +15,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"github.com/keep-network/keep-core/pkg/bitcoin"
+	"github.com/keep-network/keep-core/pkg/clientinfo"
 	"github.com/keep-network/keep-core/pkg/chain"
 	"github.com/keep-network/keep-core/pkg/generator"
 	"github.com/keep-network/keep-core/pkg/net"
@@ -376,7 +377,7 @@ func (ce *coordinationExecutor) coordinate(
 	var coordinationFailed bool
 	defer func() {
 		if ce.metricsRecorder != nil {
-			ce.metricsRecorder.RecordDuration("coordination_duration_seconds", time.Since(startTime))
+			ce.metricsRecorder.RecordDuration(clientinfo.MetricCoordinationDurationSeconds, time.Since(startTime))
 		}
 	}()
 
@@ -430,7 +431,7 @@ func (ce *coordinationExecutor) coordinate(
 			cancelCtx()
 			coordinationFailed = true
 			if ce.metricsRecorder != nil {
-				ce.metricsRecorder.IncrementCounter("coordination_failed_total", 1)
+				ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationFailedTotal, 1)
 			}
 			return nil, fmt.Errorf(
 				"failed to execute leader's routine: [%v]",
@@ -454,7 +455,7 @@ func (ce *coordinationExecutor) coordinate(
 		if err != nil {
 			coordinationFailed = true
 			if ce.metricsRecorder != nil {
-				ce.metricsRecorder.IncrementCounter("coordination_failed_total", 1)
+				ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationFailedTotal, 1)
 			}
 			return nil, fmt.Errorf(
 				"failed to execute follower's routine: [%v]",
@@ -486,7 +487,7 @@ func (ce *coordinationExecutor) coordinate(
 
 	// Record successful coordination counter
 	if ce.metricsRecorder != nil && !coordinationFailed {
-		ce.metricsRecorder.IncrementCounter("coordination_procedures_executed_total", 1)
+		ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationProceduresExecutedTotal, 1)
 	}
 
 	return result, nil

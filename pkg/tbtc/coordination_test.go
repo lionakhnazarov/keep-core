@@ -145,20 +145,48 @@ func TestWatchCoordinationWindows(t *testing.T) {
 		return blocksChan
 	}
 
-	receivedWindows := make([]*coordinationWindow, 0)
+	// Channel to collect windows from callbacks.
+	// Buffered to handle multiple windows without blocking.
+	windowsChan := make(chan *coordinationWindow, 10)
 	onWindowFn := func(window *coordinationWindow) {
-		receivedWindows = append(receivedWindows, window)
+		windowsChan <- window
 	}
 
 	ctx, cancelCtx := context.WithTimeout(
 		context.Background(),
-		2000*time.Millisecond,
+		2500*time.Millisecond,
 	)
 	defer cancelCtx()
 
 	go watchCoordinationWindows(ctx, watchBlocksFn, onWindowFn)
 
+	// Wait for the context to complete so all blocks are generated.
 	<-ctx.Done()
+
+	// Now collect windows with a timeout to ensure we get all expected windows.
+	// This avoids race conditions where callback goroutines haven't sent yet.
+	// We use a longer timeout since the watchCoordinationWindows loop may have
+	// just spawned the callback goroutine for the last window when the context expired.
+	receivedWindows := make([]*coordinationWindow, 0)
+	expectedWindows := 2
+	collectTimeout := 2 * time.Second
+	deadline := time.Now().Add(collectTimeout)
+
+	for len(receivedWindows) < expectedWindows {
+		select {
+		case window := <-windowsChan:
+			receivedWindows = append(receivedWindows, window)
+		case <-time.After(10 * time.Millisecond):
+			// Check if we've exceeded the deadline
+			if time.Now().After(deadline) {
+				t.Fatalf(
+					"timeout waiting for windows: got %d, expected %d",
+					len(receivedWindows),
+					expectedWindows,
+				)
+			}
+		}
+	}
 
 	testutils.AssertIntsEqual(t, "received windows", 2, len(receivedWindows))
 	testutils.AssertIntsEqual(
