@@ -161,6 +161,11 @@ The client uses three types of metrics:
 *Description*: Average duration of coordination procedures in seconds
 *Labels*: None
 
+==== `performance_coordination_duration_seconds_count`
+*Type*: Counter
+*Description*: Total count of coordination duration samples
+*Labels*: None
+
 === Network Metrics
 
 ==== `performance_incoming_message_queue_size`
@@ -230,6 +235,11 @@ The client uses three types of metrics:
 ==== `performance_relay_entry_duration_seconds`
 *Type*: Gauge (average)
 *Description*: Average duration of relay entry generation in seconds
+*Labels*: None
+
+==== `performance_relay_entry_duration_seconds_count`
+*Type*: Counter
+*Description*: Total count of relay entry duration samples
 *Labels*: None
 
 ==== `performance_relay_entry_timeout_reported_total`

@@ -83,6 +83,9 @@ type channel struct {
 		SetGauge(name string, value float64)
 		RecordDuration(name string, duration time.Duration)
 	}
+
+	// monitorQueueSizesOnce ensures the monitoring goroutine is started only once
+	monitorQueueSizesOnce sync.Once
 }
 
 type messageHandler struct {
@@ -450,9 +453,11 @@ func (c *channel) setMetricsRecorder(recorder interface {
 	RecordDuration(name string, duration time.Duration)
 }) {
 	c.metricsRecorder = recorder
-	// Start periodic queue size monitoring
+	// Start periodic queue size monitoring (only once)
 	if recorder != nil {
-		go c.monitorQueueSizes(c.ctx, recorder)
+		c.monitorQueueSizesOnce.Do(func() {
+			go c.monitorQueueSizes(c.ctx, recorder)
+		})
 	}
 }
 
@@ -475,8 +480,7 @@ func (c *channel) monitorQueueSizes(ctx context.Context, recorder interface {
 			c.messageHandlersMutex.Lock()
 			for i, handler := range c.messageHandlers {
 				handlerQueueSize := float64(len(handler.channel))
-				recorder.SetGauge("message_handler_queue_size", handlerQueueSize)
-				_ = i // avoid unused variable
+				recorder.SetGauge(fmt.Sprintf("message_handler_queue_size_%d", i), handlerQueueSize)
 			}
 			c.messageHandlersMutex.Unlock()
 		case <-ctx.Done():

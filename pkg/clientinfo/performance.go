@@ -1,6 +1,8 @@
 package clientinfo
 
 import (
+	"context"
+	"math"
 	"runtime"
 	"strings"
 	"sync"
@@ -27,6 +29,7 @@ type PerformanceMetricsRecorder interface {
 // It implements PerformanceMetricsRecorder interface.
 type PerformanceMetrics struct {
 	registry *Registry
+	cancel   context.CancelFunc
 
 	// Counters track cumulative counts of events
 	countersMutex sync.RWMutex
@@ -60,9 +63,11 @@ type gauge struct {
 }
 
 // NewPerformanceMetrics creates a new performance metrics instance.
-func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
+func NewPerformanceMetrics(ctx context.Context, registry *Registry) *PerformanceMetrics {
+	ctx, cancel := context.WithCancel(ctx)
 	pm := &PerformanceMetrics{
 		registry:   registry,
+		cancel:     cancel,
 		counters:   make(map[string]*counter),
 		histograms: make(map[string]*histogram),
 		gauges:     make(map[string]*gauge),
@@ -72,9 +77,14 @@ func NewPerformanceMetrics(registry *Registry) *PerformanceMetrics {
 	pm.registerAllMetrics()
 
 	// Start observing system metrics
-	go pm.observeSystemMetrics()
+	go pm.observeSystemMetrics(ctx)
 
 	return pm
+}
+
+// Stop stops the performance metrics collection goroutines.
+func (pm *PerformanceMetrics) Stop() {
+	pm.cancel()
 }
 
 // registerAllMetrics registers all performance metrics with 0 values
@@ -270,13 +280,19 @@ func (pm *PerformanceMetrics) RecordDuration(name string, duration time.Duration
 	seconds := duration.Seconds()
 	h.mutex.Lock()
 	// Simple histogram: increment bucket counts
-	// Buckets: 0.001, 0.01, 0.1, 1, 10, 60, 300, 600
+	// Buckets: 0.001, 0.01, 0.1, 1, 10, 60, 300, 600, +Inf (overflow)
 	buckets := []float64{0.001, 0.01, 0.1, 1, 10, 60, 300, 600}
+	bucketed := false
 	for _, bucket := range buckets {
 		if seconds <= bucket {
 			h.buckets[bucket]++
+			bucketed = true
 			break
 		}
+	}
+	// Track overflow for values > 600 seconds
+	if !bucketed {
+		h.buckets[math.Inf(1)]++
 	}
 	// Also track total count and sum for average calculation
 	h.buckets[-1]++          // -1 = count
@@ -339,7 +355,7 @@ func (pm *PerformanceMetrics) SetGauge(name string, value float64) {
 
 // observeSystemMetrics periodically collects and updates system metrics
 // including CPU utilization, memory usage, and goroutine count.
-func (pm *PerformanceMetrics) observeSystemMetrics() {
+func (pm *PerformanceMetrics) observeSystemMetrics(ctx context.Context) {
 	ticker := time.NewTicker(10 * time.Second) // Update every 10 seconds
 	defer ticker.Stop()
 
@@ -348,29 +364,34 @@ func (pm *PerformanceMetrics) observeSystemMetrics() {
 	runtime.ReadMemStats(&lastMemStats)
 	lastUpdateTime = time.Now()
 
-	for range ticker.C {
-		// Update goroutine count
-		goroutineCount := float64(runtime.NumGoroutine())
-		pm.SetGauge(MetricGoroutineCount, goroutineCount)
+	for {
+		select {
+		case <-ticker.C:
+			// Update goroutine count
+			goroutineCount := float64(runtime.NumGoroutine())
+			pm.SetGauge(MetricGoroutineCount, goroutineCount)
 
-		// Update memory usage
-		// Using Sys (total memory obtained from OS) for accurate total memory footprint
-		// This includes heap, stack, GC metadata, and other runtime overhead
-		// For heap-only memory, use memStats.Alloc instead
-		var memStats runtime.MemStats
-		runtime.ReadMemStats(&memStats)
-		memoryUsageMB := float64(memStats.Sys) / (1024 * 1024) // Total memory in megabytes
-		pm.SetGauge(MetricMemoryUsageMB, memoryUsageMB)
+			// Update memory usage
+			// Using Sys (total memory obtained from OS) for accurate total memory footprint
+			// This includes heap, stack, GC metadata, and other runtime overhead
+			// For heap-only memory, use memStats.Alloc instead
+			var memStats runtime.MemStats
+			runtime.ReadMemStats(&memStats)
+			memoryUsageMB := float64(memStats.Sys) / (1024 * 1024) // Total memory in megabytes
+			pm.SetGauge(MetricMemoryUsageMB, memoryUsageMB)
 
-		// Calculate CPU utilization using a more realistic heuristic
-		now := time.Now()
-		elapsed := now.Sub(lastUpdateTime)
-		if elapsed > 0 {
-			cpuUtilization := pm.calculateCPUUtilizationHeuristic(memStats, lastMemStats, elapsed)
-			pm.SetGauge(MetricCPUUtilization, cpuUtilization)
+			// Calculate CPU utilization using a more realistic heuristic
+			now := time.Now()
+			elapsed := now.Sub(lastUpdateTime)
+			if elapsed > 0 {
+				cpuUtilization := pm.calculateCPUUtilizationHeuristic(memStats, lastMemStats, elapsed)
+				pm.SetGauge(MetricCPUUtilization, cpuUtilization)
 
-			lastMemStats = memStats
-			lastUpdateTime = now
+				lastMemStats = memStats
+				lastUpdateTime = now
+			}
+		case <-ctx.Done():
+			return
 		}
 	}
 }

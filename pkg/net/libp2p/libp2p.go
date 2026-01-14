@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/keep-network/keep-core/pkg/operator"
@@ -94,12 +95,9 @@ type provider struct {
 
 	connectionManager *connectionManager
 
-	// metricsRecorder is optional and used for recording performance metrics
-	metricsRecorder interface {
-		IncrementCounter(name string, value float64)
-		SetGauge(name string, value float64)
-		RecordDuration(name string, duration time.Duration)
-	}
+	// metricsRecorder is optional and used for recording performance metrics.
+	// It uses atomic.Value for thread-safe access.
+	metricsRecorder atomic.Value
 }
 
 func (p *provider) BroadcastChannelFor(name string) (net.BroadcastChannel, error) {
@@ -371,7 +369,7 @@ func Connect(
 	provider.connectionManager = newConnectionManager(ctx, provider.host)
 
 	// Register notifiee - it will reference provider.metricsRecorder which can be updated later
-	notifiee := buildNotifiee(provider.host, &provider.metricsRecorder)
+	notifiee := buildNotifiee(provider.host, provider)
 	provider.host.Network().Notify(notifiee)
 
 	// Instantiates and starts the connection management background process.
@@ -393,7 +391,7 @@ func (p *provider) SetMetricsRecorder(recorder interface {
 	SetGauge(name string, value float64)
 	RecordDuration(name string, duration time.Duration)
 }) {
-	p.metricsRecorder = recorder
+	p.metricsRecorder.Store(recorder)
 	if p.broadcastChannelManager != nil {
 		p.broadcastChannelManager.setMetricsRecorder(recorder)
 	}
@@ -556,11 +554,7 @@ func extractMultiAddrFromPeers(peers []string) ([]peer.AddrInfo, error) {
 	return peerInfos, nil
 }
 
-func buildNotifiee(libp2pHost host.Host, metricsRecorder *interface {
-	IncrementCounter(name string, value float64)
-	SetGauge(name string, value float64)
-	RecordDuration(name string, duration time.Duration)
-}) libp2pnet.Notifiee {
+func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 	notifyBundle := &libp2pnet.NotifyBundle{}
 
 	notifyBundle.ConnectedF = func(_ libp2pnet.Network, connection libp2pnet.Conn) {
@@ -578,8 +572,12 @@ func buildNotifiee(libp2pHost host.Host, metricsRecorder *interface {
 			SetGauge(name string, value float64)
 			RecordDuration(name string, duration time.Duration)
 		}
-		if metricsRecorder != nil && *metricsRecorder != nil {
-			recorder = *metricsRecorder
+		if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
+			recorder = metricsRecorderValue.(interface {
+				IncrementCounter(name string, value float64)
+				SetGauge(name string, value float64)
+				RecordDuration(name string, duration time.Duration)
+			})
 			recorder.IncrementCounter("peer_connections_total", 1)
 		}
 
@@ -594,8 +592,13 @@ func buildNotifiee(libp2pHost host.Host, metricsRecorder *interface {
 			),
 		)
 
-		if metricsRecorder != nil && *metricsRecorder != nil {
-			(*metricsRecorder).IncrementCounter("peer_disconnections_total", 1)
+		if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
+			recorder := metricsRecorderValue.(interface {
+				IncrementCounter(name string, value float64)
+				SetGauge(name string, value float64)
+				RecordDuration(name string, duration time.Duration)
+			})
+			recorder.IncrementCounter("peer_disconnections_total", 1)
 		}
 	}
 

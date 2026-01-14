@@ -123,7 +123,7 @@ func Initialize(
 		)
 
 		if perfMetrics == nil {
-			perfMetrics = clientinfo.NewPerformanceMetrics(clientInfo)
+			perfMetrics = clientinfo.NewPerformanceMetrics(ctx, clientInfo)
 		}
 		node.setPerformanceMetrics(perfMetrics)
 	}

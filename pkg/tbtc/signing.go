@@ -155,7 +155,9 @@ func (se *signingExecutor) signBatch(
 
 		signature, _, endBlock, err := se.sign(ctx, message, signingStartBlock)
 		if err != nil {
-			// Error metrics are already recorded in sign() method
+			// Note: Error metrics are recorded in sign() method only for certain
+			// error paths (signing failures in the default case). Some early returns
+			// may not record metrics.
 			return nil, err
 		}
 
@@ -408,6 +410,8 @@ func (se *signingExecutor) sign(
 		return outcome.signature, outcome.activityReport, outcome.endBlock, nil
 	default:
 		if se.metricsRecorder != nil {
+			// All signers failed to produce a signature within the timeout period.
+			// This is counted as both a failure and a timeout.
 			se.metricsRecorder.IncrementCounter("signing_failed_total", 1)
 			se.metricsRecorder.IncrementCounter("signing_timeouts_total", 1)
 			se.metricsRecorder.RecordDuration("signing_duration_seconds", time.Since(startTime))

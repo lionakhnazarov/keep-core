@@ -133,13 +133,14 @@ func (r *RPCHealthChecker) checkEthereumHealth(ctx context.Context) {
 	// Block number should be > 0 (unless on a very new testnet)
 	// For mainnet/testnet, block numbers should be in thousands/millions
 	if currentBlock == 0 {
+		blockErr := fmt.Errorf("block number is 0, node may not be synced")
 		r.ethMutex.Lock()
 		r.ethLastCheck = startTime
-		r.ethLastError = fmt.Errorf("block number is 0, node may not be synced")
+		r.ethLastError = blockErr
 		r.ethMutex.Unlock()
 		rpcHealthLogger.Warnf(
 			"Ethereum RPC health check failed (block number is 0): [%v] (duration: %v)",
-			r.ethLastError,
+			blockErr,
 			time.Since(startTime),
 		)
 		return
@@ -191,13 +192,14 @@ func (r *RPCHealthChecker) checkBitcoinHealth(ctx context.Context) {
 
 	// Second check: Verify block height is reasonable
 	if latestHeight == 0 {
+		heightErr := fmt.Errorf("block height is 0, node may not be synced")
 		r.btcMutex.Lock()
 		r.btcLastCheck = startTime
-		r.btcLastError = fmt.Errorf("block height is 0, node may not be synced")
+		r.btcLastError = heightErr
 		r.btcMutex.Unlock()
 		rpcHealthLogger.Warnf(
 			"Bitcoin RPC health check failed (block height is 0): [%v] (duration: %v)",
-			r.btcLastError,
+			heightErr,
 			time.Since(startTime),
 		)
 		return
@@ -207,13 +209,14 @@ func (r *RPCHealthChecker) checkBitcoinHealth(ctx context.Context) {
 	// This verifies the RPC can actually retrieve block data, not just return a number
 	_, err = r.btcChain.GetBlockHeader(latestHeight)
 	if err != nil {
+		headerErr := fmt.Errorf("failed to get block header for height %d: %w", latestHeight, err)
 		r.btcMutex.Lock()
 		r.btcLastCheck = startTime
-		r.btcLastError = fmt.Errorf("failed to get block header for height %d: %w", latestHeight, err)
+		r.btcLastError = headerErr
 		r.btcMutex.Unlock()
 		rpcHealthLogger.Warnf(
 			"Bitcoin RPC health check failed (GetBlockHeader): [%v] (duration: %v)",
-			r.btcLastError,
+			headerErr,
 			time.Since(startTime),
 		)
 		return
