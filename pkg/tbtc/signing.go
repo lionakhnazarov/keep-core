@@ -348,10 +348,6 @@ func (se *signingExecutor) sign(
 					err,
 				)
 
-				// Note: We don't record failure metrics here because the failure
-				// is only for one signer. The overall signing operation failure
-				// is recorded in the select statement below when no outcome is received.
-
 				return
 			}
 
