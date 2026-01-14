@@ -152,11 +152,11 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 	// Register all duration/histogram metrics with 0 initial values
 	// Note: These use the actual metric names as used in the codebase
 	durationMetrics := []string{
-		"dkg_duration_seconds",
-		"signing_duration_seconds",
-		"wallet_action_duration_seconds",
-		"coordination_duration_seconds",
-		"ping_test_duration_seconds",
+		MetricDKGDurationSeconds,
+		MetricSigningDurationSeconds,
+		MetricWalletActionDurationSeconds,
+		MetricCoordinationDurationSeconds,
+		MetricPingTestDurationSeconds,
 	}
 
 	// First, initialize all histograms in the map
@@ -512,9 +512,10 @@ const (
 	MetricPeerDisconnectionsTotal  = "peer_disconnections_total"
 	MetricMessageBroadcastTotal    = "message_broadcast_total"
 	MetricMessageReceivedTotal     = "message_received_total"
-	MetricPingTestsTotal           = "ping_test_total"
-	MetricPingTestSuccessTotal     = "ping_test_success_total"
-	MetricPingTestFailedTotal      = "ping_test_failed_total"
+	MetricPingTestsTotal            = "ping_test_total"
+	MetricPingTestSuccessTotal      = "ping_test_success_total"
+	MetricPingTestFailedTotal       = "ping_test_failed_total"
+	MetricPingTestDurationSeconds   = "ping_test_duration_seconds"
 
 	// Wallet Dispatcher Metrics
 	MetricWalletDispatcherActiveActions = "wallet_dispatcher_active_actions"

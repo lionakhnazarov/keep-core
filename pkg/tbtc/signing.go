@@ -420,6 +420,9 @@ func (se *signingExecutor) sign(
 		if se.metricsRecorder != nil {
 			// All signers failed to produce a signature within the timeout period.
 			// This is counted as both a failure and a timeout.
+			// Note: Non-timeout errors (e.g., member selection failures) cause
+			// early return via cancelLoopCtx() and never reach this default case.
+			// Therefore, all failures reaching here are actual timeouts.
 			se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningFailedTotal, 1)
 			se.metricsRecorder.IncrementCounter(clientinfo.MetricSigningTimeoutsTotal, 1)
 			se.metricsRecorder.RecordDuration(clientinfo.MetricSigningDurationSeconds, time.Since(startTime))

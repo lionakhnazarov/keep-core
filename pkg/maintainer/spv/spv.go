@@ -96,11 +96,6 @@ type spvMaintainer struct {
 	spvChain     Chain
 	btcDiffChain btcdiff.Chain
 	btcChain     bitcoin.Chain
-
-	// metricsRecorder is optional and used for recording performance metrics
-	metricsRecorder interface {
-		IncrementCounter(name string, value float64)
-	}
 }
 
 func (sm *spvMaintainer) startControlLoop(ctx context.Context) {

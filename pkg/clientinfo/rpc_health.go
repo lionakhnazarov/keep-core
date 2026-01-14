@@ -37,6 +37,9 @@ type RPCHealthChecker struct {
 
 	// Configuration
 	checkInterval time.Duration
+
+	// Concurrency control
+	startOnce sync.Once
 }
 
 // NewRPCHealthChecker creates a new RPC health checker instance.
@@ -59,7 +62,15 @@ func NewRPCHealthChecker(
 }
 
 // Start begins periodic health checks for both Ethereum and Bitcoin RPC endpoints.
+// Safe to call multiple times - only the first call will execute.
 func (r *RPCHealthChecker) Start(ctx context.Context) {
+	r.startOnce.Do(func() {
+		r.start(ctx)
+	})
+}
+
+// start is the internal implementation of Start. Use Start() for public API.
+func (r *RPCHealthChecker) start(ctx context.Context) {
 	// Perform initial health checks immediately
 	r.checkEthereumHealth(ctx)
 	r.checkBitcoinHealth(ctx)

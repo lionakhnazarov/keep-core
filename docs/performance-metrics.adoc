@@ -162,7 +162,7 @@ The client uses three types of metrics:
 *Labels*: None
 
 ==== `performance_coordination_duration_seconds_count`
-*Type*: Counter
+*Type*: Gauge
 *Description*: Total count of coordination duration samples
 *Labels*: None
 
@@ -238,7 +238,7 @@ The client uses three types of metrics:
 *Labels*: None
 
 ==== `performance_relay_entry_duration_seconds_count`
-*Type*: Counter
+*Type*: Gauge
 *Description*: Total count of relay entry duration samples
 *Labels*: None
 
