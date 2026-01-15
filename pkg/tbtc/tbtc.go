@@ -81,6 +81,7 @@ func Initialize(
 	proposalGenerator CoordinationProposalGenerator,
 	config Config,
 	clientInfo *clientinfo.Registry,
+	perfMetrics *clientinfo.PerformanceMetrics,
 ) error {
 	groupParameters := &GroupParameters{
 		GroupSize:       100,
@@ -120,6 +121,11 @@ func Initialize(
 				},
 			},
 		)
+
+		if perfMetrics == nil {
+			perfMetrics = clientinfo.NewPerformanceMetrics(ctx, clientInfo)
+		}
+		node.setPerformanceMetrics(perfMetrics)
 	}
 
 	err = sortition.MonitorPool(

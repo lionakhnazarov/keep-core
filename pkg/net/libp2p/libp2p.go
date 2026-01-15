@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/keep-network/keep-core/pkg/operator"
@@ -16,6 +17,7 @@ import (
 
 	dstore "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
+
 	//lint:ignore SA1019 package deprecated, but we rely on its interface
 	addrutil "github.com/libp2p/go-addr-util"
 	"github.com/libp2p/go-libp2p"
@@ -92,6 +94,10 @@ type provider struct {
 	disseminationTime int
 
 	connectionManager *connectionManager
+
+	// metricsRecorder is optional and used for recording performance metrics.
+	// It uses atomic.Value for thread-safe access.
+	metricsRecorder atomic.Value
 }
 
 func (p *provider) BroadcastChannelFor(name string) (net.BroadcastChannel, error) {
@@ -325,8 +331,6 @@ func Connect(
 		return nil, err
 	}
 
-	host.Network().Notify(buildNotifiee(host))
-
 	broadcastChannelManager, err := newChannelManager(ctx, identity, host, ticker)
 	if err != nil {
 		return nil, err
@@ -364,6 +368,10 @@ func Connect(
 
 	provider.connectionManager = newConnectionManager(ctx, provider.host)
 
+	// Register notifiee - it will reference provider.metricsRecorder which can be updated later
+	notifiee := buildNotifiee(provider.host, provider)
+	provider.host.Network().Notify(notifiee)
+
 	// Instantiates and starts the connection management background process.
 	watchtower.NewGuard(
 		ctx,
@@ -374,6 +382,19 @@ func Connect(
 	)
 
 	return provider, nil
+}
+
+// SetMetricsRecorder sets the metrics recorder for the provider and wires it
+// into network components.
+func (p *provider) SetMetricsRecorder(recorder interface {
+	IncrementCounter(name string, value float64)
+	SetGauge(name string, value float64)
+	RecordDuration(name string, duration time.Duration)
+}) {
+	p.metricsRecorder.Store(recorder)
+	if p.broadcastChannelManager != nil {
+		p.broadcastChannelManager.setMetricsRecorder(recorder)
+	}
 }
 
 func discoverAndListen(
@@ -533,7 +554,7 @@ func extractMultiAddrFromPeers(peers []string) ([]peer.AddrInfo, error) {
 	return peerInfos, nil
 }
 
-func buildNotifiee(libp2pHost host.Host) libp2pnet.Notifiee {
+func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 	notifyBundle := &libp2pnet.NotifyBundle{}
 
 	notifyBundle.ConnectedF = func(_ libp2pnet.Network, connection libp2pnet.Conn) {
@@ -546,7 +567,21 @@ func buildNotifiee(libp2pHost host.Host) libp2pnet.Notifiee {
 
 		logger.Infof("established connection to [%v]", peerMultiaddress)
 
-		go executePingTest(libp2pHost, peerID, peerMultiaddress)
+		var recorder interface {
+			IncrementCounter(name string, value float64)
+			SetGauge(name string, value float64)
+			RecordDuration(name string, duration time.Duration)
+		}
+		if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
+			recorder = metricsRecorderValue.(interface {
+				IncrementCounter(name string, value float64)
+				SetGauge(name string, value float64)
+				RecordDuration(name string, duration time.Duration)
+			})
+			recorder.IncrementCounter("peer_connections_total", 1)
+		}
+
+		go executePingTest(libp2pHost, peerID, peerMultiaddress, recorder)
 	}
 	notifyBundle.DisconnectedF = func(_ libp2pnet.Network, connection libp2pnet.Conn) {
 		logger.Infof(
@@ -556,6 +591,15 @@ func buildNotifiee(libp2pHost host.Host) libp2pnet.Notifiee {
 				connection.RemotePeer(),
 			),
 		)
+
+		if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
+			recorder := metricsRecorderValue.(interface {
+				IncrementCounter(name string, value float64)
+				SetGauge(name string, value float64)
+				RecordDuration(name string, duration time.Duration)
+			})
+			recorder.IncrementCounter("peer_disconnections_total", 1)
+		}
 	}
 
 	return notifyBundle
@@ -565,8 +609,17 @@ func executePingTest(
 	libp2pHost host.Host,
 	peerID peer.ID,
 	peerMultiaddress string,
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+		SetGauge(name string, value float64)
+		RecordDuration(name string, duration time.Duration)
+	},
 ) {
 	logger.Infof("starting ping test for [%v]", peerMultiaddress)
+
+	if metricsRecorder != nil {
+		metricsRecorder.IncrementCounter("ping_test_total", 1)
+	}
 
 	ctx, cancelCtx := context.WithTimeout(
 		context.Background(),
@@ -574,30 +627,46 @@ func executePingTest(
 	)
 	defer cancelCtx()
 
+	startTime := time.Now()
 	resultChan := ping.Ping(ctx, libp2pHost, peerID)
 
 	select {
 	case result := <-resultChan:
+		if metricsRecorder != nil {
+			metricsRecorder.RecordDuration("ping_test_duration_seconds", time.Since(startTime))
+		}
 		if result.Error != nil {
 			logger.Warnf(
 				"ping test for [%v] failed: [%v]",
 				peerMultiaddress,
 				result.Error,
 			)
+			if metricsRecorder != nil {
+				metricsRecorder.IncrementCounter("ping_test_failed_total", 1)
+			}
 		} else if result.Error == nil && result.RTT == 0 {
 			logger.Warnf(
 				"peer test for [%v] failed without clear reason",
 				peerMultiaddress,
 			)
+			if metricsRecorder != nil {
+				metricsRecorder.IncrementCounter("ping_test_failed_total", 1)
+			}
 		} else {
 			logger.Infof(
 				"ping test for [%v] completed with success (RTT [%v])",
 				peerMultiaddress,
 				result.RTT,
 			)
+			if metricsRecorder != nil {
+				metricsRecorder.IncrementCounter("ping_test_success_total", 1)
+			}
 		}
 	case <-ctx.Done():
 		logger.Warnf("ping test for [%v] timed out", peerMultiaddress)
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("ping_test_failed_total", 1)
+		}
 	}
 }
 

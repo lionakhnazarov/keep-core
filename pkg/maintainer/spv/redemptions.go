@@ -3,9 +3,17 @@ package spv
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/keep-network/keep-core/pkg/bitcoin"
 	"github.com/keep-network/keep-core/pkg/tbtc"
 )
+
+// getGlobalMetricsRecorder returns the global metrics recorder if set.
+func getGlobalMetricsRecorder() interface {
+	IncrementCounter(name string, value float64)
+} {
+	return getMetricsRecorder()
+}
 
 // SubmitRedemptionProof prepares redemption proof for the given transaction
 // and submits it to the on-chain contract. If the number of required
@@ -22,6 +30,7 @@ func SubmitRedemptionProof(
 		btcChain,
 		spvChain,
 		bitcoin.AssembleSpvProof,
+		getGlobalMetricsRecorder(),
 	)
 }
 
@@ -31,8 +40,19 @@ func submitRedemptionProof(
 	btcChain bitcoin.Chain,
 	spvChain Chain,
 	spvProofAssembler spvProofAssembler,
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+	},
 ) error {
+	// Record proof submission attempt
+	if metricsRecorder != nil {
+		metricsRecorder.IncrementCounter("redemption_proof_submissions_total", 1)
+	}
+
 	if requiredConfirmations == 0 {
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("redemption_proof_submissions_failed_total", 1)
+		}
 		return fmt.Errorf(
 			"provided required confirmations count must be greater than 0",
 		)
@@ -44,6 +64,9 @@ func submitRedemptionProof(
 		btcChain,
 	)
 	if err != nil {
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("redemption_proof_submissions_failed_total", 1)
+		}
 		return fmt.Errorf(
 			"failed to assemble transaction spv proof: [%v]",
 			err,
@@ -55,6 +78,9 @@ func submitRedemptionProof(
 		transaction,
 	)
 	if err != nil {
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("redemption_proof_submissions_failed_total", 1)
+		}
 		return fmt.Errorf(
 			"error while parsing transaction inputs: [%v]",
 			err,
@@ -67,10 +93,18 @@ func submitRedemptionProof(
 		mainUTXO,
 		walletPublicKeyHash,
 	); err != nil {
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("redemption_proof_submissions_failed_total", 1)
+		}
 		return fmt.Errorf(
 			"failed to submit redemption proof with reimbursement: [%v]",
 			err,
 		)
+	}
+
+	// Record successful proof submission
+	if metricsRecorder != nil {
+		metricsRecorder.IncrementCounter("redemption_proof_submissions_success_total", 1)
 	}
 
 	return nil

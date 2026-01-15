@@ -118,6 +118,12 @@ type redemptionAction struct {
 
 	feeDistribution  redemptionFeeDistributionFn
 	transactionShape RedemptionTransactionShape
+
+	// metricsRecorder is optional and used for recording performance metrics
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+		RecordDuration(name string, duration time.Duration)
+	}
 }
 
 func newRedemptionAction(
@@ -158,6 +164,13 @@ func newRedemptionAction(
 }
 
 func (ra *redemptionAction) execute() error {
+	executionStartTime := time.Now()
+
+	// Record redemption execution attempt
+	if ra.metricsRecorder != nil {
+		ra.metricsRecorder.IncrementCounter("redemption_executions_total", 1)
+	}
+
 	validateProposalLogger := ra.logger.With(
 		zap.String("step", "validateProposal"),
 	)
@@ -171,6 +184,10 @@ func (ra *redemptionAction) execute() error {
 		ra.chain,
 	)
 	if err != nil {
+		if ra.metricsRecorder != nil {
+			ra.metricsRecorder.IncrementCounter("redemption_executions_failed_total", 1)
+			ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("validate proposal step failed: [%v]", err)
 	}
 
@@ -180,6 +197,10 @@ func (ra *redemptionAction) execute() error {
 		ra.btcChain,
 	)
 	if err != nil {
+		if ra.metricsRecorder != nil {
+			ra.metricsRecorder.IncrementCounter("redemption_executions_failed_total", 1)
+			ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf(
 			"error while determining wallet's main UTXO: [%v]",
 			err,
@@ -189,6 +210,10 @@ func (ra *redemptionAction) execute() error {
 	// Proposal validation should detect this but let's make a check just
 	// in case.
 	if walletMainUtxo == nil {
+		if ra.metricsRecorder != nil {
+			ra.metricsRecorder.IncrementCounter("redemption_executions_failed_total", 1)
+			ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("redeeming wallet has no main UTXO")
 	}
 
@@ -199,6 +224,10 @@ func (ra *redemptionAction) execute() error {
 		ra.btcChain,
 	)
 	if err != nil {
+		if ra.metricsRecorder != nil {
+			ra.metricsRecorder.IncrementCounter("redemption_executions_failed_total", 1)
+			ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf(
 			"error while ensuring wallet state is synced between "+
 				"BTC and host chain: [%v]",
@@ -215,6 +244,10 @@ func (ra *redemptionAction) execute() error {
 		ra.transactionShape,
 	)
 	if err != nil {
+		if ra.metricsRecorder != nil {
+			ra.metricsRecorder.IncrementCounter("redemption_executions_failed_total", 1)
+			ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf(
 			"error while assembling redemption transaction: [%v]",
 			err,
@@ -227,9 +260,14 @@ func (ra *redemptionAction) execute() error {
 
 	// Just in case. This should never happen.
 	if ra.proposalExpiryBlock < ra.signingTimeoutSafetyMarginBlocks {
+		if ra.metricsRecorder != nil {
+			ra.metricsRecorder.IncrementCounter("redemption_executions_failed_total", 1)
+			ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("invalid proposal expiry block")
 	}
 
+	signingStartTime := time.Now()
 	redemptionTx, err := ra.transactionExecutor.signTransaction(
 		signTxLogger,
 		unsignedRedemptionTx,
@@ -237,7 +275,16 @@ func (ra *redemptionAction) execute() error {
 		ra.proposalExpiryBlock-ra.signingTimeoutSafetyMarginBlocks,
 	)
 	if err != nil {
+		if ra.metricsRecorder != nil {
+			ra.metricsRecorder.IncrementCounter("redemption_executions_failed_total", 1)
+			ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("sign transaction step failed: [%v]", err)
+	}
+
+	// Record redemption transaction signing duration
+	if ra.metricsRecorder != nil {
+		ra.metricsRecorder.RecordDuration("redemption_tx_signing_duration_seconds", time.Since(signingStartTime))
 	}
 
 	broadcastTxLogger := ra.logger.With(
@@ -252,10 +299,28 @@ func (ra *redemptionAction) execute() error {
 		ra.broadcastCheckDelay,
 	)
 	if err != nil {
+		if ra.metricsRecorder != nil {
+			ra.metricsRecorder.IncrementCounter("redemption_executions_failed_total", 1)
+			ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("broadcast transaction step failed: [%v]", err)
 	}
 
+	// Record successful redemption execution
+	if ra.metricsRecorder != nil {
+		ra.metricsRecorder.IncrementCounter("redemption_executions_success_total", 1)
+		ra.metricsRecorder.RecordDuration("redemption_execution_duration_seconds", time.Since(executionStartTime))
+	}
+
 	return nil
+}
+
+// setMetricsRecorder sets the metrics recorder for the redemption action.
+func (ra *redemptionAction) setMetricsRecorder(recorder interface {
+	IncrementCounter(name string, value float64)
+	RecordDuration(name string, duration time.Duration)
+}) {
+	ra.metricsRecorder = recorder
 }
 
 // ValidateRedemptionProposal checks the redemption proposal with on-chain

@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/keep-network/keep-core/pkg/tbtcpg"
 
 	"github.com/keep-network/keep-common/pkg/persistence"
@@ -87,6 +89,23 @@ func start(cmd *cobra.Command) error {
 		blockCounter,
 	)
 
+	// Wire performance metrics into network provider if available
+	var perfMetrics *clientinfo.PerformanceMetrics
+	if clientInfoRegistry != nil {
+		perfMetrics = clientinfo.NewPerformanceMetrics(ctx, clientInfoRegistry)
+		// Type assert to libp2p provider to set metrics recorder
+		// The provider struct is not exported, so we use interface assertion
+		if setter, ok := netProvider.(interface {
+			SetMetricsRecorder(recorder interface {
+				IncrementCounter(name string, value float64)
+				SetGauge(name string, value float64)
+				RecordDuration(name string, duration time.Duration)
+			})
+		}); ok {
+			setter.SetMetricsRecorder(perfMetrics)
+		}
+	}
+
 	// Initialize beacon and tbtc only for non-bootstrap nodes.
 	// Skip initialization for bootstrap nodes as they are only used for network
 	// discovery.
@@ -106,12 +125,22 @@ func start(cmd *cobra.Command) error {
 
 		scheduler := generator.StartScheduler()
 
-		clientInfoRegistry.ObserveBtcConnectivity(
-			btcChain,
-			clientConfig.ClientInfo.BitcoinMetricsTick,
-		)
+		if clientInfoRegistry != nil {
+			clientInfoRegistry.ObserveBtcConnectivity(
+				btcChain,
+				clientConfig.ClientInfo.BitcoinMetricsTick,
+			)
 
-		clientInfoRegistry.RegisterBtcChainInfoSource(btcChain)
+			clientInfoRegistry.RegisterBtcChainInfoSource(btcChain)
+
+			rpcHealthChecker := clientinfo.NewRPCHealthChecker(
+				clientInfoRegistry,
+				blockCounter,
+				btcChain,
+				clientConfig.ClientInfo.RPCHealthCheckInterval,
+			)
+			rpcHealthChecker.Start(ctx)
+		}
 
 		err = beacon.Initialize(
 			ctx,
@@ -140,6 +169,7 @@ func start(cmd *cobra.Command) error {
 			proposalGenerator,
 			clientConfig.Tbtc,
 			clientInfoRegistry,
+			perfMetrics, // Pass the existing performance metrics instance to avoid duplicate registrations
 		)
 		if err != nil {
 			return fmt.Errorf("error initializing TBTC: [%v]", err)
