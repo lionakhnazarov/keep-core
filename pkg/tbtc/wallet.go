@@ -73,6 +73,27 @@ func (wat WalletActionType) String() string {
 	}
 }
 
+// MetricName returns the metric name format for this action type (lowercase with underscores).
+// This is used for generating per-action metric names.
+func (wat WalletActionType) MetricName() string {
+	switch wat {
+	case ActionNoop:
+		return "noop"
+	case ActionHeartbeat:
+		return "heartbeat"
+	case ActionDepositSweep:
+		return "deposit_sweep"
+	case ActionRedemption:
+		return "redemption"
+	case ActionMovingFunds:
+		return "moving_funds"
+	case ActionMovedFundsSweep:
+		return "moved_funds_sweep"
+	default:
+		panic("unknown wallet action type")
+	}
+}
+
 // walletAction represents an action that can be performed by the wallet.
 type walletAction interface {
 	// execute carries out the walletAction until completion.
@@ -182,14 +203,19 @@ func (wd *walletDispatcher) dispatch(action walletAction) error {
 		return errWalletBusy
 	}
 
-	wd.actions[key] = action.actionType()
+	actionType := action.actionType()
+	wd.actions[key] = actionType
+	actionMetricName := actionType.MetricName()
 
 	// Update metrics
 	wd.metricsRecorderMutex.RLock()
 	if wd.metricsRecorder != nil {
 		activeCount := float64(len(wd.actions))
 		wd.metricsRecorder.SetGauge(clientinfo.MetricWalletDispatcherActiveActions, activeCount)
+		// Aggregate metrics (for backward compatibility)
 		wd.metricsRecorder.IncrementCounter(clientinfo.MetricWalletActionsTotal, 1)
+		// Per-action metrics
+		wd.metricsRecorder.IncrementCounter(clientinfo.WalletActionMetricName(actionMetricName, "total"), 1)
 	}
 	wd.metricsRecorderMutex.RUnlock()
 
@@ -205,7 +231,11 @@ func (wd *walletDispatcher) dispatch(action walletAction) error {
 			wd.metricsRecorderMutex.RLock()
 			if wd.metricsRecorder != nil {
 				wd.metricsRecorder.SetGauge(clientinfo.MetricWalletDispatcherActiveActions, activeCount)
-				wd.metricsRecorder.RecordDuration(clientinfo.MetricWalletActionDurationSeconds, time.Since(startTime))
+				duration := time.Since(startTime)
+				// Aggregate metrics (for backward compatibility)
+				wd.metricsRecorder.RecordDuration(clientinfo.MetricWalletActionDurationSeconds, duration)
+				// Per-action metrics
+				wd.metricsRecorder.RecordDuration(clientinfo.WalletActionMetricName(actionMetricName, "duration_seconds"), duration)
 			}
 			wd.metricsRecorderMutex.RUnlock()
 		}()
@@ -220,7 +250,10 @@ func (wd *walletDispatcher) dispatch(action walletAction) error {
 			)
 			wd.metricsRecorderMutex.RLock()
 			if wd.metricsRecorder != nil {
+				// Aggregate metrics (for backward compatibility)
 				wd.metricsRecorder.IncrementCounter(clientinfo.MetricWalletActionFailedTotal, 1)
+				// Per-action metrics
+				wd.metricsRecorder.IncrementCounter(clientinfo.WalletActionMetricName(actionMetricName, "failed_total"), 1)
 			}
 			wd.metricsRecorderMutex.RUnlock()
 			return
@@ -228,7 +261,10 @@ func (wd *walletDispatcher) dispatch(action walletAction) error {
 
 		wd.metricsRecorderMutex.RLock()
 		if wd.metricsRecorder != nil {
+			// Aggregate metrics (for backward compatibility)
 			wd.metricsRecorder.IncrementCounter(clientinfo.MetricWalletActionSuccessTotal, 1)
+			// Per-action metrics
+			wd.metricsRecorder.IncrementCounter(clientinfo.WalletActionMetricName(actionMetricName, "success_total"), 1)
 		}
 		wd.metricsRecorderMutex.RUnlock()
 

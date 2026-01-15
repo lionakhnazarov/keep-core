@@ -2,6 +2,7 @@ package clientinfo
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"runtime"
 	"sync"
@@ -144,6 +145,63 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 					c.mutex.RLock()
 					defer c.mutex.RUnlock()
 					return c.value
+				},
+			},
+		)
+	}
+
+	// Register per-action type wallet metrics
+	// For each action type, register: total, success_total, failed_total, duration_seconds
+	for _, actionType := range GetAllWalletActionTypes() {
+		actionCounters := []string{
+			WalletActionMetricName(actionType, "total"),
+			WalletActionMetricName(actionType, "success_total"),
+			WalletActionMetricName(actionType, "failed_total"),
+		}
+		for _, name := range actionCounters {
+			pm.counters[name] = &counter{value: 0}
+			metricName := name // Capture for closure
+			pm.registry.ObserveApplicationSource(
+				"performance",
+				map[string]Source{
+					metricName: func() float64 {
+						pm.countersMutex.RLock()
+						c, exists := pm.counters[metricName]
+						pm.countersMutex.RUnlock()
+						if !exists {
+							return 0
+						}
+						c.mutex.RLock()
+						defer c.mutex.RUnlock()
+						return c.value
+					},
+				},
+			)
+		}
+
+		// Register duration metric for this action type
+		durationName := WalletActionMetricName(actionType, "duration_seconds")
+		pm.histograms[durationName] = &histogram{
+			buckets: make(map[float64]float64),
+		}
+		durationMetricName := durationName // Capture for closure
+		pm.registry.ObserveApplicationSource(
+			"performance",
+			map[string]Source{
+				durationMetricName: func() float64 {
+					pm.histogramsMutex.RLock()
+					h, exists := pm.histograms[durationMetricName]
+					pm.histogramsMutex.RUnlock()
+					if !exists {
+						return 0
+					}
+					h.mutex.RLock()
+					defer h.mutex.RUnlock()
+					count := h.buckets[histogramCountKey]
+					if count == 0 {
+						return 0
+					}
+					return h.buckets[histogramSumKey] / count // average
 				},
 			},
 		)
@@ -492,12 +550,17 @@ const (
 	MetricSigningAttemptsPerOperation = "signing_attempts_per_operation"
 	MetricSigningTimeoutsTotal        = "signing_timeouts_total"
 
-	// Wallet Action Metrics
+	// Wallet Action Metrics (aggregate)
 	MetricWalletActionsTotal           = "wallet_actions_total"
 	MetricWalletActionSuccessTotal     = "wallet_action_success_total"
 	MetricWalletActionFailedTotal      = "wallet_action_failed_total"
 	MetricWalletActionDurationSeconds  = "wallet_action_duration_seconds"
 	MetricWalletHeartbeatFailuresTotal = "wallet_heartbeat_failures_total"
+
+	// Wallet Action Metrics (per-action type)
+	// These are generated dynamically using WalletActionMetricName helper function
+	// Format: wallet_action_{action_type}_{metric_type}
+	// Example: wallet_action_heartbeat_total, wallet_action_deposit_sweep_duration_seconds
 
 	// Coordination Metrics
 	MetricCoordinationWindowsDetectedTotal    = "coordination_windows_detected_total"
@@ -526,3 +589,22 @@ const (
 	MetricMemoryUsageMB  = "memory_usage_mb"
 	MetricGoroutineCount = "goroutine_count"
 )
+
+// WalletActionMetricName generates a metric name for a specific wallet action type.
+// actionType should be the string representation of the action (e.g., "heartbeat", "deposit_sweep").
+// metricType should be one of: "total", "success_total", "failed_total", "duration_seconds"
+func WalletActionMetricName(actionType string, metricType string) string {
+	return fmt.Sprintf("wallet_action_%s_%s", actionType, metricType)
+}
+
+// GetAllWalletActionTypes returns all wallet action types that should be tracked.
+// ActionNoop is excluded as it's a no-op action.
+func GetAllWalletActionTypes() []string {
+	return []string{
+		"heartbeat",
+		"deposit_sweep",
+		"redemption",
+		"moving_funds",
+		"moved_funds_sweep",
+	}
+}

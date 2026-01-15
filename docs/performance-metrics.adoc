@@ -125,6 +125,37 @@ The client uses three types of metrics:
 *Description*: Total number of heartbeat failures across all wallets
 *Labels*: None
 
+==== Per-Action Type Metrics
+
+The following metrics are tracked separately for each wallet action type:
+`heartbeat`, `deposit_sweep`, `redemption`, `moving_funds`, `moved_funds_sweep`.
+
+For each action type, the following metrics are available:
+
+===== `performance_wallet_action_{action_type}_total`
+*Type*: Counter
+*Description*: Total number of {action_type} wallet actions dispatched
+*Example*: `performance_wallet_action_heartbeat_total`, `performance_wallet_action_deposit_sweep_total`
+*Labels*: None
+
+===== `performance_wallet_action_{action_type}_success_total`
+*Type*: Counter
+*Description*: Total number of successfully completed {action_type} wallet actions
+*Example*: `performance_wallet_action_heartbeat_success_total`, `performance_wallet_action_redemption_success_total`
+*Labels*: None
+
+===== `performance_wallet_action_{action_type}_failed_total`
+*Type*: Counter
+*Description*: Total number of failed {action_type} wallet actions
+*Example*: `performance_wallet_action_heartbeat_failed_total`, `performance_wallet_action_moving_funds_failed_total`
+*Labels*: None
+
+===== `performance_wallet_action_{action_type}_duration_seconds`
+*Type*: Gauge (average)
+*Description*: Average duration of {action_type} wallet actions in seconds
+*Example*: `performance_wallet_action_heartbeat_duration_seconds`, `performance_wallet_action_deposit_sweep_duration_seconds`
+*Labels*: None
+
 === Wallet Dispatcher Metrics
 
 ==== `performance_wallet_dispatcher_active_actions`
