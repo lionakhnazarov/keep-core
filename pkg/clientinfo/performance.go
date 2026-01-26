@@ -7,6 +7,9 @@ import (
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 )
 
 // PerformanceMetricsRecorder provides a simple interface for recording
@@ -125,9 +128,11 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 	}
 
 	// First, initialize all counters in the map
+	pm.countersMutex.Lock()
 	for _, name := range counters {
 		pm.counters[name] = &counter{value: 0}
 	}
+	pm.countersMutex.Unlock()
 
 	// Then, register observers (this prevents concurrent map read/write)
 	for _, name := range counters {
@@ -159,7 +164,9 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 			WalletActionMetricName(actionType, "failed_total"),
 		}
 		for _, name := range actionCounters {
+			pm.countersMutex.Lock()
 			pm.counters[name] = &counter{value: 0}
+			pm.countersMutex.Unlock()
 			metricName := name // Capture for closure
 			pm.registry.ObserveApplicationSource(
 				"performance",
@@ -181,9 +188,11 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 
 		// Register duration metric for this action type
 		durationName := WalletActionMetricName(actionType, "duration_seconds")
+		pm.histogramsMutex.Lock()
 		pm.histograms[durationName] = &histogram{
 			buckets: make(map[float64]float64),
 		}
+		pm.histogramsMutex.Unlock()
 		durationMetricName := durationName // Capture for closure
 		pm.registry.ObserveApplicationSource(
 			"performance",
@@ -218,11 +227,13 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 	}
 
 	// First, initialize all histograms in the map
+	pm.histogramsMutex.Lock()
 	for _, name := range durationMetrics {
 		pm.histograms[name] = &histogram{
 			buckets: make(map[float64]float64),
 		}
 	}
+	pm.histogramsMutex.Unlock()
 
 	// Then, register observers (this prevents concurrent map read/write)
 	for _, name := range durationMetrics {
@@ -270,12 +281,17 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricCPUUtilization,
 		MetricMemoryUsageMB,
 		MetricGoroutineCount,
+		MetricCPULoadPercent,
+		MetricRAMUtilizationPercent,
+		MetricSwapUtilizationPercent,
 	}
 
 	// First, initialize all gauges in the map
+	pm.gaugesMutex.Lock()
 	for _, name := range gauges {
 		pm.gauges[name] = &gauge{value: 0}
 	}
+	pm.gaugesMutex.Unlock()
 
 	// Then, register observers (this prevents concurrent map read/write)
 	for _, name := range gauges {
@@ -428,6 +444,9 @@ func (pm *PerformanceMetrics) observeSystemMetrics(ctx context.Context) {
 				lastMemStats = memStats
 				lastUpdateTime = now
 			}
+
+			// Update OS-level machine stats
+			pm.updateMachineStats()
 		case <-ctx.Done():
 			return
 		}
@@ -481,6 +500,33 @@ func (pm *PerformanceMetrics) calculateCPUUtilizationHeuristic(
 	}
 
 	return cpuUtilization
+}
+
+// updateMachineStats collects and updates OS-level machine statistics
+// including CPU load, RAM utilization, and swapfile utilization.
+func (pm *PerformanceMetrics) updateMachineStats() {
+	// Get CPU load percentage (1-second average)
+	cpuPercent, err := cpu.Percent(time.Second, false)
+	if err == nil && len(cpuPercent) > 0 {
+		pm.SetGauge(MetricCPULoadPercent, cpuPercent[0])
+	}
+
+	// Get memory statistics
+	memInfo, err := mem.VirtualMemory()
+	if err == nil {
+		// RAM utilization percentage
+		pm.SetGauge(MetricRAMUtilizationPercent, memInfo.UsedPercent)
+
+		// Swap utilization percentage
+		swapInfo, err := mem.SwapMemory()
+		if err == nil && swapInfo.Total > 0 {
+			swapUtilizationPercent := (float64(swapInfo.Used) / float64(swapInfo.Total)) * 100.0
+			pm.SetGauge(MetricSwapUtilizationPercent, swapUtilizationPercent)
+		} else {
+			// If swap is not available or has no total, set to 0
+			pm.SetGauge(MetricSwapUtilizationPercent, 0)
+		}
+	}
 }
 
 // NoOpPerformanceMetrics is a no-op implementation of PerformanceMetricsRecorder
@@ -585,9 +631,12 @@ const (
 	MetricWalletDispatcherRejectedTotal = "wallet_dispatcher_rejected_total"
 
 	// System Metrics
-	MetricCPUUtilization = "cpu_utilization_percent"
-	MetricMemoryUsageMB  = "memory_usage_mb"
-	MetricGoroutineCount = "goroutine_count"
+	MetricCPUUtilization      = "cpu_utilization_percent"
+	MetricMemoryUsageMB       = "memory_usage_mb"
+	MetricGoroutineCount      = "goroutine_count"
+	MetricCPULoadPercent      = "cpu_load_percent"
+	MetricRAMUtilizationPercent = "ram_utilization_percent"
+	MetricSwapUtilizationPercent = "swap_utilization_percent"
 )
 
 // WalletActionMetricName generates a metric name for a specific wallet action type.
