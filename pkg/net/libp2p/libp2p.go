@@ -645,9 +645,6 @@ func executePingTest(
 
 	select {
 	case result := <-resultChan:
-		if metricsRecorder != nil {
-			metricsRecorder.RecordDuration("ping_test_duration_seconds", time.Since(startTime))
-		}
 		if result.Error != nil {
 			logger.Warnf(
 				"ping test for [%v] failed: [%v]",
@@ -673,6 +670,8 @@ func executePingTest(
 			)
 			if metricsRecorder != nil {
 				metricsRecorder.IncrementCounter("ping_test_success_total", 1)
+				// Only record duration on successful ping tests
+				metricsRecorder.RecordDuration("ping_test_duration_seconds", time.Since(startTime))
 			}
 		}
 	case <-ctx.Done():

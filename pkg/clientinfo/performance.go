@@ -110,6 +110,12 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricSigningSuccessTotal,
 		MetricSigningFailedTotal,
 		MetricSigningTimeoutsTotal,
+		MetricRedemptionExecutionsTotal,
+		MetricRedemptionExecutionsSuccessTotal,
+		MetricRedemptionExecutionsFailedTotal,
+		MetricRedemptionProofSubmissionsTotal,
+		MetricRedemptionProofSubmissionsSuccessTotal,
+		MetricRedemptionProofSubmissionsFailedTotal,
 		MetricWalletActionsTotal,
 		MetricWalletActionSuccessTotal,
 		MetricWalletActionFailedTotal,
@@ -117,6 +123,7 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricCoordinationWindowsDetectedTotal,
 		MetricCoordinationProceduresExecutedTotal,
 		MetricCoordinationFailedTotal,
+		MetricCoordinationLeaderTimeoutTotal,
 		MetricPeerConnectionsTotal,
 		MetricPeerDisconnectionsTotal,
 		MetricMessageBroadcastTotal,
@@ -225,6 +232,7 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 	durationMetrics := []string{
 		MetricDKGDurationSeconds,
 		MetricSigningDurationSeconds,
+		MetricRedemptionActionDurationSeconds,
 		MetricWalletActionDurationSeconds,
 		MetricCoordinationDurationSeconds,
 		MetricCoordinationWindowDurationSeconds,
@@ -602,6 +610,17 @@ const (
 	MetricSigningAttemptsPerOperation = "signing_attempts_per_operation"
 	MetricSigningTimeoutsTotal        = "signing_timeouts_total"
 
+	// Redemption Metrics
+	MetricRedemptionExecutionsTotal        = "redemption_executions_total"
+	MetricRedemptionExecutionsSuccessTotal = "redemption_executions_success_total"
+	MetricRedemptionExecutionsFailedTotal  = "redemption_executions_failed_total"
+	MetricRedemptionActionDurationSeconds  = "redemption_action_duration_seconds"
+
+	// Redemption Proof Submission Metrics (SPV maintainer)
+	MetricRedemptionProofSubmissionsTotal        = "redemption_proof_submissions_total"
+	MetricRedemptionProofSubmissionsSuccessTotal = "redemption_proof_submissions_success_total"
+	MetricRedemptionProofSubmissionsFailedTotal  = "redemption_proof_submissions_failed_total"
+
 	// Wallet Action Metrics (aggregate)
 	MetricWalletActionsTotal           = "wallet_actions_total"
 	MetricWalletActionSuccessTotal     = "wallet_action_success_total"
@@ -617,7 +636,8 @@ const (
 	// Coordination Metrics
 	MetricCoordinationWindowsDetectedTotal    = "coordination_windows_detected_total"
 	MetricCoordinationProceduresExecutedTotal = "coordination_procedures_executed_total"
-	MetricCoordinationFailedTotal             = "coordination_failed_total"
+	MetricCoordinationFailedTotal             = "coordination_failed_total"              // Only when node is leader
+	MetricCoordinationLeaderTimeoutTotal      = "coordination_leader_timeout_total"      // When follower observes leader timeout
 	MetricCoordinationDurationSeconds         = "coordination_duration_seconds"
 
 	// Coordination Window Metrics (per-window tracking)
