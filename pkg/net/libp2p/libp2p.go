@@ -96,8 +96,9 @@ type provider struct {
 	connectionManager *connectionManager
 
 	// metricsRecorder is optional and used for recording performance metrics.
-	// It uses atomic.Value for thread-safe access.
-	metricsRecorder atomic.Value
+	// It uses a pointer to atomic.Value for thread-safe access and sharing
+	// with the transport layer for join request metrics.
+	metricsRecorder *atomic.Value
 }
 
 func (p *provider) BroadcastChannelFor(name string) (net.BroadcastChannel, error) {
@@ -320,12 +321,17 @@ func Connect(
 		return nil, err
 	}
 
+	// Initialize the metrics recorder atomic.Value before creating the host.
+	// This allows the transport to reference it and receive metrics recorder updates later.
+	var metricsRecorderRef atomic.Value
+
 	host, err := discoverAndListen(
 		ctx,
 		identity,
 		config.Port,
 		config.AnnouncedAddresses,
 		firewall,
+		&metricsRecorderRef,
 	)
 	if err != nil {
 		return nil, err
@@ -356,6 +362,7 @@ func Connect(
 		host:                    rhost.Wrap(host, router),
 		routing:                 router,
 		disseminationTime:       config.DisseminationTime,
+		metricsRecorder:         &metricsRecorderRef,
 	}
 
 	if len(config.Peers) == 0 {
@@ -403,6 +410,7 @@ func discoverAndListen(
 	port int,
 	announcedAddresses []string,
 	firewall net.Firewall,
+	metricsRecorderRef *atomic.Value,
 ) (host.Host, error) {
 	var err error
 
@@ -440,6 +448,7 @@ func discoverAndListen(
 					privateKey,
 					muxers,
 					firewall,
+					metricsRecorderRef,
 				)
 				if err != nil {
 					return nil, fmt.Errorf(
@@ -572,13 +581,15 @@ func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 			SetGauge(name string, value float64)
 			RecordDuration(name string, duration time.Duration)
 		}
-		if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
-			recorder = metricsRecorderValue.(interface {
-				IncrementCounter(name string, value float64)
-				SetGauge(name string, value float64)
-				RecordDuration(name string, duration time.Duration)
-			})
-			recorder.IncrementCounter("peer_connections_total", 1)
+		if p.metricsRecorder != nil {
+			if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
+				recorder = metricsRecorderValue.(interface {
+					IncrementCounter(name string, value float64)
+					SetGauge(name string, value float64)
+					RecordDuration(name string, duration time.Duration)
+				})
+				recorder.IncrementCounter("peer_connections_total", 1)
+			}
 		}
 
 		go executePingTest(libp2pHost, peerID, peerMultiaddress, recorder)
@@ -592,13 +603,15 @@ func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 			),
 		)
 
-		if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
-			recorder := metricsRecorderValue.(interface {
-				IncrementCounter(name string, value float64)
-				SetGauge(name string, value float64)
-				RecordDuration(name string, duration time.Duration)
-			})
-			recorder.IncrementCounter("peer_disconnections_total", 1)
+		if p.metricsRecorder != nil {
+			if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
+				recorder := metricsRecorderValue.(interface {
+					IncrementCounter(name string, value float64)
+					SetGauge(name string, value float64)
+					RecordDuration(name string, duration time.Duration)
+				})
+				recorder.IncrementCounter("peer_disconnections_total", 1)
+			}
 		}
 	}
 

@@ -124,6 +124,10 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricPingTestsTotal,
 		MetricPingTestSuccessTotal,
 		MetricPingTestFailedTotal,
+		MetricNetworkJoinRequestsTotal,
+		MetricNetworkJoinRequestsSuccessTotal,
+		MetricNetworkJoinRequestsFailedTotal,
+		MetricFirewallRejectionsTotal,
 		MetricWalletDispatcherRejectedTotal,
 	}
 
@@ -223,7 +227,9 @@ func (pm *PerformanceMetrics) registerAllMetrics() {
 		MetricSigningDurationSeconds,
 		MetricWalletActionDurationSeconds,
 		MetricCoordinationDurationSeconds,
+		MetricCoordinationWindowDurationSeconds,
 		MetricPingTestDurationSeconds,
+		MetricNetworkHandshakeDurationSeconds,
 	}
 
 	// First, initialize all histograms in the map
@@ -614,6 +620,14 @@ const (
 	MetricCoordinationFailedTotal             = "coordination_failed_total"
 	MetricCoordinationDurationSeconds         = "coordination_duration_seconds"
 
+	// Coordination Window Metrics (per-window tracking)
+	MetricCoordinationWindowDurationSeconds      = "coordination_window_duration_seconds"
+	MetricCoordinationWindowWalletsCoordinated  = "coordination_window_wallets_coordinated"
+	MetricCoordinationWindowWalletsSuccessful   = "coordination_window_wallets_successful"
+	MetricCoordinationWindowWalletsFailed       = "coordination_window_wallets_failed"
+	MetricCoordinationWindowTotalFaults         = "coordination_window_total_faults"
+	MetricCoordinationWindowCoordinationBlock   = "coordination_window_coordination_block"
+
 	// Network Metrics
 	MetricIncomingMessageQueueSize = "incoming_message_queue_size"
 	MetricMessageHandlerQueueSize  = "message_handler_queue_size"
@@ -625,6 +639,13 @@ const (
 	MetricPingTestSuccessTotal     = "ping_test_success_total"
 	MetricPingTestFailedTotal      = "ping_test_failed_total"
 	MetricPingTestDurationSeconds  = "ping_test_duration_seconds"
+
+	// Network Join Request Metrics (inbound connection attempts from peers)
+	MetricNetworkJoinRequestsTotal        = "network_join_requests_total"         // Total inbound join attempts
+	MetricNetworkJoinRequestsSuccessTotal = "network_join_requests_success_total" // Successful joins
+	MetricNetworkJoinRequestsFailedTotal  = "network_join_requests_failed_total"  // Failed joins (handshake failure)
+	MetricNetworkHandshakeDurationSeconds = "network_handshake_duration_seconds"  // Handshake duration
+	MetricFirewallRejectionsTotal         = "firewall_rejections_total"           // Firewall rejections
 
 	// Wallet Dispatcher Metrics
 	MetricWalletDispatcherActiveActions = "wallet_dispatcher_active_actions"
