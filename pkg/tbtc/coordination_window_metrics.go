@@ -27,48 +27,71 @@ type coordinationWindowMetrics struct {
 // windowMetrics contains all metrics for a single coordination window.
 type windowMetrics struct {
 	// Window identification
-	WindowIndex       uint64
-	CoordinationBlock uint64
+	WindowIndex       uint64 `json:"window_index"`
+	CoordinationBlock uint64 `json:"coordination_block"`
 
 	// Window timing
-	StartTime    time.Time
-	EndTime      time.Time
-	Duration     time.Duration
-	ActivePhaseEndBlock uint64
-	EndBlock     uint64
+	StartTime           time.Time     `json:"start_time"`
+	EndTime             time.Time     `json:"end_time"`
+	Duration            time.Duration `json:"duration_ns"`
+	ActivePhaseEndBlock uint64        `json:"active_phase_end_block"`
+	EndBlock            uint64        `json:"end_block"`
 
 	// Coordination statistics
-	WalletsCoordinated     uint64
-	WalletsSuccessful      uint64
-	WalletsFailed          uint64
-	TotalProceduresStarted uint64
-	TotalProceduresCompleted uint64
+	WalletsCoordinated       uint64 `json:"wallets_coordinated"`
+	WalletsSuccessful        uint64 `json:"wallets_successful"`
+	WalletsFailed            uint64 `json:"wallets_failed"`
+	TotalProceduresStarted   uint64 `json:"total_procedures_started"`
+	TotalProceduresCompleted uint64 `json:"total_procedures_completed"`
 
 	// Leader information
-	Leaders map[string]uint64 // leader address -> count of wallets they led
+	Leaders map[string]uint64 `json:"leaders"` // leader address -> count of wallets they led
 
 	// Action type statistics
-	ActionTypes map[string]uint64 // action type -> count
+	ActionTypes map[string]uint64 `json:"action_types"` // action type -> count
 
 	// Fault statistics
-	TotalFaults        uint64
-	FaultsByType       map[string]uint64 // fault type -> count
-	FaultsByCulprit    map[string]uint64 // culprit address -> count
+	TotalFaults     uint64            `json:"total_faults"`
+	FaultsByType    map[string]uint64 `json:"faults_by_type"`    // fault type -> count
+	FaultsByCulprit map[string]uint64 `json:"faults_by_culprit"` // culprit address -> count
 
 	// Per-wallet coordination details
-	WalletCoordinationDetails []walletCoordinationDetail
+	WalletCoordinationDetails []walletCoordinationDetail `json:"wallet_coordination_details"`
 }
 
 // walletCoordinationDetail contains metrics for a single wallet's coordination
 // in a window.
 type walletCoordinationDetail struct {
-	WalletPublicKeyHash string
-	Leader              string
-	ActionType          string
-	Success             bool
-	Duration            time.Duration
-	Faults              []string // fault types observed
-	FaultCulprits       []string // addresses of fault culprits
+	WalletPublicKeyHash string        `json:"wallet_public_key_hash"`
+	Leader              string        `json:"leader"`
+	ActionType          string        `json:"action_type"`
+	Success             bool          `json:"success"`
+	Duration            time.Duration `json:"duration_ns"`
+	ErrorMessage        string        `json:"error_message,omitempty"` // error message if failed
+	Faults              []faultDetail `json:"faults"`                  // detailed fault information
+}
+
+// faultDetail contains detailed information about a coordination fault.
+type faultDetail struct {
+	Type    string `json:"type"`    // fault type (e.g., LeaderIdleness, LeaderMistake)
+	Culprit string `json:"culprit"` // address of the operator responsible
+	Message string `json:"message"` // human-readable description
+}
+
+// faultMessage generates a human-readable message for a coordination fault.
+func faultMessage(faultType CoordinationFaultType, culprit string) string {
+	switch faultType {
+	case FaultLeaderIdleness:
+		return fmt.Sprintf("Leader %s was idle and missed their turn to propose a wallet action", culprit)
+	case FaultLeaderMistake:
+		return fmt.Sprintf("Leader %s proposed an invalid action", culprit)
+	case FaultLeaderImpersonation:
+		return fmt.Sprintf("Operator %s impersonated the leader", culprit)
+	case FaultUnknown:
+		return fmt.Sprintf("Unknown fault from operator %s", culprit)
+	default:
+		return fmt.Sprintf("Fault type %s from operator %s", faultType.String(), culprit)
+	}
 }
 
 // newCoordinationWindowMetrics creates a new coordination window metrics tracker.
@@ -155,6 +178,7 @@ func (cwm *coordinationWindowMetrics) recordWalletCoordination(
 	success bool,
 	duration time.Duration,
 	faults []*coordinationFault,
+	coordinationErr error,
 ) {
 	cwm.mu.Lock()
 	defer cwm.mu.Unlock()
@@ -191,17 +215,20 @@ func (cwm *coordinationWindowMetrics) recordWalletCoordination(
 	}
 
 	// Track faults
-	faultTypes := make([]string, 0)
-	faultCulprits := make([]string, 0)
+	faultDetails := make([]faultDetail, 0, len(faults))
 	for _, fault := range faults {
 		faultTypeStr := fault.faultType.String()
+		culpritStr := fault.culprit.String()
+
 		wm.FaultsByType[faultTypeStr]++
 		wm.TotalFaults++
-		faultTypes = append(faultTypes, faultTypeStr)
-
-		culpritStr := fault.culprit.String()
 		wm.FaultsByCulprit[culpritStr]++
-		faultCulprits = append(faultCulprits, culpritStr)
+
+		faultDetails = append(faultDetails, faultDetail{
+			Type:    faultTypeStr,
+			Culprit: culpritStr,
+			Message: faultMessage(fault.faultType, culpritStr),
+		})
 	}
 
 	// Record per-wallet detail
@@ -211,8 +238,10 @@ func (cwm *coordinationWindowMetrics) recordWalletCoordination(
 		ActionType:          actionType,
 		Success:             success,
 		Duration:            duration,
-		Faults:              faultTypes,
-		FaultCulprits:       faultCulprits,
+		Faults:              faultDetails,
+	}
+	if coordinationErr != nil {
+		detail.ErrorMessage = coordinationErr.Error()
 	}
 	wm.WalletCoordinationDetails = append(wm.WalletCoordinationDetails, detail)
 }
@@ -356,12 +385,12 @@ func (cwm *coordinationWindowMetrics) GetSummary() WindowMetricsSummary {
 
 // WindowMetricsSummary provides a summary of coordination window metrics.
 type WindowMetricsSummary struct {
-	TotalWindows           uint64
-	TotalWalletsCoordinated uint64
-	TotalWalletsSuccessful  uint64
-	TotalWalletsFailed      uint64
-	TotalFaults             uint64
-	Windows                []*windowMetrics
+	TotalWindows            uint64           `json:"total_windows"`
+	TotalWalletsCoordinated uint64           `json:"total_wallets_coordinated"`
+	TotalWalletsSuccessful  uint64           `json:"total_wallets_successful"`
+	TotalWalletsFailed      uint64           `json:"total_wallets_failed"`
+	TotalFaults             uint64           `json:"total_faults"`
+	Windows                 []*windowMetrics `json:"windows"`
 }
 
 // String returns a string representation of window metrics for logging.

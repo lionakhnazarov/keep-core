@@ -239,6 +239,16 @@ func (n *node) setPerformanceMetrics(metrics interface {
 	n.coordinationExecutorsMutex.Unlock()
 }
 
+// GetCoordinationWindowsSummary returns a summary of coordination window metrics.
+// Returns nil if the window metrics tracker is not initialized.
+func (n *node) GetCoordinationWindowsSummary() *WindowMetricsSummary {
+	if n.windowMetricsTracker == nil {
+		return nil
+	}
+	summary := n.windowMetricsTracker.GetSummary()
+	return &summary
+}
+
 // operatorAddress returns the node's operator address.
 func (n *node) operatorAddress() (chain.Address, error) {
 	_, operatorPublicKey, err := n.chain.OperatorKeyPair()
@@ -1131,6 +1141,7 @@ func executeCoordinationProcedure(
 				false,
 				duration,
 				nil,
+				err, // capture the error message
 			)
 		}
 		return nil, false
@@ -1142,6 +1153,25 @@ func executeCoordinationProcedure(
 	)
 
 	// Metrics are already recorded in executor.coordinate() for successful executions
+
+	// Record window metrics for successful coordination
+	if node.windowMetricsTracker != nil {
+		walletPublicKeyHash := bitcoin.PublicKeyHash(walletPublicKey)
+		actionType := ""
+		if result.proposal != nil {
+			actionType = result.proposal.ActionType().String()
+		}
+		node.windowMetricsTracker.recordWalletCoordination(
+			window,
+			walletPublicKeyHash,
+			result.leader,
+			actionType,
+			true,
+			duration,
+			result.faults,
+			nil, // no error on success
+		)
+	}
 
 	return result, true
 }
