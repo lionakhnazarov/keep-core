@@ -566,6 +566,12 @@ func extractMultiAddrFromPeers(peers []string) ([]peer.AddrInfo, error) {
 func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 	notifyBundle := &libp2pnet.NotifyBundle{}
 
+	// Track peers we've already pinged to avoid duplicate ping tests.
+	// libp2p may establish multiple connections to the same peer (different
+	// transports/addresses), and we only want to ping once per unique peer.
+	var pingedPeersMu sync.Mutex
+	pingedPeers := make(map[peer.ID]struct{})
+
 	notifyBundle.ConnectedF = func(_ libp2pnet.Network, connection libp2pnet.Conn) {
 		peerID := connection.RemotePeer()
 
@@ -592,14 +598,27 @@ func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 			}
 		}
 
+		// Only ping each unique peer once to avoid false failures from
+		// connection multiplexing (multiple connections to same peer).
+		pingedPeersMu.Lock()
+		if _, alreadyPinged := pingedPeers[peerID]; alreadyPinged {
+			pingedPeersMu.Unlock()
+			logger.Debugf("skipping duplicate ping test for [%v]", peerID)
+			return
+		}
+		pingedPeers[peerID] = struct{}{}
+		pingedPeersMu.Unlock()
+
 		go executePingTest(libp2pHost, peerID, peerMultiaddress, recorder)
 	}
-	notifyBundle.DisconnectedF = func(_ libp2pnet.Network, connection libp2pnet.Conn) {
+	notifyBundle.DisconnectedF = func(network libp2pnet.Network, connection libp2pnet.Conn) {
+		peerID := connection.RemotePeer()
+
 		logger.Infof(
 			"disconnected from [%v]",
 			multiaddressWithIdentity(
 				connection.RemoteMultiaddr(),
-				connection.RemotePeer(),
+				peerID,
 			),
 		)
 
@@ -612,6 +631,14 @@ func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 				})
 				recorder.IncrementCounter("peer_disconnections_total", 1)
 			}
+		}
+
+		// Remove peer from pinged set only if no more connections remain.
+		// This allows re-pinging if the peer reconnects later.
+		if len(network.ConnsToPeer(peerID)) == 0 {
+			pingedPeersMu.Lock()
+			delete(pingedPeers, peerID)
+			pingedPeersMu.Unlock()
 		}
 	}
 
