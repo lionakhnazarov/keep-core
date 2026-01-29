@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/keep-network/keep-core/pkg/operator"
@@ -94,12 +95,10 @@ type provider struct {
 
 	connectionManager *connectionManager
 
-	// metricsRecorder is optional and used for recording performance metrics
-	metricsRecorder interface {
-		IncrementCounter(name string, value float64)
-		SetGauge(name string, value float64)
-		RecordDuration(name string, duration time.Duration)
-	}
+	// metricsRecorder is optional and used for recording performance metrics.
+	// It uses a pointer to atomic.Value for thread-safe access and sharing
+	// with the transport layer for join request metrics.
+	metricsRecorder *atomic.Value
 }
 
 func (p *provider) BroadcastChannelFor(name string) (net.BroadcastChannel, error) {
@@ -322,20 +321,21 @@ func Connect(
 		return nil, err
 	}
 
+	// Initialize the metrics recorder atomic.Value before creating the host.
+	// This allows the transport to reference it and receive metrics recorder updates later.
+	var metricsRecorderRef atomic.Value
+
 	host, err := discoverAndListen(
 		ctx,
 		identity,
 		config.Port,
 		config.AnnouncedAddresses,
 		firewall,
+		&metricsRecorderRef,
 	)
 	if err != nil {
 		return nil, err
 	}
-
-	// Build notifiee with metrics recorder (will be set later if available)
-	notifiee := buildNotifiee(host, nil)
-	host.Network().Notify(notifiee)
 
 	broadcastChannelManager, err := newChannelManager(ctx, identity, host, ticker)
 	if err != nil {
@@ -362,6 +362,7 @@ func Connect(
 		host:                    rhost.Wrap(host, router),
 		routing:                 router,
 		disseminationTime:       config.DisseminationTime,
+		metricsRecorder:         &metricsRecorderRef,
 	}
 
 	if len(config.Peers) == 0 {
@@ -373,6 +374,10 @@ func Connect(
 	}
 
 	provider.connectionManager = newConnectionManager(ctx, provider.host)
+
+	// Register notifiee - it will reference provider.metricsRecorder which can be updated later
+	notifiee := buildNotifiee(provider.host, provider)
+	provider.host.Network().Notify(notifiee)
 
 	// Instantiates and starts the connection management background process.
 	watchtower.NewGuard(
@@ -393,12 +398,10 @@ func (p *provider) SetMetricsRecorder(recorder interface {
 	SetGauge(name string, value float64)
 	RecordDuration(name string, duration time.Duration)
 }) {
-	p.metricsRecorder = recorder
+	p.metricsRecorder.Store(recorder)
 	if p.broadcastChannelManager != nil {
 		p.broadcastChannelManager.setMetricsRecorder(recorder)
 	}
-	// Update notifiee with metrics recorder
-	p.host.Network().Notify(buildNotifiee(p.host, recorder))
 }
 
 func discoverAndListen(
@@ -407,6 +410,7 @@ func discoverAndListen(
 	port int,
 	announcedAddresses []string,
 	firewall net.Firewall,
+	metricsRecorderRef *atomic.Value,
 ) (host.Host, error) {
 	var err error
 
@@ -444,6 +448,7 @@ func discoverAndListen(
 					privateKey,
 					muxers,
 					firewall,
+					metricsRecorderRef,
 				)
 				if err != nil {
 					return nil, fmt.Errorf(
@@ -558,12 +563,14 @@ func extractMultiAddrFromPeers(peers []string) ([]peer.AddrInfo, error) {
 	return peerInfos, nil
 }
 
-func buildNotifiee(libp2pHost host.Host, metricsRecorder interface {
-	IncrementCounter(name string, value float64)
-	SetGauge(name string, value float64)
-	RecordDuration(name string, duration time.Duration)
-}) libp2pnet.Notifiee {
+func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 	notifyBundle := &libp2pnet.NotifyBundle{}
+
+	// Track peers we've already pinged to avoid duplicate ping tests.
+	// libp2p may establish multiple connections to the same peer (different
+	// transports/addresses), and we only want to ping once per unique peer.
+	var pingedPeersMu sync.Mutex
+	pingedPeers := make(map[peer.ID]struct{})
 
 	notifyBundle.ConnectedF = func(_ libp2pnet.Network, connection libp2pnet.Conn) {
 		peerID := connection.RemotePeer()
@@ -575,23 +582,63 @@ func buildNotifiee(libp2pHost host.Host, metricsRecorder interface {
 
 		logger.Infof("established connection to [%v]", peerMultiaddress)
 
-		if metricsRecorder != nil {
-			metricsRecorder.IncrementCounter("peer_connections_total", 1)
+		var recorder interface {
+			IncrementCounter(name string, value float64)
+			SetGauge(name string, value float64)
+			RecordDuration(name string, duration time.Duration)
+		}
+		if p.metricsRecorder != nil {
+			if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
+				recorder = metricsRecorderValue.(interface {
+					IncrementCounter(name string, value float64)
+					SetGauge(name string, value float64)
+					RecordDuration(name string, duration time.Duration)
+				})
+				recorder.IncrementCounter("peer_connections_total", 1)
+			}
 		}
 
-		go executePingTest(libp2pHost, peerID, peerMultiaddress, metricsRecorder)
+		// Only ping each unique peer once to avoid false failures from
+		// connection multiplexing (multiple connections to same peer).
+		pingedPeersMu.Lock()
+		if _, alreadyPinged := pingedPeers[peerID]; alreadyPinged {
+			pingedPeersMu.Unlock()
+			logger.Debugf("skipping duplicate ping test for [%v]", peerID)
+			return
+		}
+		pingedPeers[peerID] = struct{}{}
+		pingedPeersMu.Unlock()
+
+		go executePingTest(libp2pHost, peerID, peerMultiaddress, recorder)
 	}
-	notifyBundle.DisconnectedF = func(_ libp2pnet.Network, connection libp2pnet.Conn) {
+	notifyBundle.DisconnectedF = func(network libp2pnet.Network, connection libp2pnet.Conn) {
+		peerID := connection.RemotePeer()
+
 		logger.Infof(
 			"disconnected from [%v]",
 			multiaddressWithIdentity(
 				connection.RemoteMultiaddr(),
-				connection.RemotePeer(),
+				peerID,
 			),
 		)
 
-		if metricsRecorder != nil {
-			metricsRecorder.IncrementCounter("peer_disconnections_total", 1)
+		if p.metricsRecorder != nil {
+			if metricsRecorderValue := p.metricsRecorder.Load(); metricsRecorderValue != nil {
+				recorder := metricsRecorderValue.(interface {
+					IncrementCounter(name string, value float64)
+					SetGauge(name string, value float64)
+					RecordDuration(name string, duration time.Duration)
+				})
+				recorder.IncrementCounter("peer_disconnections_total", 1)
+			}
+		}
+
+		// Remove peer from pinged set only if no more connections remain.
+		// This allows re-pinging if the peer reconnects later.
+		if len(network.ConnsToPeer(peerID)) == 0 {
+			pingedPeersMu.Lock()
+			delete(pingedPeers, peerID)
+			pingedPeersMu.Unlock()
 		}
 	}
 
@@ -625,9 +672,6 @@ func executePingTest(
 
 	select {
 	case result := <-resultChan:
-		if metricsRecorder != nil {
-			metricsRecorder.RecordDuration("ping_test_duration_seconds", time.Since(startTime))
-		}
 		if result.Error != nil {
 			logger.Warnf(
 				"ping test for [%v] failed: [%v]",
@@ -653,6 +697,8 @@ func executePingTest(
 			)
 			if metricsRecorder != nil {
 				metricsRecorder.IncrementCounter("ping_test_success_total", 1)
+				// Only record duration on successful ping tests
+				metricsRecorder.RecordDuration("ping_test_duration_seconds", time.Since(startTime))
 			}
 		}
 	case <-ctx.Done():

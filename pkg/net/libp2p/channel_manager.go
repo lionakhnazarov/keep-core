@@ -131,10 +131,10 @@ func (cm *channelManager) setMetricsRecorder(recorder interface {
 	SetGauge(name string, value float64)
 	RecordDuration(name string, duration time.Duration)
 }) {
-	cm.metricsRecorder = recorder
 	// Wire metrics into existing channels
 	cm.channelsMutex.Lock()
 	defer cm.channelsMutex.Unlock()
+	cm.metricsRecorder = recorder
 	for _, channel := range cm.channels {
 		channel.setMetricsRecorder(recorder)
 	}
@@ -161,6 +161,7 @@ func (cm *channelManager) newChannel(name string) (*channel, error) {
 
 	channel := &channel{
 		name:                 name,
+		ctx:                  cm.ctx,
 		clientIdentity:       cm.identity,
 		peerStore:            cm.peerStore,
 		validator:            cm.pubsub,

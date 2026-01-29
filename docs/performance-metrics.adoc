@@ -125,6 +125,37 @@ The client uses three types of metrics:
 *Description*: Total number of heartbeat failures across all wallets
 *Labels*: None
 
+==== Per-Action Type Metrics
+
+The following metrics are tracked separately for each wallet action type:
+`heartbeat`, `deposit_sweep`, `redemption`, `moving_funds`, `moved_funds_sweep`.
+
+For each action type, the following metrics are available:
+
+===== `performance_wallet_action_{action_type}_total`
+*Type*: Counter
+*Description*: Total number of {action_type} wallet actions dispatched
+*Example*: `performance_wallet_action_heartbeat_total`, `performance_wallet_action_deposit_sweep_total`
+*Labels*: None
+
+===== `performance_wallet_action_{action_type}_success_total`
+*Type*: Counter
+*Description*: Total number of successfully completed {action_type} wallet actions
+*Example*: `performance_wallet_action_heartbeat_success_total`, `performance_wallet_action_redemption_success_total`
+*Labels*: None
+
+===== `performance_wallet_action_{action_type}_failed_total`
+*Type*: Counter
+*Description*: Total number of failed {action_type} wallet actions
+*Example*: `performance_wallet_action_heartbeat_failed_total`, `performance_wallet_action_moving_funds_failed_total`
+*Labels*: None
+
+===== `performance_wallet_action_{action_type}_duration_seconds`
+*Type*: Gauge (average)
+*Description*: Average duration of {action_type} wallet actions in seconds
+*Example*: `performance_wallet_action_heartbeat_duration_seconds`, `performance_wallet_action_deposit_sweep_duration_seconds`
+*Labels*: None
+
 === Wallet Dispatcher Metrics
 
 ==== `performance_wallet_dispatcher_active_actions`
@@ -159,6 +190,11 @@ The client uses three types of metrics:
 ==== `performance_coordination_duration_seconds`
 *Type*: Gauge (average)
 *Description*: Average duration of coordination procedures in seconds
+*Labels*: None
+
+==== `performance_coordination_duration_seconds_count`
+*Type*: Gauge
+*Description*: Total count of coordination duration samples
 *Labels*: None
 
 === Network Metrics
@@ -232,133 +268,12 @@ The client uses three types of metrics:
 *Description*: Average duration of relay entry generation in seconds
 *Labels*: None
 
+==== `performance_relay_entry_duration_seconds_count`
+*Type*: Gauge
+*Description*: Total count of relay entry duration samples
+*Labels*: None
+
 ==== `performance_relay_entry_timeout_reported_total`
 *Type*: Counter
 *Description*: Total number of relay entry timeouts reported on-chain
 *Labels*: None
-
-== Existing Metrics
-
-The following metrics were already available and are documented here for completeness:
-
-=== Network Connectivity Metrics
-
-==== `connected_peers_count`
-*Type*: Gauge
-*Description*: Current number of connected peers
-*Update Frequency*: 1 minute (configurable)
-
-==== `connected_bootstrap_count`
-*Type*: Gauge
-*Description*: Current number of connected bootstrap nodes
-*Update Frequency*: 1 minute (configurable)
-
-==== `eth_connectivity`
-*Type*: Gauge
-*Description*: Ethereum chain connectivity status (1 = connected, 0 = disconnected)
-*Update Frequency*: 10 minutes (configurable)
-
-==== `btc_connectivity`
-*Type*: Gauge
-*Description*: Bitcoin chain connectivity status (1 = connected, 0 = disconnected)
-*Update Frequency*: 10 minutes (configurable)
-
-=== Application Metrics
-
-==== `tbtc_pre_params_count`
-*Type*: Gauge
-*Description*: Current number of pre-parameters in the DKG executor pool
-*Update Frequency*: 1 minute
-
-== Monitoring Recommendations
-
-=== Key Metrics to Monitor
-
-1. **Operation Success Rates**: Monitor the ratio of success to total operations
-   - `performance_signing_success_total / performance_signing_operations_total`
-   - `performance_wallet_action_success_total / performance_wallet_actions_total`
-
-2. **Operation Durations**: Track average operation times
-   - Alert if `performance_signing_duration_seconds` exceeds expected thresholds
-   - Alert if `performance_dkg_duration_seconds` exceeds expected thresholds
-
-3. **Queue Sizes**: Monitor message queue sizes
-   - Alert if `performance_incoming_message_queue_size` exceeds 3000 (75% of capacity)
-   - Alert if `performance_message_handler_queue_size` exceeds 400 (75% of capacity)
-
-4. **Wallet Dispatcher**: Monitor wallet action rejection rates
-   - Alert if `performance_wallet_dispatcher_rejected_total` increases rapidly
-   - Monitor `performance_wallet_dispatcher_active_actions` to understand wallet utilization
-
-5. **Network Health**: Monitor peer connectivity
-   - Alert if `connected_peers_count` drops significantly
-   - Alert if `eth_connectivity` or `btc_connectivity` becomes 0
-
-=== Alert Thresholds
-
-Recommended alert thresholds:
-
-* **High Priority Alerts**:
-  - `eth_connectivity == 0` for more than 1 minute
-  - `performance_signing_failed_total` rate > 10% of total operations
-  - `performance_wallet_action_failed_total` rate > 5% of total actions
-
-* **Medium Priority Alerts**:
-  - `connected_peers_count` drops by more than 20% in 10 minutes
-  - `performance_incoming_message_queue_size` > 3000
-  - `performance_wallet_dispatcher_rejected_total` rate > 5% of dispatched actions
-
-* **Low Priority Alerts**:
-  - `performance_signing_duration_seconds` > 60 seconds (average)
-  - `performance_dkg_duration_seconds` > 300 seconds (average)
-  - `performance_ping_test_failed_total` rate > 10% of ping tests
-
-== Prometheus Integration
-
-These metrics are compatible with Prometheus and can be scraped using a
-Prometheus configuration:
-
-[source,yaml]
-----
-scrape_configs:
-  - job_name: 'keep-node'
-    scrape_interval: 15s
-    static_configs:
-      - targets: ['localhost:9601']
-----
-
-== Grafana Dashboards
-
-You can create Grafana dashboards using these metrics to visualize:
-
-* Operation success rates over time
-* Average operation durations
-* Queue sizes and trends
-* Network connectivity status
-* Wallet action throughput
-
-== Metric Naming Convention
-
-Performance metrics follow this naming convention:
-
-* Counters: `performance_<operation>_total`
-* Gauges: `performance_<operation>_<unit>` (e.g., `_seconds`, `_size`)
-* Durations: `performance_<operation>_duration_seconds` (average) and
-  `performance_<operation>_duration_seconds_count` (count)
-
-== Implementation Notes
-
-* Metrics are only available when the client info endpoint is configured
-* Metrics are updated periodically (typically every 1 minute for application metrics)
-* Counters are cumulative and never decrease
-* Gauges reflect current state and can increase or decrease
-* Duration metrics track both average duration and total count
-
-== Troubleshooting
-
-If metrics are not appearing:
-
-1. Verify that the client info endpoint is configured in the config file
-2. Check that the metrics port is accessible (default: 9601)
-3. Verify that `/metrics` endpoint returns data: `curl http://localhost:9601/metrics`
-4. Check logs for any errors related to metrics initialization

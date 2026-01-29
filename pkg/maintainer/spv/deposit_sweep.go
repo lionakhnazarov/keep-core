@@ -27,6 +27,7 @@ func SubmitDepositSweepProof(
 		btcChain,
 		spvChain,
 		bitcoin.AssembleSpvProof,
+		getGlobalMetricsRecorder(),
 	)
 }
 
@@ -36,8 +37,19 @@ func submitDepositSweepProof(
 	btcChain bitcoin.Chain,
 	spvChain Chain,
 	spvProofAssembler spvProofAssembler,
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+	},
 ) error {
+	// Record proof submission attempt
+	if metricsRecorder != nil {
+		metricsRecorder.IncrementCounter("deposit_sweep_proof_submissions_total", 1)
+	}
+
 	if requiredConfirmations == 0 {
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("deposit_sweep_proof_submissions_failed_total", 1)
+		}
 		return fmt.Errorf(
 			"provided required confirmations count must be greater than 0",
 		)
@@ -49,6 +61,9 @@ func submitDepositSweepProof(
 		btcChain,
 	)
 	if err != nil {
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("deposit_sweep_proof_submissions_failed_total", 1)
+		}
 		return fmt.Errorf(
 			"failed to assemble transaction spv proof: [%v]",
 			err,
@@ -61,6 +76,9 @@ func submitDepositSweepProof(
 		transaction,
 	)
 	if err != nil {
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("deposit_sweep_proof_submissions_failed_total", 1)
+		}
 		return fmt.Errorf(
 			"error while parsing transaction inputs: [%v]",
 			err,
@@ -73,10 +91,18 @@ func submitDepositSweepProof(
 		mainUTXO,
 		vault,
 	); err != nil {
+		if metricsRecorder != nil {
+			metricsRecorder.IncrementCounter("deposit_sweep_proof_submissions_failed_total", 1)
+		}
 		return fmt.Errorf(
 			"failed to submit deposit sweep proof with reimbursement: [%v]",
 			err,
 		)
+	}
+
+	// Record successful proof submission
+	if metricsRecorder != nil {
+		metricsRecorder.IncrementCounter("deposit_sweep_proof_submissions_success_total", 1)
 	}
 
 	return nil

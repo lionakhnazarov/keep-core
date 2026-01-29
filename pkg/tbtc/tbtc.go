@@ -81,6 +81,7 @@ func Initialize(
 	proposalGenerator CoordinationProposalGenerator,
 	config Config,
 	clientInfo *clientinfo.Registry,
+	perfMetrics *clientinfo.PerformanceMetrics,
 ) error {
 	groupParameters := &GroupParameters{
 		GroupSize:       100,
@@ -121,9 +122,29 @@ func Initialize(
 			},
 		)
 
-		// Initialize performance metrics
-		perfMetrics := clientinfo.NewPerformanceMetrics(clientInfo)
+		if perfMetrics == nil {
+			perfMetrics = clientinfo.NewPerformanceMetrics(ctx, clientInfo)
+		}
 		node.setPerformanceMetrics(perfMetrics)
+
+		// Register coordination windows as a diagnostic source
+		clientInfo.RegisterApplicationSource(
+			"coordination_windows",
+			func() clientinfo.ApplicationInfo {
+				summary := node.GetCoordinationWindowsSummary()
+				if summary == nil {
+					return clientinfo.ApplicationInfo{}
+				}
+				return clientinfo.ApplicationInfo{
+					"total_windows":             summary.TotalWindows,
+					"total_wallets_coordinated": summary.TotalWalletsCoordinated,
+					"total_wallets_successful":  summary.TotalWalletsSuccessful,
+					"total_wallets_failed":      summary.TotalWalletsFailed,
+					"total_faults":              summary.TotalFaults,
+					"windows":                   summary.Windows,
+				}
+			},
+		)
 	}
 
 	err = sortition.MonitorPool(

@@ -92,8 +92,9 @@ func start(cmd *cobra.Command) error {
 	)
 
 	// Wire performance metrics into network provider if available
+	var perfMetrics *clientinfo.PerformanceMetrics
 	if clientInfoRegistry != nil {
-		perfMetrics := clientinfo.NewPerformanceMetrics(clientInfoRegistry)
+		perfMetrics = clientinfo.NewPerformanceMetrics(ctx, clientInfoRegistry)
 		// Type assert to libp2p provider to set metrics recorder
 		// The provider struct is not exported, so we use interface assertion
 		if setter, ok := netProvider.(interface {
@@ -141,12 +142,23 @@ func start(cmd *cobra.Command) error {
 		scheduler := generator.StartScheduler()
 
 		// Only observe Bitcoin connectivity if using real Electrum chain
-		if _, isMock := btcChain.(*bitcoin.MockChain); !isMock {
-			clientInfoRegistry.ObserveBtcConnectivity(
-				btcChain,
-				clientConfig.ClientInfo.BitcoinMetricsTick,
-			)
+		if clientInfoRegistry != nil {
+			if _, isMock := btcChain.(*bitcoin.MockChain); !isMock {
+				clientInfoRegistry.ObserveBtcConnectivity(
+					btcChain,
+					clientConfig.ClientInfo.BitcoinMetricsTick,
+				)
+			}
+
 			clientInfoRegistry.RegisterBtcChainInfoSource(btcChain)
+
+			rpcHealthChecker := clientinfo.NewRPCHealthChecker(
+				clientInfoRegistry,
+				blockCounter,
+				btcChain,
+				clientConfig.ClientInfo.RPCHealthCheckInterval,
+			)
+			rpcHealthChecker.Start(ctx)
 		}
 
 		err = beacon.Initialize(
@@ -176,6 +188,7 @@ func start(cmd *cobra.Command) error {
 			proposalGenerator,
 			clientConfig.Tbtc,
 			clientInfoRegistry,
+			perfMetrics, // Pass the existing performance metrics instance to avoid duplicate registrations
 		)
 		if err != nil {
 			return fmt.Errorf("error initializing TBTC: [%v]", err)

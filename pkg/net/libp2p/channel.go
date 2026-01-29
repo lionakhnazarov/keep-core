@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"github.com/keep-network/keep-core/pkg/clientinfo"
 	"github.com/keep-network/keep-core/pkg/operator"
 
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -55,6 +56,8 @@ type channel struct {
 
 	name string
 
+	ctx context.Context
+
 	clientIdentity *identity
 	peerStore      peerstore.Peerstore
 
@@ -81,6 +84,9 @@ type channel struct {
 		SetGauge(name string, value float64)
 		RecordDuration(name string, duration time.Duration)
 	}
+
+	// monitorQueueSizesOnce ensures the monitoring goroutine is started only once
+	monitorQueueSizesOnce sync.Once
 }
 
 type messageHandler struct {
@@ -448,20 +454,19 @@ func (c *channel) setMetricsRecorder(recorder interface {
 	RecordDuration(name string, duration time.Duration)
 }) {
 	c.metricsRecorder = recorder
-	// Start periodic queue size monitoring
+	// Start periodic queue size monitoring (only once)
 	if recorder != nil {
-		go c.monitorQueueSizes(recorder)
+		c.monitorQueueSizesOnce.Do(func() {
+			go c.monitorQueueSizes(c.ctx, recorder)
+		})
 	}
 }
 
 // monitorQueueSizes periodically records queue sizes as metrics.
-func (c *channel) monitorQueueSizes(recorder interface {
+// It stops when the provided context is cancelled (e.g., when the channel is closed).
+func (c *channel) monitorQueueSizes(ctx context.Context, recorder interface {
 	SetGauge(name string, value float64)
 }) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Stop monitoring when channel is closed (we'll use a simple ticker for now)
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
@@ -470,16 +475,21 @@ func (c *channel) monitorQueueSizes(recorder interface {
 		case <-ticker.C:
 			// Record incoming message queue size
 			queueSize := float64(len(c.incomingMessageQueue))
-			recorder.SetGauge("incoming_message_queue_size", queueSize)
+			recorder.SetGauge(clientinfo.MetricIncomingMessageQueueSize, queueSize)
 
 			// Record message handler queue sizes
+			// Copy data while holding lock, then record metrics after releasing
 			c.messageHandlersMutex.Lock()
+			queueSizes := make([]float64, len(c.messageHandlers))
 			for i, handler := range c.messageHandlers {
-				handlerQueueSize := float64(len(handler.channel))
-				recorder.SetGauge("message_handler_queue_size", handlerQueueSize)
-				_ = i // avoid unused variable
+				queueSizes[i] = float64(len(handler.channel))
 			}
 			c.messageHandlersMutex.Unlock()
+
+			// Record metrics outside the lock to prevent potential deadlock
+			for i, size := range queueSizes {
+				recorder.SetGauge(fmt.Sprintf("%s_%d", clientinfo.MetricMessageHandlerQueueSize, i), size)
+			}
 		case <-ctx.Done():
 			return
 		}
