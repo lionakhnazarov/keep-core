@@ -96,6 +96,11 @@ func (pg *ProposalGenerator) Generate(
 
 		proposal, ok, err := pg.tasks[taskIndex].Run(request)
 		if err != nil {
+			walletLogger.Errorf(
+				"error while running proposal task [%s]: [%v]",
+				action,
+				err,
+			)
 			return nil, fmt.Errorf(
 				"error while running proposal task [%s]: [%v]",
 				action,

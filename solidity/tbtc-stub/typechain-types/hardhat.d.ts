@@ -21,6 +21,10 @@ declare module "hardhat/types/runtime" {
       name: "IWalletRegistry",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.IWalletRegistry__factory>;
+    getContractFactory(
+      name: "WalletProposalValidatorStub",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.WalletProposalValidatorStub__factory>;
 
     getContractAt(
       name: "BridgeStub",
@@ -32,6 +36,11 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.IWalletRegistry>;
+    getContractAt(
+      name: "WalletProposalValidatorStub",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.WalletProposalValidatorStub>;
 
     deployContract(
       name: "BridgeStub",
@@ -41,6 +50,10 @@ declare module "hardhat/types/runtime" {
       name: "IWalletRegistry",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IWalletRegistry>;
+    deployContract(
+      name: "WalletProposalValidatorStub",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.WalletProposalValidatorStub>;
 
     deployContract(
       name: "BridgeStub",
@@ -52,6 +65,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.IWalletRegistry>;
+    deployContract(
+      name: "WalletProposalValidatorStub",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.WalletProposalValidatorStub>;
 
     // default types
     getContractFactory(

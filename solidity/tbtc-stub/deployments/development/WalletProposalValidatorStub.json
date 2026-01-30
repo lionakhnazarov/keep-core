@@ -1,42 +1,352 @@
 {
-  "address": "0x5f7dC10e6dD504EEB41678E287aa1732F5EA85c4",
-  "abi": [],
-  "transactionHash": "0x1af5c313c755305c1c5b15d53498934c2dc28169aa06eceb8aafc888fffe12fd",
+  "address": "0x587920b0a8B4d0C756Ade69Cfa3F5432624010E1",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_bridge",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "DEPOSIT_MIN_AGE",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "DEPOSIT_REFUND_SAFETY_MARGIN",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "DEPOSIT_SWEEP_MAX_SIZE",
+      "outputs": [
+        {
+          "internalType": "uint16",
+          "name": "",
+          "type": "uint16"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "REDEMPTION_MAX_SIZE",
+      "outputs": [
+        {
+          "internalType": "uint16",
+          "name": "",
+          "type": "uint16"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "REDEMPTION_REQUEST_MIN_AGE",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "REDEMPTION_REQUEST_TIMEOUT_SAFETY_MARGIN",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "bridge",
+      "outputs": [
+        {
+          "internalType": "contract BridgeStub",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes20[]",
+          "name": "depositsPubKeys",
+          "type": "bytes20[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "sweepTxFee",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint16",
+          "name": "depositsRevealBlocks",
+          "type": "uint16"
+        },
+        {
+          "internalType": "bytes",
+          "name": "depositsExtraInfo",
+          "type": "bytes"
+        }
+      ],
+      "name": "validateDepositSweepProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "heartbeatTxHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "heartbeatTxFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "validateHeartbeatProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "movingFundsTxHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "movingFundsTxOutputIndex",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "sweepTxFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "validateMovedFundsSweepProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes20[]",
+          "name": "targetWallets",
+          "type": "bytes20[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "movingFundsTxFee",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "mainUtxoHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "mainUtxoOutputIndex",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "mainUtxoValue",
+          "type": "uint64"
+        }
+      ],
+      "name": "validateMovingFundsProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes[]",
+          "name": "redeemersOutputScripts",
+          "type": "bytes[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "redemptionTxFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "validateRedemptionProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x6f09ffb3703fe9ad53bb75fd2306ac8a9ed52ed497199b93716211624a7e6959",
   "receipt": {
     "to": null,
     "from": "0x7966C178f466B060aAeb2B91e9149A5FB2Ec9c53",
-    "contractAddress": "0x5f7dC10e6dD504EEB41678E287aa1732F5EA85c4",
+    "contractAddress": "0x587920b0a8B4d0C756Ade69Cfa3F5432624010E1",
     "transactionIndex": 0,
-    "gasUsed": "67066",
+    "gasUsed": "551267",
     "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "blockHash": "0xc7d8e883b54ca113e2606284d24ce805ab8a42ee35edef6583b134709ce1d861",
-    "transactionHash": "0x1af5c313c755305c1c5b15d53498934c2dc28169aa06eceb8aafc888fffe12fd",
+    "blockHash": "0xe75a89d16e033f8dbe86e501866da3f849762be94cc9bc023031b9f27d5d893b",
+    "transactionHash": "0x6f09ffb3703fe9ad53bb75fd2306ac8a9ed52ed497199b93716211624a7e6959",
     "logs": [],
-    "blockNumber": 224,
-    "cumulativeGasUsed": "67066",
+    "blockNumber": 820809,
+    "cumulativeGasUsed": "551267",
     "status": 1,
     "byzantium": true
   },
-  "args": [],
+  "args": [
+    "0xFdfce6c5030Cc243fB2F228df19C0facAbC04832"
+  ],
   "numDeployments": 1,
-  "solcInputHash": "498e1d323c151c563ec5379b8a2ee6e9",
-  "metadata": "{\"compiler\":{\"version\":\"0.8.17+commit.8df45f5f\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"title\":\"WalletProposalValidatorStub\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"notice\":\"Minimal stub implementation of WalletProposalValidator contract for local development\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/WalletProposalValidatorStub.sol\":\"WalletProposalValidatorStub\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/WalletProposalValidatorStub.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.17;\\n\\n/**\\n * @title WalletProposalValidatorStub\\n * @notice Minimal stub implementation of WalletProposalValidator contract for local development\\n */\\ncontract WalletProposalValidatorStub {\\n    // Minimal stub - just needs to exist\\n}\\n\\n\",\"keccak256\":\"0xb6f0be670d69d513684d50d1a483df4c6a9be465a621951788ab9e2f5b07b3b2\",\"license\":\"MIT\"}},\"version\":1}",
-  "bytecode": "0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea2646970667358221220ff686418c10f5a246ae3a8d00232d72dee54a7349003ff4eb6e53987bdb0400a64736f6c63430008110033",
-  "deployedBytecode": "0x6080604052600080fdfea2646970667358221220ff686418c10f5a246ae3a8d00232d72dee54a7349003ff4eb6e53987bdb0400a64736f6c63430008110033",
+  "solcInputHash": "5d4565c4cf67569db2c4b814ccb27dce",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.17+commit.8df45f5f\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_bridge\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"DEPOSIT_MIN_AGE\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"DEPOSIT_REFUND_SAFETY_MARGIN\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"DEPOSIT_SWEEP_MAX_SIZE\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"REDEMPTION_MAX_SIZE\",\"outputs\":[{\"internalType\":\"uint16\",\"name\":\"\",\"type\":\"uint16\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"REDEMPTION_REQUEST_MIN_AGE\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"REDEMPTION_REQUEST_TIMEOUT_SAFETY_MARGIN\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"bridge\",\"outputs\":[{\"internalType\":\"contract BridgeStub\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"internalType\":\"bytes20[]\",\"name\":\"depositsPubKeys\",\"type\":\"bytes20[]\"},{\"internalType\":\"uint256\",\"name\":\"sweepTxFee\",\"type\":\"uint256\"},{\"internalType\":\"uint16\",\"name\":\"depositsRevealBlocks\",\"type\":\"uint16\"},{\"internalType\":\"bytes\",\"name\":\"depositsExtraInfo\",\"type\":\"bytes\"}],\"name\":\"validateDepositSweepProposal\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"internalType\":\"bytes32\",\"name\":\"heartbeatTxHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"heartbeatTxFee\",\"type\":\"uint256\"}],\"name\":\"validateHeartbeatProposal\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"internalType\":\"bytes32\",\"name\":\"movingFundsTxHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"movingFundsTxOutputIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint256\",\"name\":\"sweepTxFee\",\"type\":\"uint256\"}],\"name\":\"validateMovedFundsSweepProposal\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"internalType\":\"bytes20[]\",\"name\":\"targetWallets\",\"type\":\"bytes20[]\"},{\"internalType\":\"uint256\",\"name\":\"movingFundsTxFee\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"mainUtxoHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint32\",\"name\":\"mainUtxoOutputIndex\",\"type\":\"uint32\"},{\"internalType\":\"uint64\",\"name\":\"mainUtxoValue\",\"type\":\"uint64\"}],\"name\":\"validateMovingFundsProposal\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"internalType\":\"bytes[]\",\"name\":\"redeemersOutputScripts\",\"type\":\"bytes[]\"},{\"internalType\":\"uint256\",\"name\":\"redemptionTxFee\",\"type\":\"uint256\"}],\"name\":\"validateRedemptionProposal\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"validateRedemptionProposal(bytes20,bytes[],uint256)\":{\"params\":{\"redeemersOutputScripts\":\"Array of redeemer output scripts\",\"redemptionTxFee\":\"The redemption transaction fee\",\"walletPubKeyHash\":\"The wallet public key hash\"},\"returns\":{\"_0\":\"true if valid, reverts if invalid\"}}},\"title\":\"WalletProposalValidatorStub\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"validateRedemptionProposal(bytes20,bytes[],uint256)\":{\"notice\":\"Validate redemption proposal\"}},\"notice\":\"Minimal stub implementation of WalletProposalValidator contract for local development\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/WalletProposalValidatorStub.sol\":\"WalletProposalValidatorStub\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/BridgeStub.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.17;\\n\\n/**\\n * @title BridgeStub\\n * @notice Minimal stub implementation of Bridge contract for local development\\n */\\ncontract BridgeStub {\\n    address public bank;\\n    address public relay;\\n    address public ecdsaWalletRegistry;\\n    address public reimbursementPool;\\n\\n    // Redemption request structure (matches real Bridge)\\n    struct RedemptionRequest {\\n        address redeemer;\\n        uint64 requestedAmount;\\n        uint64 treasuryFee;\\n        uint64 txMaxFee;\\n        uint32 requestedAt;\\n    }\\n\\n    // Wallet structure for tracking state\\n    struct Wallet {\\n        bytes32 ecdsaWalletID;\\n        bytes32 mainUtxoHash;\\n        uint64 pendingRedemptionsValue;\\n        uint32 createdAt;\\n        uint32 movingFundsRequestedAt;\\n        uint32 closingStartedAt;\\n        uint32 state; // 0=Unknown, 1=Live, 2=MovingFunds, etc.\\n    }\\n\\n    // Storage for pending redemptions: redemptionKey => RedemptionRequest\\n    mapping(uint256 => RedemptionRequest) public pendingRedemptions;\\n    \\n    // Storage for wallets: walletPubKeyHash => Wallet\\n    mapping(bytes20 => Wallet) public wallets;\\n\\n    // Events matching real Bridge\\n    // Note: The Go ABI expects 6 parameters (without requestedAt), matching the real Bridge contract\\n    event RedemptionRequested(\\n        bytes20 indexed walletPubKeyHash,\\n        bytes redeemerOutputScript,\\n        address indexed redeemer,\\n        uint64 requestedAmount,\\n        uint64 treasuryFee,\\n        uint64 txMaxFee\\n    );\\n\\n    constructor(\\n        address _bank,\\n        address _relay,\\n        address _ecdsaWalletRegistry,\\n        address _reimbursementPool\\n    ) {\\n        bank = _bank;\\n        relay = _relay;\\n        ecdsaWalletRegistry = _ecdsaWalletRegistry;\\n        reimbursementPool = _reimbursementPool;\\n    }\\n\\n    function contractReferences()\\n        external\\n        view\\n        returns (\\n            address _bank,\\n            address _relay,\\n            address _ecdsaWalletRegistry,\\n            address _reimbursementPool\\n        )\\n    {\\n        return (bank, relay, ecdsaWalletRegistry, reimbursementPool);\\n    }\\n\\n    function getRedemptionWatchtower()\\n        external\\n        pure\\n        returns (address)\\n    {\\n        return address(0);\\n    }\\n\\n    /// @notice For development: Allows calling requestNewWallet on WalletRegistry\\n    function requestNewWallet() external {\\n        IWalletRegistry(ecdsaWalletRegistry).requestNewWallet();\\n    }\\n    \\n    /// @notice For development: Allows anyone to trigger requestNewWallet\\n    function devRequestNewWallet() external {\\n        (bool success, ) = ecdsaWalletRegistry.call(\\n            abi.encodeWithSignature(\\\"requestNewWallet()\\\")\\n        );\\n        require(success, \\\"requestNewWallet call failed\\\");\\n    }\\n\\n    /// @notice Callback function executed when a new wallet is created\\n    /// @dev For now, this is a stub that does nothing. Wallets need to be\\n    ///      manually registered using registerWallet() function.\\n    ///      TODO: Implement automatic registration when crypto libraries are available\\n    function __ecdsaWalletCreatedCallback(\\n        bytes32 walletID,\\n        bytes32 publicKeyX,\\n        bytes32 publicKeyY\\n    ) external {\\n        // Stub implementation - wallets must be registered manually via registerWallet()\\n        // This is because calculating walletPubKeyHash requires RIPEMD160 which is not\\n        // available as a built-in Solidity function. The registerWallet() function\\n        // should be called externally with the pre-calculated walletPubKeyHash.\\n    }\\n\\n    /// @notice Callback function executed when wallet heartbeat fails\\n    function __ecdsaWalletHeartbeatFailedCallback(\\n        bytes32 walletID,\\n        bytes32 publicKeyX,\\n        bytes32 publicKeyY\\n    ) external {\\n        // Stub implementation - just accept the callback\\n    }\\n\\n    // ============ Redemption Functions (for testing) ============\\n\\n    /// @notice Request a redemption (simplified for testing)\\n    /// @param walletPubKeyHash 20-byte wallet public key hash\\n    /// @param redeemerOutputScript Bitcoin script for redemption output\\n    /// @param amount Amount in satoshis to redeem\\n    function requestRedemption(\\n        bytes20 walletPubKeyHash,\\n        bytes calldata redeemerOutputScript,\\n        uint64 amount\\n    ) external {\\n        require(wallets[walletPubKeyHash].state == 1, \\\"Wallet not live\\\");\\n        require(amount > 0, \\\"Amount must be positive\\\");\\n\\n        uint64 treasuryFee = amount / 500; // 0.2% fee\\n        uint64 txMaxFee = 20000; // Fixed max fee for testing\\n        uint32 requestedAt = uint32(block.timestamp);\\n\\n        // Calculate redemption key (matches real Bridge)\\n        // The real Bridge uses: keccak256(keccak256(CompactSizeUint-prefixed script) + walletPKH)\\n        // CompactSizeUint encoding: for length <= 252, prefix is single byte\\n        bytes memory prefixedScript;\\n        if (redeemerOutputScript.length <= 252) {\\n            prefixedScript = abi.encodePacked(uint8(redeemerOutputScript.length), redeemerOutputScript);\\n        } else {\\n            // For longer scripts, use 0xfd + 2 bytes little-endian (simplified - only handles <= 252 for now)\\n            revert(\\\"Script too long for stub\\\");\\n        }\\n        bytes32 scriptHash = keccak256(prefixedScript);\\n        uint256 redemptionKey = uint256(keccak256(abi.encodePacked(\\n            scriptHash,\\n            walletPubKeyHash\\n        )));\\n\\n        // Store pending redemption\\n        pendingRedemptions[redemptionKey] = RedemptionRequest({\\n            redeemer: msg.sender,\\n            requestedAmount: amount,\\n            treasuryFee: treasuryFee,\\n            txMaxFee: txMaxFee,\\n            requestedAt: requestedAt\\n        });\\n\\n        // Update wallet pending value\\n        wallets[walletPubKeyHash].pendingRedemptionsValue += amount;\\n\\n        emit RedemptionRequested(\\n            walletPubKeyHash,\\n            redeemerOutputScript,\\n            msg.sender,\\n            amount,\\n            treasuryFee,\\n            txMaxFee\\n        );\\n    }\\n\\n    /// @notice Register a wallet (for testing - called after DKG)\\n    /// @param walletPubKeyHash 20-byte wallet public key hash  \\n    /// @param ecdsaWalletID 32-byte ECDSA wallet ID\\n    function registerWallet(\\n        bytes20 walletPubKeyHash,\\n        bytes32 ecdsaWalletID\\n    ) external {\\n        wallets[walletPubKeyHash] = Wallet({\\n            ecdsaWalletID: ecdsaWalletID,\\n            mainUtxoHash: bytes32(0),\\n            pendingRedemptionsValue: 0,\\n            createdAt: uint32(block.timestamp),\\n            movingFundsRequestedAt: 0,\\n            closingStartedAt: 0,\\n            state: 1 // Live\\n        });\\n    }\\n\\n    /// @notice Get wallet data\\n    function getWallet(bytes20 walletPubKeyHash) \\n        external \\n        view \\n        returns (Wallet memory) \\n    {\\n        return wallets[walletPubKeyHash];\\n    }\\n\\n    /// @notice Get pending redemption request\\n    function getPendingRedemption(uint256 redemptionKey)\\n        external\\n        view\\n        returns (RedemptionRequest memory)\\n    {\\n        return pendingRedemptions[redemptionKey];\\n    }\\n\\n    /// @notice Calculate redemption key (helper)\\n    /// Matches Go code: keccak256(keccak256(CompactSizeUint-prefixed script) + walletPKH)\\n    function calculateRedemptionKey(\\n        bytes20 walletPubKeyHash,\\n        bytes calldata redeemerOutputScript\\n    ) external pure returns (uint256) {\\n        // CompactSizeUint encoding: for length <= 252, prefix is single byte\\n        bytes memory prefixedScript;\\n        if (redeemerOutputScript.length <= 252) {\\n            prefixedScript = abi.encodePacked(uint8(redeemerOutputScript.length), redeemerOutputScript);\\n        } else {\\n            revert(\\\"Script too long for stub\\\");\\n        }\\n        bytes32 scriptHash = keccak256(prefixedScript);\\n        return uint256(keccak256(abi.encodePacked(\\n            scriptHash,\\n            walletPubKeyHash\\n        )));\\n    }\\n\\n    // ============ Redemption Parameters (for development) ============\\n\\n    /// @notice Get redemption parameters (matches real Bridge interface)\\n    /// @dev Returns default values suitable for local development\\n    function redemptionParameters()\\n        external\\n        pure\\n        returns (\\n            uint64 redemptionDustThreshold,\\n            uint64 redemptionTreasuryFeeDivisor,\\n            uint64 redemptionTxMaxFee,\\n            uint64 redemptionTxMaxTotalFee,\\n            uint32 redemptionTimeout,\\n            uint96 redemptionTimeoutSlashingAmount,\\n            uint32 redemptionTimeoutNotifierRewardMultiplier\\n        )\\n    {\\n        // Default values for local development:\\n        // - redemptionTimeout: 86400 seconds (24 hours) - matches test data\\n        // - Other values set to reasonable defaults\\n        return (\\n            546,                    // redemptionDustThreshold (0.00000546 BTC)\\n            500,                    // redemptionTreasuryFeeDivisor (0.2% fee)\\n            20000,                  // redemptionTxMaxFee (satoshis)\\n            200000,                 // redemptionTxMaxTotalFee (satoshis)\\n            86400,                  // redemptionTimeout (24 hours in seconds)\\n            0,                      // redemptionTimeoutSlashingAmount (no slashing in dev)\\n            0                       // redemptionTimeoutNotifierRewardMultiplier (no reward in dev)\\n        );\\n    }\\n\\n    /// @notice Get redemption request minimum age (for development)\\n    /// @dev Returns a default value suitable for local development\\n    function redemptionRequestMinAge() external pure returns (uint32) {\\n        return 3600; // 1 hour in seconds - matches test data\\n    }\\n}\\n\\ninterface IWalletRegistry {\\n    function requestNewWallet() external;\\n}\\n\",\"keccak256\":\"0x0b9439784c0dbdd467f512e4db43bb590ac52ee631b6f9cbcdca8466ba475739\",\"license\":\"MIT\"},\"contracts/WalletProposalValidatorStub.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.17;\\n\\nimport \\\"./BridgeStub.sol\\\";\\n\\n/**\\n * @title WalletProposalValidatorStub\\n * @notice Minimal stub implementation of WalletProposalValidator contract for local development\\n */\\ncontract WalletProposalValidatorStub {\\n    BridgeStub public bridge;\\n\\n    constructor(address _bridge) {\\n        bridge = BridgeStub(_bridge);\\n    }\\n\\n    // Constants matching real WalletProposalValidator\\n    uint32 public constant DEPOSIT_MIN_AGE = 0;\\n    uint32 public constant DEPOSIT_REFUND_SAFETY_MARGIN = 0;\\n    uint16 public constant DEPOSIT_SWEEP_MAX_SIZE = 20;\\n    uint16 public constant REDEMPTION_MAX_SIZE = 20;\\n    uint32 public constant REDEMPTION_REQUEST_MIN_AGE = 600; // 10 minutes\\n    uint32 public constant REDEMPTION_REQUEST_TIMEOUT_SAFETY_MARGIN = 0;\\n\\n    /**\\n     * @notice Validate redemption proposal\\n     * @param walletPubKeyHash The wallet public key hash\\n     * @param redeemersOutputScripts Array of redeemer output scripts\\n     * @param redemptionTxFee The redemption transaction fee\\n     * @return true if valid, reverts if invalid\\n     */\\n    function validateRedemptionProposal(\\n        bytes20 walletPubKeyHash,\\n        bytes[] calldata redeemersOutputScripts,\\n        uint256 redemptionTxFee\\n    ) external view returns (bool) {\\n        // Check wallet state - must be Live (1) or MovingFunds (2)\\n        // wallets mapping returns a tuple, we need to extract the state field\\n        // The mapping returns: (bytes32, bytes32, uint64, uint32, uint32, uint32, uint32)\\n        // We only need the last field (state)\\n        (,,,,,, uint32 state) = bridge.wallets(walletPubKeyHash);\\n        require(\\n            state == 1 || state == 2,\\n            \\\"Wallet is not in Live or MovingFunds state\\\"\\n        );\\n\\n        // Basic validations\\n        require(redeemersOutputScripts.length > 0, \\\"No redemption scripts provided\\\");\\n        require(redeemersOutputScripts.length <= REDEMPTION_MAX_SIZE, \\\"Too many redemption scripts\\\");\\n        require(redemptionTxFee > 0, \\\"Redemption fee must be positive\\\");\\n\\n        return true;\\n    }\\n\\n    // Other validation functions - minimal stubs that return true\\n    function validateDepositSweepProposal(\\n        bytes20 walletPubKeyHash,\\n        bytes20[] calldata depositsPubKeys,\\n        uint256 sweepTxFee,\\n        uint16 depositsRevealBlocks,\\n        bytes calldata depositsExtraInfo\\n    ) external view returns (bool) {\\n        (,,,,,, uint32 state) = bridge.wallets(walletPubKeyHash);\\n        require(\\n            state == 1 || state == 2,\\n            \\\"Wallet is not in Live or MovingFunds state\\\"\\n        );\\n        return true;\\n    }\\n\\n    function validateHeartbeatProposal(\\n        bytes20 walletPubKeyHash,\\n        bytes32 heartbeatTxHash,\\n        uint256 heartbeatTxFee\\n    ) external view returns (bool) {\\n        (,,,,,, uint32 state) = bridge.wallets(walletPubKeyHash);\\n        require(\\n            state == 1 || state == 2,\\n            \\\"Wallet is not in Live or MovingFunds state\\\"\\n        );\\n        return true;\\n    }\\n\\n    function validateMovingFundsProposal(\\n        bytes20 walletPubKeyHash,\\n        bytes20[] calldata targetWallets,\\n        uint256 movingFundsTxFee,\\n        bytes32 mainUtxoHash,\\n        uint32 mainUtxoOutputIndex,\\n        uint64 mainUtxoValue\\n    ) external view returns (bool) {\\n        (,,,,,, uint32 state) = bridge.wallets(walletPubKeyHash);\\n        require(\\n            state == 1 || state == 2,\\n            \\\"Wallet is not in Live or MovingFunds state\\\"\\n        );\\n        return true;\\n    }\\n\\n    function validateMovedFundsSweepProposal(\\n        bytes20 walletPubKeyHash,\\n        bytes32 movingFundsTxHash,\\n        uint32 movingFundsTxOutputIndex,\\n        uint256 sweepTxFee\\n    ) external view returns (bool) {\\n        return true;\\n    }\\n}\\n\\n\",\"keccak256\":\"0xaa1526270a587691fdc8860a290e16189dec8688f35433d06e9fa22fafd09427\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b5060405161092b38038061092b83398101604081905261002f91610054565b600080546001600160a01b0319166001600160a01b0392909216919091179055610084565b60006020828403121561006657600080fd5b81516001600160a01b038116811461007d57600080fd5b9392505050565b610898806100936000396000f3fe608060405234801561001057600080fd5b50600436106100b45760003560e01c80639d16340b116100715780639d16340b1461012c578063c4dce65014610144578063d09520f714610157578063e0276b2614610111578063e78cea9214610160578063ef622f511461018b57600080fd5b80630538ac1b146100b95780634e724837146100db5780636b562cec146100b957806370ff6b9c146100fe578063765f28f9146100b9578063996a756b14610111575b600080fd5b6100c1600081565b60405163ffffffff90911681526020015b60405180910390f35b6100ee6100e93660046104f5565b610199565b60405190151581526020016100d2565b6100ee61010c366004610574565b610263565b610119601481565b60405161ffff90911681526020016100d2565b6100ee61013a3660046105e3565b6001949350505050565b6100ee61015236600461063f565b610413565b6100c161025881565b600054610173906001600160a01b031681565b6040516001600160a01b0390911681526020016100d2565b6100ee6101523660046106cd565b6000805460405163e65e19d560e01b81526001600160601b03198616600482015282916001600160a01b03169063e65e19d59060240160e060405180830381865afa1580156101ec573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061021091906107a0565b96505050505050508063ffffffff166001148061023357508063ffffffff166002145b6102585760405162461bcd60e51b815260040161024f90610818565b60405180910390fd5b506001949350505050565b6000805460405163e65e19d560e01b81526001600160601b03198716600482015282916001600160a01b03169063e65e19d59060240160e060405180830381865afa1580156102b6573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102da91906107a0565b96505050505050508063ffffffff16600114806102fd57508063ffffffff166002145b6103195760405162461bcd60e51b815260040161024f90610818565b836103665760405162461bcd60e51b815260206004820152601e60248201527f4e6f20726564656d7074696f6e20736372697074732070726f76696465640000604482015260640161024f565b60148411156103b75760405162461bcd60e51b815260206004820152601b60248201527f546f6f206d616e7920726564656d7074696f6e20736372697074730000000000604482015260640161024f565b600083116104075760405162461bcd60e51b815260206004820152601f60248201527f526564656d7074696f6e20666565206d75737420626520706f73697469766500604482015260640161024f565b50600195945050505050565b6000805460405163e65e19d560e01b81526001600160601b03198a16600482015282916001600160a01b03169063e65e19d59060240160e060405180830381865afa158015610466573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061048a91906107a0565b96505050505050508063ffffffff16600114806104ad57508063ffffffff166002145b6104c95760405162461bcd60e51b815260040161024f90610818565b50600198975050505050505050565b80356001600160601b0319811681146104f057600080fd5b919050565b60008060006060848603121561050a57600080fd5b610513846104d8565b95602085013595506040909401359392505050565b60008083601f84011261053a57600080fd5b50813567ffffffffffffffff81111561055257600080fd5b6020830191508360208260051b850101111561056d57600080fd5b9250929050565b6000806000806060858703121561058a57600080fd5b610593856104d8565b9350602085013567ffffffffffffffff8111156105af57600080fd5b6105bb87828801610528565b9598909750949560400135949350505050565b63ffffffff811681146105e057600080fd5b50565b600080600080608085870312156105f957600080fd5b610602856104d8565b9350602085013592506040850135610619816105ce565b9396929550929360600135925050565b67ffffffffffffffff811681146105e057600080fd5b600080600080600080600060c0888a03121561065a57600080fd5b610663886104d8565b9650602088013567ffffffffffffffff81111561067f57600080fd5b61068b8a828b01610528565b909750955050604088013593506060880135925060808801356106ad816105ce565b915060a08801356106bd81610629565b8091505092959891949750929550565b600080600080600080600060a0888a0312156106e857600080fd5b6106f1886104d8565b9650602088013567ffffffffffffffff8082111561070e57600080fd5b61071a8b838c01610528565b909850965060408a0135955060608a0135915061ffff8216821461073d57600080fd5b9093506080890135908082111561075357600080fd5b818a0191508a601f83011261076757600080fd5b81358181111561077657600080fd5b8b602082850101111561078857600080fd5b60208301945080935050505092959891949750929550565b600080600080600080600060e0888a0312156107bb57600080fd5b875196506020880151955060408801516107d481610629565b60608901519095506107e5816105ce565b60808901519094506107f6816105ce565b60a0890151909350610807816105ce565b60c08901519092506106bd816105ce565b6020808252602a908201527f57616c6c6574206973206e6f7420696e204c697665206f72204d6f76696e6746604082015269756e647320737461746560b01b60608201526080019056fea26469706673582212200c6abc8c44d1bbd83b31670f26c14ff0b9468e40b336275bb863130536483c4464736f6c63430008110033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106100b45760003560e01c80639d16340b116100715780639d16340b1461012c578063c4dce65014610144578063d09520f714610157578063e0276b2614610111578063e78cea9214610160578063ef622f511461018b57600080fd5b80630538ac1b146100b95780634e724837146100db5780636b562cec146100b957806370ff6b9c146100fe578063765f28f9146100b9578063996a756b14610111575b600080fd5b6100c1600081565b60405163ffffffff90911681526020015b60405180910390f35b6100ee6100e93660046104f5565b610199565b60405190151581526020016100d2565b6100ee61010c366004610574565b610263565b610119601481565b60405161ffff90911681526020016100d2565b6100ee61013a3660046105e3565b6001949350505050565b6100ee61015236600461063f565b610413565b6100c161025881565b600054610173906001600160a01b031681565b6040516001600160a01b0390911681526020016100d2565b6100ee6101523660046106cd565b6000805460405163e65e19d560e01b81526001600160601b03198616600482015282916001600160a01b03169063e65e19d59060240160e060405180830381865afa1580156101ec573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061021091906107a0565b96505050505050508063ffffffff166001148061023357508063ffffffff166002145b6102585760405162461bcd60e51b815260040161024f90610818565b60405180910390fd5b506001949350505050565b6000805460405163e65e19d560e01b81526001600160601b03198716600482015282916001600160a01b03169063e65e19d59060240160e060405180830381865afa1580156102b6573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906102da91906107a0565b96505050505050508063ffffffff16600114806102fd57508063ffffffff166002145b6103195760405162461bcd60e51b815260040161024f90610818565b836103665760405162461bcd60e51b815260206004820152601e60248201527f4e6f20726564656d7074696f6e20736372697074732070726f76696465640000604482015260640161024f565b60148411156103b75760405162461bcd60e51b815260206004820152601b60248201527f546f6f206d616e7920726564656d7074696f6e20736372697074730000000000604482015260640161024f565b600083116104075760405162461bcd60e51b815260206004820152601f60248201527f526564656d7074696f6e20666565206d75737420626520706f73697469766500604482015260640161024f565b50600195945050505050565b6000805460405163e65e19d560e01b81526001600160601b03198a16600482015282916001600160a01b03169063e65e19d59060240160e060405180830381865afa158015610466573d6000803e3d6000fd5b505050506040513d601f19601f8201168201806040525081019061048a91906107a0565b96505050505050508063ffffffff16600114806104ad57508063ffffffff166002145b6104c95760405162461bcd60e51b815260040161024f90610818565b50600198975050505050505050565b80356001600160601b0319811681146104f057600080fd5b919050565b60008060006060848603121561050a57600080fd5b610513846104d8565b95602085013595506040909401359392505050565b60008083601f84011261053a57600080fd5b50813567ffffffffffffffff81111561055257600080fd5b6020830191508360208260051b850101111561056d57600080fd5b9250929050565b6000806000806060858703121561058a57600080fd5b610593856104d8565b9350602085013567ffffffffffffffff8111156105af57600080fd5b6105bb87828801610528565b9598909750949560400135949350505050565b63ffffffff811681146105e057600080fd5b50565b600080600080608085870312156105f957600080fd5b610602856104d8565b9350602085013592506040850135610619816105ce565b9396929550929360600135925050565b67ffffffffffffffff811681146105e057600080fd5b600080600080600080600060c0888a03121561065a57600080fd5b610663886104d8565b9650602088013567ffffffffffffffff81111561067f57600080fd5b61068b8a828b01610528565b909750955050604088013593506060880135925060808801356106ad816105ce565b915060a08801356106bd81610629565b8091505092959891949750929550565b600080600080600080600060a0888a0312156106e857600080fd5b6106f1886104d8565b9650602088013567ffffffffffffffff8082111561070e57600080fd5b61071a8b838c01610528565b909850965060408a0135955060608a0135915061ffff8216821461073d57600080fd5b9093506080890135908082111561075357600080fd5b818a0191508a601f83011261076757600080fd5b81358181111561077657600080fd5b8b602082850101111561078857600080fd5b60208301945080935050505092959891949750929550565b600080600080600080600060e0888a0312156107bb57600080fd5b875196506020880151955060408801516107d481610629565b60608901519095506107e5816105ce565b60808901519094506107f6816105ce565b60a0890151909350610807816105ce565b60c08901519092506106bd816105ce565b6020808252602a908201527f57616c6c6574206973206e6f7420696e204c697665206f72204d6f76696e6746604082015269756e647320737461746560b01b60608201526080019056fea26469706673582212200c6abc8c44d1bbd83b31670f26c14ff0b9468e40b336275bb863130536483c4464736f6c63430008110033",
   "devdoc": {
     "kind": "dev",
-    "methods": {},
+    "methods": {
+      "validateRedemptionProposal(bytes20,bytes[],uint256)": {
+        "params": {
+          "redeemersOutputScripts": "Array of redeemer output scripts",
+          "redemptionTxFee": "The redemption transaction fee",
+          "walletPubKeyHash": "The wallet public key hash"
+        },
+        "returns": {
+          "_0": "true if valid, reverts if invalid"
+        }
+      }
+    },
     "title": "WalletProposalValidatorStub",
     "version": 1
   },
   "userdoc": {
     "kind": "user",
-    "methods": {},
+    "methods": {
+      "validateRedemptionProposal(bytes20,bytes[],uint256)": {
+        "notice": "Validate redemption proposal"
+      }
+    },
     "notice": "Minimal stub implementation of WalletProposalValidator contract for local development",
     "version": 1
   },
   "storageLayout": {
-    "storage": [],
-    "types": null
+    "storage": [
+      {
+        "astId": 452,
+        "contract": "contracts/WalletProposalValidatorStub.sol:WalletProposalValidatorStub",
+        "label": "bridge",
+        "offset": 0,
+        "slot": "0",
+        "type": "t_contract(BridgeStub)441"
+      }
+    ],
+    "types": {
+      "t_contract(BridgeStub)441": {
+        "encoding": "inplace",
+        "label": "contract BridgeStub",
+        "numberOfBytes": "20"
+      }
+    }
   }
 }

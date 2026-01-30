@@ -1,5 +1,5 @@
 {
-  "address": "0xc0a2ee534F004a4ec2EFA541489acBD5ff4bBA99",
+  "address": "0xFdfce6c5030Cc243fB2F228df19C0facAbC04832",
   "abi": [
     {
       "inputs": [
@@ -26,6 +26,49 @@
       ],
       "stateMutability": "nonpayable",
       "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "redeemerOutputScript",
+          "type": "bytes"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "redeemer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "requestedAmount",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "treasuryFee",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "txMaxFee",
+          "type": "uint64"
+        }
+      ],
+      "name": "RedemptionRequested",
+      "type": "event"
     },
     {
       "inputs": [
@@ -87,6 +130,30 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes",
+          "name": "redeemerOutputScript",
+          "type": "bytes"
+        }
+      ],
+      "name": "calculateRedemptionKey",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "contractReferences",
       "outputs": [
@@ -135,6 +202,52 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "redemptionKey",
+          "type": "uint256"
+        }
+      ],
+      "name": "getPendingRedemption",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "redeemer",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "requestedAmount",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "treasuryFee",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "txMaxFee",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint32",
+              "name": "requestedAt",
+              "type": "uint32"
+            }
+          ],
+          "internalType": "struct BridgeStub.RedemptionRequest",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "getRedemptionWatchtower",
       "outputs": [
@@ -145,6 +258,175 @@
         }
       ],
       "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        }
+      ],
+      "name": "getWallet",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "ecdsaWalletID",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "mainUtxoHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint64",
+              "name": "pendingRedemptionsValue",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint32",
+              "name": "createdAt",
+              "type": "uint32"
+            },
+            {
+              "internalType": "uint32",
+              "name": "movingFundsRequestedAt",
+              "type": "uint32"
+            },
+            {
+              "internalType": "uint32",
+              "name": "closingStartedAt",
+              "type": "uint32"
+            },
+            {
+              "internalType": "uint32",
+              "name": "state",
+              "type": "uint32"
+            }
+          ],
+          "internalType": "struct BridgeStub.Wallet",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "pendingRedemptions",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "redeemer",
+          "type": "address"
+        },
+        {
+          "internalType": "uint64",
+          "name": "requestedAmount",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "treasuryFee",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "txMaxFee",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "requestedAt",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "redemptionParameters",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "redemptionDustThreshold",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "redemptionTreasuryFeeDivisor",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "redemptionTxMaxFee",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "redemptionTxMaxTotalFee",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "redemptionTimeout",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint96",
+          "name": "redemptionTimeoutSlashingAmount",
+          "type": "uint96"
+        },
+        {
+          "internalType": "uint32",
+          "name": "redemptionTimeoutNotifierRewardMultiplier",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "redemptionRequestMinAge",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "ecdsaWalletID",
+          "type": "bytes32"
+        }
+      ],
+      "name": "registerWallet",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -179,21 +461,93 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes",
+          "name": "redeemerOutputScript",
+          "type": "bytes"
+        },
+        {
+          "internalType": "uint64",
+          "name": "amount",
+          "type": "uint64"
+        }
+      ],
+      "name": "requestRedemption",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "",
+          "type": "bytes20"
+        }
+      ],
+      "name": "wallets",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "ecdsaWalletID",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "mainUtxoHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "pendingRedemptionsValue",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "createdAt",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "movingFundsRequestedAt",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "closingStartedAt",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "state",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
     }
   ],
-  "transactionHash": "0xf99faa5e745aa6bc3b4d5b2202fbe0ccb5903cc1dd304e38325e1cf63d905fc8",
+  "transactionHash": "0x8ab117def60741937283932f7e19c69aee3efe01680eaaf12dbcb4fe12e6aa17",
   "receipt": {
     "to": null,
     "from": "0x7966C178f466B060aAeb2B91e9149A5FB2Ec9c53",
-    "contractAddress": "0xc0a2ee534F004a4ec2EFA541489acBD5ff4bBA99",
+    "contractAddress": "0xFdfce6c5030Cc243fB2F228df19C0facAbC04832",
     "transactionIndex": 0,
-    "gasUsed": "285898",
+    "gasUsed": "926143",
     "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "blockHash": "0xf7f93c00a87bbc4dc6eba71968fccc6235a00591a8d8429a645f9ec8ebf25f73",
-    "transactionHash": "0xf99faa5e745aa6bc3b4d5b2202fbe0ccb5903cc1dd304e38325e1cf63d905fc8",
+    "blockHash": "0xc8fe835ae663794ac01a5cea8c7c1f5bcd2104ffe49caa71711ebaa84b32a61b",
+    "transactionHash": "0x8ab117def60741937283932f7e19c69aee3efe01680eaaf12dbcb4fe12e6aa17",
     "logs": [],
-    "blockNumber": 216,
-    "cumulativeGasUsed": "285898",
+    "blockNumber": 820801,
+    "cumulativeGasUsed": "926143",
     "status": 1,
     "byzantium": true
   },
@@ -204,34 +558,34 @@
     "0x28505E15C06eDA37863a4ebf48828B991C3e9466"
   ],
   "numDeployments": 1,
-  "solcInputHash": "42bd359306acf47b2d9d0353f4ff4cc4",
-  "metadata": "{\"compiler\":{\"version\":\"0.8.17+commit.8df45f5f\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_bank\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_relay\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_ecdsaWalletRegistry\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_reimbursementPool\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"walletID\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"publicKeyX\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"publicKeyY\",\"type\":\"bytes32\"}],\"name\":\"__ecdsaWalletCreatedCallback\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"walletID\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"publicKeyX\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"publicKeyY\",\"type\":\"bytes32\"}],\"name\":\"__ecdsaWalletHeartbeatFailedCallback\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"bank\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"contractReferences\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_bank\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_relay\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_ecdsaWalletRegistry\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_reimbursementPool\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"devRequestNewWallet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"ecdsaWalletRegistry\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getRedemptionWatchtower\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"reimbursementPool\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"relay\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"requestNewWallet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"__ecdsaWalletCreatedCallback(bytes32,bytes32,bytes32)\":{\"details\":\"Required by IWalletOwner interface for WalletRegistry\",\"params\":{\"publicKeyX\":\"Wallet's public key's X coordinate\",\"publicKeyY\":\"Wallet's public key's Y coordinate\",\"walletID\":\"Wallet's unique identifier\"}},\"__ecdsaWalletHeartbeatFailedCallback(bytes32,bytes32,bytes32)\":{\"details\":\"Required by IWalletOwner interface for WalletRegistry\",\"params\":{\"publicKeyX\":\"Wallet's public key's X coordinate\",\"publicKeyY\":\"Wallet's public key's Y coordinate\",\"walletID\":\"Wallet's unique identifier\"}},\"devRequestNewWallet()\":{\"details\":\"This bypasses the walletOwner check - USE ONLY IN DEVELOPMENT      This function calls WalletRegistry.requestNewWallet() directly,      but since it's called from Bridge (the walletOwner), it will succeed\"},\"requestNewWallet()\":{\"details\":\"This is a convenience function for local development      In production, only the walletOwner should be able to call this\"}},\"title\":\"BridgeStub\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"__ecdsaWalletCreatedCallback(bytes32,bytes32,bytes32)\":{\"notice\":\"Callback function executed when a new wallet is created\"},\"__ecdsaWalletHeartbeatFailedCallback(bytes32,bytes32,bytes32)\":{\"notice\":\"Callback function executed when wallet heartbeat fails\"},\"devRequestNewWallet()\":{\"notice\":\"For development: Allows anyone to trigger requestNewWallet\"},\"requestNewWallet()\":{\"notice\":\"For development: Allows calling requestNewWallet on WalletRegistry\"}},\"notice\":\"Minimal stub implementation of Bridge contract for local development\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/BridgeStub.sol\":\"BridgeStub\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/BridgeStub.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.17;\\n\\n/**\\n * @title BridgeStub\\n * @notice Minimal stub implementation of Bridge contract for local development\\n */\\ncontract BridgeStub {\\n    address public bank;\\n    address public relay;\\n    address public ecdsaWalletRegistry;\\n    address public reimbursementPool;\\n\\n    constructor(\\n        address _bank,\\n        address _relay,\\n        address _ecdsaWalletRegistry,\\n        address _reimbursementPool\\n    ) {\\n        bank = _bank;\\n        relay = _relay;\\n        ecdsaWalletRegistry = _ecdsaWalletRegistry;\\n        reimbursementPool = _reimbursementPool;\\n    }\\n\\n    function contractReferences()\\n        external\\n        view\\n        returns (\\n            address _bank,\\n            address _relay,\\n            address _ecdsaWalletRegistry,\\n            address _reimbursementPool\\n        )\\n    {\\n        return (bank, relay, ecdsaWalletRegistry, reimbursementPool);\\n    }\\n\\n    function getRedemptionWatchtower()\\n        external\\n        pure\\n        returns (address)\\n    {\\n        return address(0);\\n    }\\n\\n    /// @notice For development: Allows calling requestNewWallet on WalletRegistry\\n    /// @dev This is a convenience function for local development\\n    ///      In production, only the walletOwner should be able to call this\\n    function requestNewWallet() external {\\n        IWalletRegistry(ecdsaWalletRegistry).requestNewWallet();\\n    }\\n    \\n    /// @notice For development: Allows anyone to trigger requestNewWallet\\n    /// @dev This bypasses the walletOwner check - USE ONLY IN DEVELOPMENT\\n    ///      This function calls WalletRegistry.requestNewWallet() directly,\\n    ///      but since it's called from Bridge (the walletOwner), it will succeed\\n    function devRequestNewWallet() external {\\n        // This will work because msg.sender will be Bridge (the walletOwner)\\n        // when called from an external account, but we need to call as Bridge\\n        // So we use a low-level call to WalletRegistry\\n        (bool success, ) = ecdsaWalletRegistry.call(\\n            abi.encodeWithSignature(\\\"requestNewWallet()\\\")\\n        );\\n        require(success, \\\"requestNewWallet call failed\\\");\\n    }\\n\\n    /// @notice Callback function executed when a new wallet is created\\n    /// @dev Required by IWalletOwner interface for WalletRegistry\\n    /// @param walletID Wallet's unique identifier\\n    /// @param publicKeyX Wallet's public key's X coordinate\\n    /// @param publicKeyY Wallet's public key's Y coordinate\\n    function __ecdsaWalletCreatedCallback(\\n        bytes32 walletID,\\n        bytes32 publicKeyX,\\n        bytes32 publicKeyY\\n    ) external {\\n        // Stub implementation - just accept the callback\\n        // In production, Bridge would register the wallet and handle it\\n        // For development, we just need this to not revert\\n    }\\n\\n    /// @notice Callback function executed when wallet heartbeat fails\\n    /// @dev Required by IWalletOwner interface for WalletRegistry\\n    /// @param walletID Wallet's unique identifier\\n    /// @param publicKeyX Wallet's public key's X coordinate\\n    /// @param publicKeyY Wallet's public key's Y coordinate\\n    function __ecdsaWalletHeartbeatFailedCallback(\\n        bytes32 walletID,\\n        bytes32 publicKeyX,\\n        bytes32 publicKeyY\\n    ) external {\\n        // Stub implementation - just accept the callback\\n        // In production, Bridge would handle heartbeat failures\\n        // For development, we just need this to not revert\\n    }\\n}\\n\\ninterface IWalletRegistry {\\n    function requestNewWallet() external;\\n}\\n\\n\",\"keccak256\":\"0x0706798c98bb885508cf7829b64ee92a5f61a72f795fb2250772cc2edf391df1\",\"license\":\"MIT\"}},\"version\":1}",
-  "bytecode": "0x608060405234801561001057600080fd5b5060405161045038038061045083398101604081905261002f9161009e565b600080546001600160a01b039586166001600160a01b03199182161790915560018054948616948216949094179093556002805492851692841692909217909155600380549190931691161790556100f2565b80516001600160a01b038116811461009957600080fd5b919050565b600080600080608085870312156100b457600080fd5b6100bd85610082565b93506100cb60208601610082565b92506100d960408601610082565b91506100e760608601610082565b905092959194509250565b61034f806101016000396000f3fe608060405234801561001057600080fd5b506004361061009d5760003560e01c8063a8fa0f4211610066578063a8fa0f42146100d2578063a9de2f3a14610109578063b4fe6be114610149578063b59589d114610151578063c09975cd1461016457600080fd5b8062ae616a146100a25780633dce9812146100d25780635f3281ca146100e757806372cc8c6d146100ee57806376cdb03b146100f6575b600080fd5b6002546100b5906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b6100e56100e03660046102be565b505050565b005b60006100b5565b6100e5610177565b6000546100b5906001600160a01b031681565b600054600154600254600354604080516001600160a01b0395861681529385166020850152918416918301919091529190911660608201526080016100c9565b6100e56101e1565b6001546100b5906001600160a01b031681565b6003546100b5906001600160a01b031681565b600260009054906101000a90046001600160a01b03166001600160a01b03166372cc8c6d6040518163ffffffff1660e01b8152600401600060405180830381600087803b1580156101c757600080fd5b505af11580156101db573d6000803e3d6000fd5b50505050565b60025460408051600481526024810182526020810180516001600160e01b03166372cc8c6d60e01b17905290516000926001600160a01b031691610224916102ea565b6000604051808303816000865af19150503d8060008114610261576040519150601f19603f3d011682016040523d82523d6000602084013e610266565b606091505b50509050806102bb5760405162461bcd60e51b815260206004820152601c60248201527f726571756573744e657757616c6c65742063616c6c206661696c656400000000604482015260640160405180910390fd5b50565b6000806000606084860312156102d357600080fd5b505081359360208301359350604090920135919050565b6000825160005b8181101561030b57602081860181015185830152016102f1565b50600092019182525091905056fea26469706673582212209110d39da18746d4a640f59338b793a5451addda0437cf201adb8efc8246f72864736f6c63430008110033",
-  "deployedBytecode": "0x608060405234801561001057600080fd5b506004361061009d5760003560e01c8063a8fa0f4211610066578063a8fa0f42146100d2578063a9de2f3a14610109578063b4fe6be114610149578063b59589d114610151578063c09975cd1461016457600080fd5b8062ae616a146100a25780633dce9812146100d25780635f3281ca146100e757806372cc8c6d146100ee57806376cdb03b146100f6575b600080fd5b6002546100b5906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b6100e56100e03660046102be565b505050565b005b60006100b5565b6100e5610177565b6000546100b5906001600160a01b031681565b600054600154600254600354604080516001600160a01b0395861681529385166020850152918416918301919091529190911660608201526080016100c9565b6100e56101e1565b6001546100b5906001600160a01b031681565b6003546100b5906001600160a01b031681565b600260009054906101000a90046001600160a01b03166001600160a01b03166372cc8c6d6040518163ffffffff1660e01b8152600401600060405180830381600087803b1580156101c757600080fd5b505af11580156101db573d6000803e3d6000fd5b50505050565b60025460408051600481526024810182526020810180516001600160e01b03166372cc8c6d60e01b17905290516000926001600160a01b031691610224916102ea565b6000604051808303816000865af19150503d8060008114610261576040519150601f19603f3d011682016040523d82523d6000602084013e610266565b606091505b50509050806102bb5760405162461bcd60e51b815260206004820152601c60248201527f726571756573744e657757616c6c65742063616c6c206661696c656400000000604482015260640160405180910390fd5b50565b6000806000606084860312156102d357600080fd5b505081359360208301359350604090920135919050565b6000825160005b8181101561030b57602081860181015185830152016102f1565b50600092019182525091905056fea26469706673582212209110d39da18746d4a640f59338b793a5451addda0437cf201adb8efc8246f72864736f6c63430008110033",
+  "solcInputHash": "791a4499e7e8d89b102c164f871adba6",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.17+commit.8df45f5f\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_bank\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_relay\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_ecdsaWalletRegistry\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_reimbursementPool\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"indexed\":false,\"internalType\":\"bytes\",\"name\":\"redeemerOutputScript\",\"type\":\"bytes\"},{\"indexed\":true,\"internalType\":\"address\",\"name\":\"redeemer\",\"type\":\"address\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"requestedAmount\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"treasuryFee\",\"type\":\"uint64\"},{\"indexed\":false,\"internalType\":\"uint64\",\"name\":\"txMaxFee\",\"type\":\"uint64\"}],\"name\":\"RedemptionRequested\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"walletID\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"publicKeyX\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"publicKeyY\",\"type\":\"bytes32\"}],\"name\":\"__ecdsaWalletCreatedCallback\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes32\",\"name\":\"walletID\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"publicKeyX\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"publicKeyY\",\"type\":\"bytes32\"}],\"name\":\"__ecdsaWalletHeartbeatFailedCallback\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"bank\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"internalType\":\"bytes\",\"name\":\"redeemerOutputScript\",\"type\":\"bytes\"}],\"name\":\"calculateRedemptionKey\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"contractReferences\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"_bank\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_relay\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_ecdsaWalletRegistry\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"_reimbursementPool\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"devRequestNewWallet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"ecdsaWalletRegistry\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"redemptionKey\",\"type\":\"uint256\"}],\"name\":\"getPendingRedemption\",\"outputs\":[{\"components\":[{\"internalType\":\"address\",\"name\":\"redeemer\",\"type\":\"address\"},{\"internalType\":\"uint64\",\"name\":\"requestedAmount\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"treasuryFee\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"txMaxFee\",\"type\":\"uint64\"},{\"internalType\":\"uint32\",\"name\":\"requestedAt\",\"type\":\"uint32\"}],\"internalType\":\"struct BridgeStub.RedemptionRequest\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getRedemptionWatchtower\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"}],\"name\":\"getWallet\",\"outputs\":[{\"components\":[{\"internalType\":\"bytes32\",\"name\":\"ecdsaWalletID\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"mainUtxoHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"pendingRedemptionsValue\",\"type\":\"uint64\"},{\"internalType\":\"uint32\",\"name\":\"createdAt\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"movingFundsRequestedAt\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"closingStartedAt\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"state\",\"type\":\"uint32\"}],\"internalType\":\"struct BridgeStub.Wallet\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"pendingRedemptions\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"redeemer\",\"type\":\"address\"},{\"internalType\":\"uint64\",\"name\":\"requestedAmount\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"treasuryFee\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"txMaxFee\",\"type\":\"uint64\"},{\"internalType\":\"uint32\",\"name\":\"requestedAt\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"redemptionParameters\",\"outputs\":[{\"internalType\":\"uint64\",\"name\":\"redemptionDustThreshold\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"redemptionTreasuryFeeDivisor\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"redemptionTxMaxFee\",\"type\":\"uint64\"},{\"internalType\":\"uint64\",\"name\":\"redemptionTxMaxTotalFee\",\"type\":\"uint64\"},{\"internalType\":\"uint32\",\"name\":\"redemptionTimeout\",\"type\":\"uint32\"},{\"internalType\":\"uint96\",\"name\":\"redemptionTimeoutSlashingAmount\",\"type\":\"uint96\"},{\"internalType\":\"uint32\",\"name\":\"redemptionTimeoutNotifierRewardMultiplier\",\"type\":\"uint32\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"redemptionRequestMinAge\",\"outputs\":[{\"internalType\":\"uint32\",\"name\":\"\",\"type\":\"uint32\"}],\"stateMutability\":\"pure\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"internalType\":\"bytes32\",\"name\":\"ecdsaWalletID\",\"type\":\"bytes32\"}],\"name\":\"registerWallet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"reimbursementPool\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"relay\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"requestNewWallet\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"walletPubKeyHash\",\"type\":\"bytes20\"},{\"internalType\":\"bytes\",\"name\":\"redeemerOutputScript\",\"type\":\"bytes\"},{\"internalType\":\"uint64\",\"name\":\"amount\",\"type\":\"uint64\"}],\"name\":\"requestRedemption\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes20\",\"name\":\"\",\"type\":\"bytes20\"}],\"name\":\"wallets\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"ecdsaWalletID\",\"type\":\"bytes32\"},{\"internalType\":\"bytes32\",\"name\":\"mainUtxoHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint64\",\"name\":\"pendingRedemptionsValue\",\"type\":\"uint64\"},{\"internalType\":\"uint32\",\"name\":\"createdAt\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"movingFundsRequestedAt\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"closingStartedAt\",\"type\":\"uint32\"},{\"internalType\":\"uint32\",\"name\":\"state\",\"type\":\"uint32\"}],\"stateMutability\":\"view\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{\"__ecdsaWalletCreatedCallback(bytes32,bytes32,bytes32)\":{\"details\":\"For now, this is a stub that does nothing. Wallets need to be      manually registered using registerWallet() function.      TODO: Implement automatic registration when crypto libraries are available\"},\"redemptionParameters()\":{\"details\":\"Returns default values suitable for local development\"},\"redemptionRequestMinAge()\":{\"details\":\"Returns a default value suitable for local development\"},\"registerWallet(bytes20,bytes32)\":{\"params\":{\"ecdsaWalletID\":\"32-byte ECDSA wallet ID\",\"walletPubKeyHash\":\"20-byte wallet public key hash  \"}},\"requestRedemption(bytes20,bytes,uint64)\":{\"params\":{\"amount\":\"Amount in satoshis to redeem\",\"redeemerOutputScript\":\"Bitcoin script for redemption output\",\"walletPubKeyHash\":\"20-byte wallet public key hash\"}}},\"title\":\"BridgeStub\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"__ecdsaWalletCreatedCallback(bytes32,bytes32,bytes32)\":{\"notice\":\"Callback function executed when a new wallet is created\"},\"__ecdsaWalletHeartbeatFailedCallback(bytes32,bytes32,bytes32)\":{\"notice\":\"Callback function executed when wallet heartbeat fails\"},\"calculateRedemptionKey(bytes20,bytes)\":{\"notice\":\"Calculate redemption key (helper) Matches Go code: keccak256(keccak256(CompactSizeUint-prefixed script) + walletPKH)\"},\"devRequestNewWallet()\":{\"notice\":\"For development: Allows anyone to trigger requestNewWallet\"},\"getPendingRedemption(uint256)\":{\"notice\":\"Get pending redemption request\"},\"getWallet(bytes20)\":{\"notice\":\"Get wallet data\"},\"redemptionParameters()\":{\"notice\":\"Get redemption parameters (matches real Bridge interface)\"},\"redemptionRequestMinAge()\":{\"notice\":\"Get redemption request minimum age (for development)\"},\"registerWallet(bytes20,bytes32)\":{\"notice\":\"Register a wallet (for testing - called after DKG)\"},\"requestNewWallet()\":{\"notice\":\"For development: Allows calling requestNewWallet on WalletRegistry\"},\"requestRedemption(bytes20,bytes,uint64)\":{\"notice\":\"Request a redemption (simplified for testing)\"}},\"notice\":\"Minimal stub implementation of Bridge contract for local development\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/BridgeStub.sol\":\"BridgeStub\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":200},\"remappings\":[]},\"sources\":{\"contracts/BridgeStub.sol\":{\"content\":\"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.17;\\n\\n/**\\n * @title BridgeStub\\n * @notice Minimal stub implementation of Bridge contract for local development\\n */\\ncontract BridgeStub {\\n    address public bank;\\n    address public relay;\\n    address public ecdsaWalletRegistry;\\n    address public reimbursementPool;\\n\\n    // Redemption request structure (matches real Bridge)\\n    struct RedemptionRequest {\\n        address redeemer;\\n        uint64 requestedAmount;\\n        uint64 treasuryFee;\\n        uint64 txMaxFee;\\n        uint32 requestedAt;\\n    }\\n\\n    // Wallet structure for tracking state\\n    struct Wallet {\\n        bytes32 ecdsaWalletID;\\n        bytes32 mainUtxoHash;\\n        uint64 pendingRedemptionsValue;\\n        uint32 createdAt;\\n        uint32 movingFundsRequestedAt;\\n        uint32 closingStartedAt;\\n        uint32 state; // 0=Unknown, 1=Live, 2=MovingFunds, etc.\\n    }\\n\\n    // Storage for pending redemptions: redemptionKey => RedemptionRequest\\n    mapping(uint256 => RedemptionRequest) public pendingRedemptions;\\n    \\n    // Storage for wallets: walletPubKeyHash => Wallet\\n    mapping(bytes20 => Wallet) public wallets;\\n\\n    // Events matching real Bridge\\n    // Note: The Go ABI expects 6 parameters (without requestedAt), matching the real Bridge contract\\n    event RedemptionRequested(\\n        bytes20 indexed walletPubKeyHash,\\n        bytes redeemerOutputScript,\\n        address indexed redeemer,\\n        uint64 requestedAmount,\\n        uint64 treasuryFee,\\n        uint64 txMaxFee\\n    );\\n\\n    constructor(\\n        address _bank,\\n        address _relay,\\n        address _ecdsaWalletRegistry,\\n        address _reimbursementPool\\n    ) {\\n        bank = _bank;\\n        relay = _relay;\\n        ecdsaWalletRegistry = _ecdsaWalletRegistry;\\n        reimbursementPool = _reimbursementPool;\\n    }\\n\\n    function contractReferences()\\n        external\\n        view\\n        returns (\\n            address _bank,\\n            address _relay,\\n            address _ecdsaWalletRegistry,\\n            address _reimbursementPool\\n        )\\n    {\\n        return (bank, relay, ecdsaWalletRegistry, reimbursementPool);\\n    }\\n\\n    function getRedemptionWatchtower()\\n        external\\n        pure\\n        returns (address)\\n    {\\n        return address(0);\\n    }\\n\\n    /// @notice For development: Allows calling requestNewWallet on WalletRegistry\\n    function requestNewWallet() external {\\n        IWalletRegistry(ecdsaWalletRegistry).requestNewWallet();\\n    }\\n    \\n    /// @notice For development: Allows anyone to trigger requestNewWallet\\n    function devRequestNewWallet() external {\\n        (bool success, ) = ecdsaWalletRegistry.call(\\n            abi.encodeWithSignature(\\\"requestNewWallet()\\\")\\n        );\\n        require(success, \\\"requestNewWallet call failed\\\");\\n    }\\n\\n    /// @notice Callback function executed when a new wallet is created\\n    /// @dev For now, this is a stub that does nothing. Wallets need to be\\n    ///      manually registered using registerWallet() function.\\n    ///      TODO: Implement automatic registration when crypto libraries are available\\n    function __ecdsaWalletCreatedCallback(\\n        bytes32 walletID,\\n        bytes32 publicKeyX,\\n        bytes32 publicKeyY\\n    ) external {\\n        // Stub implementation - wallets must be registered manually via registerWallet()\\n        // This is because calculating walletPubKeyHash requires RIPEMD160 which is not\\n        // available as a built-in Solidity function. The registerWallet() function\\n        // should be called externally with the pre-calculated walletPubKeyHash.\\n    }\\n\\n    /// @notice Callback function executed when wallet heartbeat fails\\n    function __ecdsaWalletHeartbeatFailedCallback(\\n        bytes32 walletID,\\n        bytes32 publicKeyX,\\n        bytes32 publicKeyY\\n    ) external {\\n        // Stub implementation - just accept the callback\\n    }\\n\\n    // ============ Redemption Functions (for testing) ============\\n\\n    /// @notice Request a redemption (simplified for testing)\\n    /// @param walletPubKeyHash 20-byte wallet public key hash\\n    /// @param redeemerOutputScript Bitcoin script for redemption output\\n    /// @param amount Amount in satoshis to redeem\\n    function requestRedemption(\\n        bytes20 walletPubKeyHash,\\n        bytes calldata redeemerOutputScript,\\n        uint64 amount\\n    ) external {\\n        require(wallets[walletPubKeyHash].state == 1, \\\"Wallet not live\\\");\\n        require(amount > 0, \\\"Amount must be positive\\\");\\n\\n        uint64 treasuryFee = amount / 500; // 0.2% fee\\n        uint64 txMaxFee = 20000; // Fixed max fee for testing\\n        uint32 requestedAt = uint32(block.timestamp);\\n\\n        // Calculate redemption key (matches real Bridge)\\n        // The real Bridge uses: keccak256(keccak256(CompactSizeUint-prefixed script) + walletPKH)\\n        // CompactSizeUint encoding: for length <= 252, prefix is single byte\\n        bytes memory prefixedScript;\\n        if (redeemerOutputScript.length <= 252) {\\n            prefixedScript = abi.encodePacked(uint8(redeemerOutputScript.length), redeemerOutputScript);\\n        } else {\\n            // For longer scripts, use 0xfd + 2 bytes little-endian (simplified - only handles <= 252 for now)\\n            revert(\\\"Script too long for stub\\\");\\n        }\\n        bytes32 scriptHash = keccak256(prefixedScript);\\n        uint256 redemptionKey = uint256(keccak256(abi.encodePacked(\\n            scriptHash,\\n            walletPubKeyHash\\n        )));\\n\\n        // Store pending redemption\\n        pendingRedemptions[redemptionKey] = RedemptionRequest({\\n            redeemer: msg.sender,\\n            requestedAmount: amount,\\n            treasuryFee: treasuryFee,\\n            txMaxFee: txMaxFee,\\n            requestedAt: requestedAt\\n        });\\n\\n        // Update wallet pending value\\n        wallets[walletPubKeyHash].pendingRedemptionsValue += amount;\\n\\n        emit RedemptionRequested(\\n            walletPubKeyHash,\\n            redeemerOutputScript,\\n            msg.sender,\\n            amount,\\n            treasuryFee,\\n            txMaxFee\\n        );\\n    }\\n\\n    /// @notice Register a wallet (for testing - called after DKG)\\n    /// @param walletPubKeyHash 20-byte wallet public key hash  \\n    /// @param ecdsaWalletID 32-byte ECDSA wallet ID\\n    function registerWallet(\\n        bytes20 walletPubKeyHash,\\n        bytes32 ecdsaWalletID\\n    ) external {\\n        wallets[walletPubKeyHash] = Wallet({\\n            ecdsaWalletID: ecdsaWalletID,\\n            mainUtxoHash: bytes32(0),\\n            pendingRedemptionsValue: 0,\\n            createdAt: uint32(block.timestamp),\\n            movingFundsRequestedAt: 0,\\n            closingStartedAt: 0,\\n            state: 1 // Live\\n        });\\n    }\\n\\n    /// @notice Get wallet data\\n    function getWallet(bytes20 walletPubKeyHash) \\n        external \\n        view \\n        returns (Wallet memory) \\n    {\\n        return wallets[walletPubKeyHash];\\n    }\\n\\n    /// @notice Get pending redemption request\\n    function getPendingRedemption(uint256 redemptionKey)\\n        external\\n        view\\n        returns (RedemptionRequest memory)\\n    {\\n        return pendingRedemptions[redemptionKey];\\n    }\\n\\n    /// @notice Calculate redemption key (helper)\\n    /// Matches Go code: keccak256(keccak256(CompactSizeUint-prefixed script) + walletPKH)\\n    function calculateRedemptionKey(\\n        bytes20 walletPubKeyHash,\\n        bytes calldata redeemerOutputScript\\n    ) external pure returns (uint256) {\\n        // CompactSizeUint encoding: for length <= 252, prefix is single byte\\n        bytes memory prefixedScript;\\n        if (redeemerOutputScript.length <= 252) {\\n            prefixedScript = abi.encodePacked(uint8(redeemerOutputScript.length), redeemerOutputScript);\\n        } else {\\n            revert(\\\"Script too long for stub\\\");\\n        }\\n        bytes32 scriptHash = keccak256(prefixedScript);\\n        return uint256(keccak256(abi.encodePacked(\\n            scriptHash,\\n            walletPubKeyHash\\n        )));\\n    }\\n\\n    // ============ Redemption Parameters (for development) ============\\n\\n    /// @notice Get redemption parameters (matches real Bridge interface)\\n    /// @dev Returns default values suitable for local development\\n    function redemptionParameters()\\n        external\\n        pure\\n        returns (\\n            uint64 redemptionDustThreshold,\\n            uint64 redemptionTreasuryFeeDivisor,\\n            uint64 redemptionTxMaxFee,\\n            uint64 redemptionTxMaxTotalFee,\\n            uint32 redemptionTimeout,\\n            uint96 redemptionTimeoutSlashingAmount,\\n            uint32 redemptionTimeoutNotifierRewardMultiplier\\n        )\\n    {\\n        // Default values for local development:\\n        // - redemptionTimeout: 86400 seconds (24 hours) - matches test data\\n        // - Other values set to reasonable defaults\\n        return (\\n            546,                    // redemptionDustThreshold (0.00000546 BTC)\\n            500,                    // redemptionTreasuryFeeDivisor (0.2% fee)\\n            20000,                  // redemptionTxMaxFee (satoshis)\\n            200000,                 // redemptionTxMaxTotalFee (satoshis)\\n            86400,                  // redemptionTimeout (24 hours in seconds)\\n            0,                      // redemptionTimeoutSlashingAmount (no slashing in dev)\\n            0                       // redemptionTimeoutNotifierRewardMultiplier (no reward in dev)\\n        );\\n    }\\n\\n    /// @notice Get redemption request minimum age (for development)\\n    /// @dev Returns a default value suitable for local development\\n    function redemptionRequestMinAge() external pure returns (uint32) {\\n        return 3600; // 1 hour in seconds - matches test data\\n    }\\n}\\n\\ninterface IWalletRegistry {\\n    function requestNewWallet() external;\\n}\\n\",\"keccak256\":\"0x0b9439784c0dbdd467f512e4db43bb590ac52ee631b6f9cbcdca8466ba475739\",\"license\":\"MIT\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b50604051610fe4380380610fe483398101604081905261002f9161009e565b600080546001600160a01b039586166001600160a01b03199182161790915560018054948616948216949094179093556002805492851692841692909217909155600380549190931691161790556100f2565b80516001600160a01b038116811461009957600080fd5b919050565b600080600080608085870312156100b457600080fd5b6100bd85610082565b93506100cb60208601610082565b92506100d960408601610082565b91506100e760608601610082565b905092959194509250565b610ee3806101016000396000f3fe608060405234801561001057600080fd5b50600436106101205760003560e01c806376cdb03b116100ad578063b4fe6be111610071578063b4fe6be11461054a578063b59589d114610552578063b8d1abd314610565578063c09975cd14610659578063e65e19d51461066c57600080fd5b806376cdb03b14610394578063811fee81146103a75780638fa4ad28146103c8578063a8fa0f42146101fb578063a9de2f3a1461050a57600080fd5b80636511064d116100f45780636511064d146102175780636523e5ba146102275780636c647313146103365780636e70ce411461034957806372cc8c6d1461038c57600080fd5b8062ae616a1461012557806303d952f7146101555780633dce9812146101fb5780635f3281ca14610210575b600080fd5b600254610138906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b6101b4610163366004610beb565b600460205260009081526040902080546001909101546001600160a01b03821691600160a01b90046001600160401b039081169181811691600160401b82041690600160801b900463ffffffff1685565b604080516001600160a01b0390961686526001600160401b0394851660208701529284169285019290925291909116606083015263ffffffff16608082015260a00161014c565b61020e610209366004610c04565b505050565b005b6000610138565b604051610e10815260200161014c565b6102d7610235366004610beb565b6040805160a08101825260008082526020820181905291810182905260608101829052608081019190915250600090815260046020908152604091829020825160a08101845281546001600160a01b0381168252600160a01b90046001600160401b039081169382019390935260019091015480831693820193909352600160401b83049091166060820152600160801b90910463ffffffff16608082015290565b60405161014c919081516001600160a01b031681526020808301516001600160401b03908116918301919091526040808401518216908301526060808401519091169082015260809182015163ffffffff169181019190915260a00190565b61020e610344366004610c95565b61071c565b6040805161022281526101f46020820152614e209181019190915262030d406060820152620151806080820152600060a0820181905260c082015260e00161014c565b61020e610a39565b600054610138906001600160a01b031681565b6103ba6103b5366004610d02565b610aa3565b60405190815260200161014c565b61049b6103d6366004610d54565b6040805160e081018252600080825260208201819052918101829052606081018290526080810182905260a0810182905260c0810191909152506001600160601b031916600090815260056020908152604091829020825160e08101845281548152600182015492810192909252600201546001600160401b0381169282019290925263ffffffff600160401b830481166060830152600160601b830481166080830152600160801b8304811660a0830152600160a01b90920490911660c082015290565b60405161014c9190600060e08201905082518252602083015160208301526001600160401b036040840151166040830152606083015163ffffffff80821660608501528060808601511660808501528060a08601511660a08501528060c08601511660c0850152505092915050565b600054600154600254600354604080516001600160a01b03958616815293851660208501529184169183019190915291909116606082015260800161014c565b61020e610b12565b600154610138906001600160a01b031681565b61020e610573366004610d76565b6040805160e0810182529182526000602080840182815284840183815263ffffffff428116606088019081526080880186815260a08901878152600160c08b018181526001600160601b03199c8d168a526005909852989097209851895593519688019690965590516002909601805495519251945193518216600160a01b0263ffffffff60a01b19948316600160801b0263ffffffff60801b19968416600160601b029690961667ffffffffffffffff60601b1994909316600160401b02969098166001600160401b0397909716969096179490941716929092171716919091179055565b600354610138906001600160a01b031681565b6106d161067a366004610d54565b6005602052600090815260409020805460018201546002909201549091906001600160401b0381169063ffffffff600160401b8204811691600160601b8104821691600160801b8204811691600160a01b90041687565b6040805197885260208801969096526001600160401b039094169486019490945263ffffffff91821660608601528116608085015291821660a08401521660c082015260e00161014c565b6001600160601b03198416600090815260056020526040902060020154600160a01b900463ffffffff1660011461078c5760405162461bcd60e51b815260206004820152600f60248201526e57616c6c6574206e6f74206c69766560881b60448201526064015b60405180910390fd5b6000816001600160401b0316116107e55760405162461bcd60e51b815260206004820152601760248201527f416d6f756e74206d75737420626520706f7369746976650000000000000000006044820152606401610783565b60006107f36101f483610da0565b9050614e2042606060fc861161082e5760405161081890879089908290602001610dd4565b6040516020818303038152906040529050610876565b60405162461bcd60e51b815260206004820152601860248201527f53637269707420746f6f206c6f6e6720666f72207374756200000000000000006044820152606401610783565b8051602080830191909120604080519283018290526001600160601b03198b16908301529060009060540160408051601f19818403018152828252805160209182012060a0840183523384526001600160401b03808c168584019081528b82168686019081528b83166060880190815263ffffffff808d1660808a019081526000878152600489528981209a518b5496518816600160a01b026001600160e01b03199097166001600160a01b039190911617959095178a5592516001909901805492519351909116600160801b0263ffffffff60801b19938616600160401b026fffffffffffffffffffffffffffffffff19909316998616999099179190911791909116969096179095556001600160601b03198f168552600590925291832060020180549294508a93909290916109b091859116610dfc565b92506101000a8154816001600160401b0302191690836001600160401b03160217905550336001600160a01b03168a6bffffffffffffffffffffffff19167f97a0199072f487232635d50ab75860891afe0b91c976ed2fc76502c4d82d0d958b8b8b8b8b604051610a25959493929190610e31565b60405180910390a350505050505050505050565b600260009054906101000a90046001600160a01b03166001600160a01b03166372cc8c6d6040518163ffffffff1660e01b8152600401600060405180830381600087803b158015610a8957600080fd5b505af1158015610a9d573d6000803e3d6000fd5b50505050565b6000606060fc831161082e57604051610ac490849086908290602001610dd4565b60408051601f198184030181528282528051602091820120838201526001600160601b0319979097168282015280516034818403018152605490920190528051950194909420949350505050565b60025460408051600481526024810182526020810180516001600160e01b03166372cc8c6d60e01b17905290516000926001600160a01b031691610b5591610e7e565b6000604051808303816000865af19150503d8060008114610b92576040519150601f19603f3d011682016040523d82523d6000602084013e610b97565b606091505b5050905080610be85760405162461bcd60e51b815260206004820152601c60248201527f726571756573744e657757616c6c65742063616c6c206661696c6564000000006044820152606401610783565b50565b600060208284031215610bfd57600080fd5b5035919050565b600080600060608486031215610c1957600080fd5b505081359360208301359350604090920135919050565b80356001600160601b031981168114610c4857600080fd5b919050565b60008083601f840112610c5f57600080fd5b5081356001600160401b03811115610c7657600080fd5b602083019150836020828501011115610c8e57600080fd5b9250929050565b60008060008060608587031215610cab57600080fd5b610cb485610c30565b935060208501356001600160401b0380821115610cd057600080fd5b610cdc88838901610c4d565b9095509350604087013591508082168214610cf657600080fd5b50939692955090935050565b600080600060408486031215610d1757600080fd5b610d2084610c30565b925060208401356001600160401b03811115610d3b57600080fd5b610d4786828701610c4d565b9497909650939450505050565b600060208284031215610d6657600080fd5b610d6f82610c30565b9392505050565b60008060408385031215610d8957600080fd5b610d9283610c30565b946020939093013593505050565b60006001600160401b0380841680610dc857634e487b7160e01b600052601260045260246000fd5b92169190910492915050565b60f884901b6001600160f81b0319168152818360018301376000910160010190815292915050565b6001600160401b03818116838216019080821115610e2a57634e487b7160e01b600052601160045260246000fd5b5092915050565b60808152846080820152848660a0830137600060a08683018101919091526001600160401b039485166020830152928416604082015292166060830152601f909201601f19160101919050565b6000825160005b81811015610e9f5760208186018101518583015201610e85565b50600092019182525091905056fea2646970667358221220cb35bea2621b166e7bcbae87621e81e75add7257b145595cbc365880f797dbaa64736f6c63430008110033",
+  "deployedBytecode": "0x608060405234801561001057600080fd5b50600436106101205760003560e01c806376cdb03b116100ad578063b4fe6be111610071578063b4fe6be11461054a578063b59589d114610552578063b8d1abd314610565578063c09975cd14610659578063e65e19d51461066c57600080fd5b806376cdb03b14610394578063811fee81146103a75780638fa4ad28146103c8578063a8fa0f42146101fb578063a9de2f3a1461050a57600080fd5b80636511064d116100f45780636511064d146102175780636523e5ba146102275780636c647313146103365780636e70ce411461034957806372cc8c6d1461038c57600080fd5b8062ae616a1461012557806303d952f7146101555780633dce9812146101fb5780635f3281ca14610210575b600080fd5b600254610138906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b6101b4610163366004610beb565b600460205260009081526040902080546001909101546001600160a01b03821691600160a01b90046001600160401b039081169181811691600160401b82041690600160801b900463ffffffff1685565b604080516001600160a01b0390961686526001600160401b0394851660208701529284169285019290925291909116606083015263ffffffff16608082015260a00161014c565b61020e610209366004610c04565b505050565b005b6000610138565b604051610e10815260200161014c565b6102d7610235366004610beb565b6040805160a08101825260008082526020820181905291810182905260608101829052608081019190915250600090815260046020908152604091829020825160a08101845281546001600160a01b0381168252600160a01b90046001600160401b039081169382019390935260019091015480831693820193909352600160401b83049091166060820152600160801b90910463ffffffff16608082015290565b60405161014c919081516001600160a01b031681526020808301516001600160401b03908116918301919091526040808401518216908301526060808401519091169082015260809182015163ffffffff169181019190915260a00190565b61020e610344366004610c95565b61071c565b6040805161022281526101f46020820152614e209181019190915262030d406060820152620151806080820152600060a0820181905260c082015260e00161014c565b61020e610a39565b600054610138906001600160a01b031681565b6103ba6103b5366004610d02565b610aa3565b60405190815260200161014c565b61049b6103d6366004610d54565b6040805160e081018252600080825260208201819052918101829052606081018290526080810182905260a0810182905260c0810191909152506001600160601b031916600090815260056020908152604091829020825160e08101845281548152600182015492810192909252600201546001600160401b0381169282019290925263ffffffff600160401b830481166060830152600160601b830481166080830152600160801b8304811660a0830152600160a01b90920490911660c082015290565b60405161014c9190600060e08201905082518252602083015160208301526001600160401b036040840151166040830152606083015163ffffffff80821660608501528060808601511660808501528060a08601511660a08501528060c08601511660c0850152505092915050565b600054600154600254600354604080516001600160a01b03958616815293851660208501529184169183019190915291909116606082015260800161014c565b61020e610b12565b600154610138906001600160a01b031681565b61020e610573366004610d76565b6040805160e0810182529182526000602080840182815284840183815263ffffffff428116606088019081526080880186815260a08901878152600160c08b018181526001600160601b03199c8d168a526005909852989097209851895593519688019690965590516002909601805495519251945193518216600160a01b0263ffffffff60a01b19948316600160801b0263ffffffff60801b19968416600160601b029690961667ffffffffffffffff60601b1994909316600160401b02969098166001600160401b0397909716969096179490941716929092171716919091179055565b600354610138906001600160a01b031681565b6106d161067a366004610d54565b6005602052600090815260409020805460018201546002909201549091906001600160401b0381169063ffffffff600160401b8204811691600160601b8104821691600160801b8204811691600160a01b90041687565b6040805197885260208801969096526001600160401b039094169486019490945263ffffffff91821660608601528116608085015291821660a08401521660c082015260e00161014c565b6001600160601b03198416600090815260056020526040902060020154600160a01b900463ffffffff1660011461078c5760405162461bcd60e51b815260206004820152600f60248201526e57616c6c6574206e6f74206c69766560881b60448201526064015b60405180910390fd5b6000816001600160401b0316116107e55760405162461bcd60e51b815260206004820152601760248201527f416d6f756e74206d75737420626520706f7369746976650000000000000000006044820152606401610783565b60006107f36101f483610da0565b9050614e2042606060fc861161082e5760405161081890879089908290602001610dd4565b6040516020818303038152906040529050610876565b60405162461bcd60e51b815260206004820152601860248201527f53637269707420746f6f206c6f6e6720666f72207374756200000000000000006044820152606401610783565b8051602080830191909120604080519283018290526001600160601b03198b16908301529060009060540160408051601f19818403018152828252805160209182012060a0840183523384526001600160401b03808c168584019081528b82168686019081528b83166060880190815263ffffffff808d1660808a019081526000878152600489528981209a518b5496518816600160a01b026001600160e01b03199097166001600160a01b039190911617959095178a5592516001909901805492519351909116600160801b0263ffffffff60801b19938616600160401b026fffffffffffffffffffffffffffffffff19909316998616999099179190911791909116969096179095556001600160601b03198f168552600590925291832060020180549294508a93909290916109b091859116610dfc565b92506101000a8154816001600160401b0302191690836001600160401b03160217905550336001600160a01b03168a6bffffffffffffffffffffffff19167f97a0199072f487232635d50ab75860891afe0b91c976ed2fc76502c4d82d0d958b8b8b8b8b604051610a25959493929190610e31565b60405180910390a350505050505050505050565b600260009054906101000a90046001600160a01b03166001600160a01b03166372cc8c6d6040518163ffffffff1660e01b8152600401600060405180830381600087803b158015610a8957600080fd5b505af1158015610a9d573d6000803e3d6000fd5b50505050565b6000606060fc831161082e57604051610ac490849086908290602001610dd4565b60408051601f198184030181528282528051602091820120838201526001600160601b0319979097168282015280516034818403018152605490920190528051950194909420949350505050565b60025460408051600481526024810182526020810180516001600160e01b03166372cc8c6d60e01b17905290516000926001600160a01b031691610b5591610e7e565b6000604051808303816000865af19150503d8060008114610b92576040519150601f19603f3d011682016040523d82523d6000602084013e610b97565b606091505b5050905080610be85760405162461bcd60e51b815260206004820152601c60248201527f726571756573744e657757616c6c65742063616c6c206661696c6564000000006044820152606401610783565b50565b600060208284031215610bfd57600080fd5b5035919050565b600080600060608486031215610c1957600080fd5b505081359360208301359350604090920135919050565b80356001600160601b031981168114610c4857600080fd5b919050565b60008083601f840112610c5f57600080fd5b5081356001600160401b03811115610c7657600080fd5b602083019150836020828501011115610c8e57600080fd5b9250929050565b60008060008060608587031215610cab57600080fd5b610cb485610c30565b935060208501356001600160401b0380821115610cd057600080fd5b610cdc88838901610c4d565b9095509350604087013591508082168214610cf657600080fd5b50939692955090935050565b600080600060408486031215610d1757600080fd5b610d2084610c30565b925060208401356001600160401b03811115610d3b57600080fd5b610d4786828701610c4d565b9497909650939450505050565b600060208284031215610d6657600080fd5b610d6f82610c30565b9392505050565b60008060408385031215610d8957600080fd5b610d9283610c30565b946020939093013593505050565b60006001600160401b0380841680610dc857634e487b7160e01b600052601260045260246000fd5b92169190910492915050565b60f884901b6001600160f81b0319168152818360018301376000910160010190815292915050565b6001600160401b03818116838216019080821115610e2a57634e487b7160e01b600052601160045260246000fd5b5092915050565b60808152846080820152848660a0830137600060a08683018101919091526001600160401b039485166020830152928416604082015292166060830152601f909201601f19160101919050565b6000825160005b81811015610e9f5760208186018101518583015201610e85565b50600092019182525091905056fea2646970667358221220cb35bea2621b166e7bcbae87621e81e75add7257b145595cbc365880f797dbaa64736f6c63430008110033",
   "devdoc": {
     "kind": "dev",
     "methods": {
       "__ecdsaWalletCreatedCallback(bytes32,bytes32,bytes32)": {
-        "details": "Required by IWalletOwner interface for WalletRegistry",
+        "details": "For now, this is a stub that does nothing. Wallets need to be      manually registered using registerWallet() function.      TODO: Implement automatic registration when crypto libraries are available"
+      },
+      "redemptionParameters()": {
+        "details": "Returns default values suitable for local development"
+      },
+      "redemptionRequestMinAge()": {
+        "details": "Returns a default value suitable for local development"
+      },
+      "registerWallet(bytes20,bytes32)": {
         "params": {
-          "publicKeyX": "Wallet's public key's X coordinate",
-          "publicKeyY": "Wallet's public key's Y coordinate",
-          "walletID": "Wallet's unique identifier"
+          "ecdsaWalletID": "32-byte ECDSA wallet ID",
+          "walletPubKeyHash": "20-byte wallet public key hash  "
         }
       },
-      "__ecdsaWalletHeartbeatFailedCallback(bytes32,bytes32,bytes32)": {
-        "details": "Required by IWalletOwner interface for WalletRegistry",
+      "requestRedemption(bytes20,bytes,uint64)": {
         "params": {
-          "publicKeyX": "Wallet's public key's X coordinate",
-          "publicKeyY": "Wallet's public key's Y coordinate",
-          "walletID": "Wallet's unique identifier"
+          "amount": "Amount in satoshis to redeem",
+          "redeemerOutputScript": "Bitcoin script for redemption output",
+          "walletPubKeyHash": "20-byte wallet public key hash"
         }
-      },
-      "devRequestNewWallet()": {
-        "details": "This bypasses the walletOwner check - USE ONLY IN DEVELOPMENT      This function calls WalletRegistry.requestNewWallet() directly,      but since it's called from Bridge (the walletOwner), it will succeed"
-      },
-      "requestNewWallet()": {
-        "details": "This is a convenience function for local development      In production, only the walletOwner should be able to call this"
       }
     },
     "title": "BridgeStub",
@@ -246,11 +600,32 @@
       "__ecdsaWalletHeartbeatFailedCallback(bytes32,bytes32,bytes32)": {
         "notice": "Callback function executed when wallet heartbeat fails"
       },
+      "calculateRedemptionKey(bytes20,bytes)": {
+        "notice": "Calculate redemption key (helper) Matches Go code: keccak256(keccak256(CompactSizeUint-prefixed script) + walletPKH)"
+      },
       "devRequestNewWallet()": {
         "notice": "For development: Allows anyone to trigger requestNewWallet"
       },
+      "getPendingRedemption(uint256)": {
+        "notice": "Get pending redemption request"
+      },
+      "getWallet(bytes20)": {
+        "notice": "Get wallet data"
+      },
+      "redemptionParameters()": {
+        "notice": "Get redemption parameters (matches real Bridge interface)"
+      },
+      "redemptionRequestMinAge()": {
+        "notice": "Get redemption request minimum age (for development)"
+      },
+      "registerWallet(bytes20,bytes32)": {
+        "notice": "Register a wallet (for testing - called after DKG)"
+      },
       "requestNewWallet()": {
         "notice": "For development: Allows calling requestNewWallet on WalletRegistry"
+      },
+      "requestRedemption(bytes20,bytes,uint64)": {
+        "notice": "Request a redemption (simplified for testing)"
       }
     },
     "notice": "Minimal stub implementation of Bridge contract for local development",
@@ -289,6 +664,22 @@
         "offset": 0,
         "slot": "3",
         "type": "t_address"
+      },
+      {
+        "astId": 41,
+        "contract": "contracts/BridgeStub.sol:BridgeStub",
+        "label": "pendingRedemptions",
+        "offset": 0,
+        "slot": "4",
+        "type": "t_mapping(t_uint256,t_struct(RedemptionRequest)21_storage)"
+      },
+      {
+        "astId": 46,
+        "contract": "contracts/BridgeStub.sol:BridgeStub",
+        "label": "wallets",
+        "offset": 0,
+        "slot": "5",
+        "type": "t_mapping(t_bytes20,t_struct(Wallet)36_storage)"
       }
     ],
     "types": {
@@ -296,6 +687,155 @@
         "encoding": "inplace",
         "label": "address",
         "numberOfBytes": "20"
+      },
+      "t_bytes20": {
+        "encoding": "inplace",
+        "label": "bytes20",
+        "numberOfBytes": "20"
+      },
+      "t_bytes32": {
+        "encoding": "inplace",
+        "label": "bytes32",
+        "numberOfBytes": "32"
+      },
+      "t_mapping(t_bytes20,t_struct(Wallet)36_storage)": {
+        "encoding": "mapping",
+        "key": "t_bytes20",
+        "label": "mapping(bytes20 => struct BridgeStub.Wallet)",
+        "numberOfBytes": "32",
+        "value": "t_struct(Wallet)36_storage"
+      },
+      "t_mapping(t_uint256,t_struct(RedemptionRequest)21_storage)": {
+        "encoding": "mapping",
+        "key": "t_uint256",
+        "label": "mapping(uint256 => struct BridgeStub.RedemptionRequest)",
+        "numberOfBytes": "32",
+        "value": "t_struct(RedemptionRequest)21_storage"
+      },
+      "t_struct(RedemptionRequest)21_storage": {
+        "encoding": "inplace",
+        "label": "struct BridgeStub.RedemptionRequest",
+        "members": [
+          {
+            "astId": 12,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "redeemer",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address"
+          },
+          {
+            "astId": 14,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "requestedAmount",
+            "offset": 20,
+            "slot": "0",
+            "type": "t_uint64"
+          },
+          {
+            "astId": 16,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "treasuryFee",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint64"
+          },
+          {
+            "astId": 18,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "txMaxFee",
+            "offset": 8,
+            "slot": "1",
+            "type": "t_uint64"
+          },
+          {
+            "astId": 20,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "requestedAt",
+            "offset": 16,
+            "slot": "1",
+            "type": "t_uint32"
+          }
+        ],
+        "numberOfBytes": "64"
+      },
+      "t_struct(Wallet)36_storage": {
+        "encoding": "inplace",
+        "label": "struct BridgeStub.Wallet",
+        "members": [
+          {
+            "astId": 23,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "ecdsaWalletID",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_bytes32"
+          },
+          {
+            "astId": 25,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "mainUtxoHash",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_bytes32"
+          },
+          {
+            "astId": 27,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "pendingRedemptionsValue",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint64"
+          },
+          {
+            "astId": 29,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "createdAt",
+            "offset": 8,
+            "slot": "2",
+            "type": "t_uint32"
+          },
+          {
+            "astId": 31,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "movingFundsRequestedAt",
+            "offset": 12,
+            "slot": "2",
+            "type": "t_uint32"
+          },
+          {
+            "astId": 33,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "closingStartedAt",
+            "offset": 16,
+            "slot": "2",
+            "type": "t_uint32"
+          },
+          {
+            "astId": 35,
+            "contract": "contracts/BridgeStub.sol:BridgeStub",
+            "label": "state",
+            "offset": 20,
+            "slot": "2",
+            "type": "t_uint32"
+          }
+        ],
+        "numberOfBytes": "96"
+      },
+      "t_uint256": {
+        "encoding": "inplace",
+        "label": "uint256",
+        "numberOfBytes": "32"
+      },
+      "t_uint32": {
+        "encoding": "inplace",
+        "label": "uint32",
+        "numberOfBytes": "4"
+      },
+      "t_uint64": {
+        "encoding": "inplace",
+        "label": "uint64",
+        "numberOfBytes": "8"
       }
     }
   }

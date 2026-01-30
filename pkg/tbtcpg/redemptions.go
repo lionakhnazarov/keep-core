@@ -222,6 +222,10 @@ func (rt *RedemptionTask) ProposeRedemption(
 			redeemersOutputScripts,
 		)
 		if err != nil {
+			taskLogger.Errorf(
+				"failed to estimate redemption transaction fee: [%v]",
+				err,
+			)
 			return nil, fmt.Errorf(
 				"cannot estimate redemption transaction fee: [%w]",
 				err,
@@ -275,17 +279,32 @@ func findPendingRedemptions(
 	// request timeout in blocks. Note that if the actual average block time is
 	// lesser than the assumed one, some events being on the edge of the block
 	// range may be omitted. To avoid that, we make the block range a little
-	// wider by using a constant factor of 1000 blocks.
+	// wider by using a constant factor. Increased from 1000 to 10000 blocks
+	// for local development to ensure events aren't excluded due to timing
+	// issues or when requestTimeout is not properly configured.
 	filterStartBlock := uint64(0)
-	if filterLookbackBlocks := requestTimeoutBlocks + 1000; currentBlockNumber > filterLookbackBlocks {
+	if filterLookbackBlocks := requestTimeoutBlocks + 10000; currentBlockNumber > filterLookbackBlocks {
 		filterStartBlock = currentBlockNumber - filterLookbackBlocks
 	}
+
+	fnLogger.Infof(
+		"event filter parameters: currentBlock=%d, requestTimeout=%d seconds, timeoutBlocks=%d, filterLookbackBlocks=%d, filterStartBlock=%d",
+		currentBlockNumber,
+		requestTimeout,
+		requestTimeoutBlocks,
+		requestTimeoutBlocks+10000,
+		filterStartBlock,
+	)
 
 	filter := &tbtc.RedemptionRequestedEventFilter{
 		StartBlock: filterStartBlock,
 	}
 	if walletPublicKeyHash != [20]byte{} {
 		filter.WalletPublicKeyHash = [][20]byte{walletPublicKeyHash}
+		fnLogger.Infof(
+			"filtering events for wallet: %x",
+			walletPublicKeyHash,
+		)
 	}
 
 	events, err := chain.PastRedemptionRequestedEvents(filter)

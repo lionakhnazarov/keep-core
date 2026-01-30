@@ -30,7 +30,10 @@ const (
 	signingAttemptAnnouncementActiveBlocks = 5
 	// signingAttemptProtocolBlocks determines the maximum block duration of the
 	// actual protocol computations.
-	signingAttemptMaximumProtocolBlocks = 30
+	// Increased from 30 to 150 for development to allow sufficient time for signing
+	// with 100 members. With 100 members, signing requires multiple protocol rounds
+	// and P2P communication which can take significant time.
+	signingAttemptMaximumProtocolBlocks = 150
 	// signingAttemptCoolDownBlocks determines the duration of the cool down
 	// period that is preserved between subsequent signing attempts.
 	signingAttemptCoolDownBlocks = 5

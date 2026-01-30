@@ -40,7 +40,10 @@ const (
 	// `2` malicious members in the signing group has a very small probability.
 	// Moreover, the signature must be produced in the reasonable time.
 	// That being said, the value `5` seems to be reasonable trade-off.
-	signingAttemptsLimit = 5
+	//
+	// Increased from 5 to 10 for development to allow more retries when signing
+	// times out due to network delays or slow block times.
+	signingAttemptsLimit = 10
 
 	// walletClosureConfirmationBlocks determines the period used when waiting
 	// for the wallet closure confirmation. This period ensures the wallet has
@@ -206,7 +209,7 @@ func (n *node) setPerformanceMetrics(metrics interface {
 	n.performanceMetrics = metrics
 
 	// Initialize window metrics tracker with performance metrics
-	// Keep metrics for the last 100 windows (approximately 25 hours at 900 blocks per window)
+	// Keep metrics for the last 100 windows (approximately 8 hours at 300 blocks per window)
 	if perfMetrics, ok := metrics.(clientinfo.PerformanceMetricsRecorder); ok {
 		n.windowMetricsTracker = newCoordinationWindowMetrics(perfMetrics, 100)
 	}

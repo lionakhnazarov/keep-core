@@ -1,5 +1,283 @@
 {
-  "address": "0x5f7dC10e6dD504EEB41678E287aa1732F5EA85c4",
-  "abi": [],
+  "address": "0x587920b0a8B4d0C756Ade69Cfa3F5432624010E1",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_bridge",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "DEPOSIT_MIN_AGE",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "DEPOSIT_REFUND_SAFETY_MARGIN",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "DEPOSIT_SWEEP_MAX_SIZE",
+      "outputs": [
+        {
+          "internalType": "uint16",
+          "name": "",
+          "type": "uint16"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "REDEMPTION_MAX_SIZE",
+      "outputs": [
+        {
+          "internalType": "uint16",
+          "name": "",
+          "type": "uint16"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "REDEMPTION_REQUEST_MIN_AGE",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "REDEMPTION_REQUEST_TIMEOUT_SAFETY_MARGIN",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "bridge",
+      "outputs": [
+        {
+          "internalType": "contract BridgeStub",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes20[]",
+          "name": "depositsPubKeys",
+          "type": "bytes20[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "sweepTxFee",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint16",
+          "name": "depositsRevealBlocks",
+          "type": "uint16"
+        },
+        {
+          "internalType": "bytes",
+          "name": "depositsExtraInfo",
+          "type": "bytes"
+        }
+      ],
+      "name": "validateDepositSweepProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "heartbeatTxHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "heartbeatTxFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "validateHeartbeatProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "movingFundsTxHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "movingFundsTxOutputIndex",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "sweepTxFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "validateMovedFundsSweepProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes20[]",
+          "name": "targetWallets",
+          "type": "bytes20[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "movingFundsTxFee",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "mainUtxoHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "mainUtxoOutputIndex",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "mainUtxoValue",
+          "type": "uint64"
+        }
+      ],
+      "name": "validateMovingFundsProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes[]",
+          "name": "redeemersOutputScripts",
+          "type": "bytes[]"
+        },
+        {
+          "internalType": "uint256",
+          "name": "redemptionTxFee",
+          "type": "uint256"
+        }
+      ],
+      "name": "validateRedemptionProposal",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
   "numDeployments": 1
 }

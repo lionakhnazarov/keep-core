@@ -26,7 +26,7 @@ import (
 const (
 	// coordinationFrequencyBlocks is the number of blocks between two
 	// consecutive coordination windows.
-	coordinationFrequencyBlocks = 900
+	coordinationFrequencyBlocks = 300
 	// coordinationActivePhaseDurationBlocks is the number of blocks in the
 	// active phase of the coordination window. The active phase is the
 	// phase during which the communication between the coordination leader and
@@ -106,9 +106,9 @@ func (cw *coordinationWindow) isAfter(other *coordinationWindow) bool {
 // A valid index is a positive integer.
 //
 // For example:
-// - window starting at block 900 has index 1
-// - window starting at block 1800 has index 2
-// - window starting at block 2700 has index 3
+// - window starting at block 300 has index 1
+// - window starting at block 600 has index 2
+// - window starting at block 900 has index 3
 //
 // If the coordination block number is not a multiple of the coordination
 // frequency, the index is 0.

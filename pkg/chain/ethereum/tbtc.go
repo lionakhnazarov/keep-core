@@ -1282,11 +1282,31 @@ func (tc *TbtcChain) PastRedemptionRequestedEvents(
 
 	convertedEvents := make([]*tbtc.RedemptionRequestedEvent, 0)
 	for _, event := range events {
-		redeemerOutputScript, err := bitcoin.NewScriptFromVarLenData(
-			event.RedeemerOutputScript,
-		)
+		// Try to parse as CompactSizeUint-prefixed script (real Bridge format)
+		// Always treat event script as raw bytes from Bridge stub and add CompactSizeUint prefix
+		// The Bridge stub emits raw script bytes without CompactSizeUint prefix
+		scriptLen := len(event.RedeemerOutputScript)
+		var prefixedScript []byte
+		if scriptLen <= 252 {
+			// Single-byte CompactSizeUint
+			prefixedScript = append([]byte{byte(scriptLen)}, event.RedeemerOutputScript...)
+		} else if scriptLen <= 65535 {
+			// 3-byte CompactSizeUint (0xfd + 2 bytes little-endian)
+			prefixedScript = make([]byte, 0, scriptLen+3)
+			prefixedScript = append(prefixedScript, 0xfd)
+			prefixedScript = append(prefixedScript, byte(scriptLen), byte(scriptLen>>8))
+			prefixedScript = append(prefixedScript, event.RedeemerOutputScript...)
+		} else {
+			// 5-byte CompactSizeUint (0xfe + 4 bytes little-endian)
+			prefixedScript = make([]byte, 0, scriptLen+5)
+			prefixedScript = append(prefixedScript, 0xfe)
+			prefixedScript = append(prefixedScript, 
+				byte(scriptLen), byte(scriptLen>>8), byte(scriptLen>>16), byte(scriptLen>>24))
+			prefixedScript = append(prefixedScript, event.RedeemerOutputScript...)
+		}
+		redeemerOutputScript, err := bitcoin.NewScriptFromVarLenData(prefixedScript)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to parse redeemer output script: [%w]", err)
 		}
 
 		convertedEvent := &tbtc.RedemptionRequestedEvent{

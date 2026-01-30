@@ -3,10 +3,13 @@
 /* eslint-disable */
 import type {
   BaseContract,
+  BigNumberish,
   BytesLike,
   FunctionFragment,
   Result,
   Interface,
+  EventFragment,
+  AddressLike,
   ContractRunner,
   ContractMethod,
   Listener,
@@ -15,9 +18,62 @@ import type {
   TypedContractEvent,
   TypedDeferredTopicFilter,
   TypedEventLog,
+  TypedLogDescription,
   TypedListener,
   TypedContractMethod,
 } from "./common";
+
+export declare namespace BridgeStub {
+  export type RedemptionRequestStruct = {
+    redeemer: AddressLike;
+    requestedAmount: BigNumberish;
+    treasuryFee: BigNumberish;
+    txMaxFee: BigNumberish;
+    requestedAt: BigNumberish;
+  };
+
+  export type RedemptionRequestStructOutput = [
+    redeemer: string,
+    requestedAmount: bigint,
+    treasuryFee: bigint,
+    txMaxFee: bigint,
+    requestedAt: bigint
+  ] & {
+    redeemer: string;
+    requestedAmount: bigint;
+    treasuryFee: bigint;
+    txMaxFee: bigint;
+    requestedAt: bigint;
+  };
+
+  export type WalletStruct = {
+    ecdsaWalletID: BytesLike;
+    mainUtxoHash: BytesLike;
+    pendingRedemptionsValue: BigNumberish;
+    createdAt: BigNumberish;
+    movingFundsRequestedAt: BigNumberish;
+    closingStartedAt: BigNumberish;
+    state: BigNumberish;
+  };
+
+  export type WalletStructOutput = [
+    ecdsaWalletID: string,
+    mainUtxoHash: string,
+    pendingRedemptionsValue: bigint,
+    createdAt: bigint,
+    movingFundsRequestedAt: bigint,
+    closingStartedAt: bigint,
+    state: bigint
+  ] & {
+    ecdsaWalletID: string;
+    mainUtxoHash: string;
+    pendingRedemptionsValue: bigint;
+    createdAt: bigint;
+    movingFundsRequestedAt: bigint;
+    closingStartedAt: bigint;
+    state: bigint;
+  };
+}
 
 export interface BridgeStubInterface extends Interface {
   getFunction(
@@ -25,14 +81,25 @@ export interface BridgeStubInterface extends Interface {
       | "__ecdsaWalletCreatedCallback"
       | "__ecdsaWalletHeartbeatFailedCallback"
       | "bank"
+      | "calculateRedemptionKey"
       | "contractReferences"
       | "devRequestNewWallet"
       | "ecdsaWalletRegistry"
+      | "getPendingRedemption"
       | "getRedemptionWatchtower"
+      | "getWallet"
+      | "pendingRedemptions"
+      | "redemptionParameters"
+      | "redemptionRequestMinAge"
+      | "registerWallet"
       | "reimbursementPool"
       | "relay"
       | "requestNewWallet"
+      | "requestRedemption"
+      | "wallets"
   ): FunctionFragment;
+
+  getEvent(nameOrSignatureOrTopic: "RedemptionRequested"): EventFragment;
 
   encodeFunctionData(
     functionFragment: "__ecdsaWalletCreatedCallback",
@@ -44,6 +111,10 @@ export interface BridgeStubInterface extends Interface {
   ): string;
   encodeFunctionData(functionFragment: "bank", values?: undefined): string;
   encodeFunctionData(
+    functionFragment: "calculateRedemptionKey",
+    values: [BytesLike, BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "contractReferences",
     values?: undefined
   ): string;
@@ -56,8 +127,32 @@ export interface BridgeStubInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "getPendingRedemption",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getRedemptionWatchtower",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getWallet",
+    values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "pendingRedemptions",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "redemptionParameters",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "redemptionRequestMinAge",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "registerWallet",
+    values: [BytesLike, BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "reimbursementPool",
@@ -68,6 +163,11 @@ export interface BridgeStubInterface extends Interface {
     functionFragment: "requestNewWallet",
     values?: undefined
   ): string;
+  encodeFunctionData(
+    functionFragment: "requestRedemption",
+    values: [BytesLike, BytesLike, BigNumberish]
+  ): string;
+  encodeFunctionData(functionFragment: "wallets", values: [BytesLike]): string;
 
   decodeFunctionResult(
     functionFragment: "__ecdsaWalletCreatedCallback",
@@ -79,6 +179,10 @@ export interface BridgeStubInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "bank", data: BytesLike): Result;
   decodeFunctionResult(
+    functionFragment: "calculateRedemptionKey",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "contractReferences",
     data: BytesLike
   ): Result;
@@ -91,7 +195,28 @@ export interface BridgeStubInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "getPendingRedemption",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "getRedemptionWatchtower",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "getWallet", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "pendingRedemptions",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "redemptionParameters",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "redemptionRequestMinAge",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "registerWallet",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -103,6 +228,42 @@ export interface BridgeStubInterface extends Interface {
     functionFragment: "requestNewWallet",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "requestRedemption",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "wallets", data: BytesLike): Result;
+}
+
+export namespace RedemptionRequestedEvent {
+  export type InputTuple = [
+    walletPubKeyHash: BytesLike,
+    redeemerOutputScript: BytesLike,
+    redeemer: AddressLike,
+    requestedAmount: BigNumberish,
+    treasuryFee: BigNumberish,
+    txMaxFee: BigNumberish
+  ];
+  export type OutputTuple = [
+    walletPubKeyHash: string,
+    redeemerOutputScript: string,
+    redeemer: string,
+    requestedAmount: bigint,
+    treasuryFee: bigint,
+    txMaxFee: bigint
+  ];
+  export interface OutputObject {
+    walletPubKeyHash: string;
+    redeemerOutputScript: string;
+    redeemer: string;
+    requestedAmount: bigint;
+    treasuryFee: bigint;
+    txMaxFee: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export interface BridgeStub extends BaseContract {
@@ -162,6 +323,12 @@ export interface BridgeStub extends BaseContract {
 
   bank: TypedContractMethod<[], [string], "view">;
 
+  calculateRedemptionKey: TypedContractMethod<
+    [walletPubKeyHash: BytesLike, redeemerOutputScript: BytesLike],
+    [bigint],
+    "view"
+  >;
+
   contractReferences: TypedContractMethod<
     [],
     [
@@ -179,13 +346,89 @@ export interface BridgeStub extends BaseContract {
 
   ecdsaWalletRegistry: TypedContractMethod<[], [string], "view">;
 
+  getPendingRedemption: TypedContractMethod<
+    [redemptionKey: BigNumberish],
+    [BridgeStub.RedemptionRequestStructOutput],
+    "view"
+  >;
+
   getRedemptionWatchtower: TypedContractMethod<[], [string], "view">;
+
+  getWallet: TypedContractMethod<
+    [walletPubKeyHash: BytesLike],
+    [BridgeStub.WalletStructOutput],
+    "view"
+  >;
+
+  pendingRedemptions: TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [string, bigint, bigint, bigint, bigint] & {
+        redeemer: string;
+        requestedAmount: bigint;
+        treasuryFee: bigint;
+        txMaxFee: bigint;
+        requestedAt: bigint;
+      }
+    ],
+    "view"
+  >;
+
+  redemptionParameters: TypedContractMethod<
+    [],
+    [
+      [bigint, bigint, bigint, bigint, bigint, bigint, bigint] & {
+        redemptionDustThreshold: bigint;
+        redemptionTreasuryFeeDivisor: bigint;
+        redemptionTxMaxFee: bigint;
+        redemptionTxMaxTotalFee: bigint;
+        redemptionTimeout: bigint;
+        redemptionTimeoutSlashingAmount: bigint;
+        redemptionTimeoutNotifierRewardMultiplier: bigint;
+      }
+    ],
+    "view"
+  >;
+
+  redemptionRequestMinAge: TypedContractMethod<[], [bigint], "view">;
+
+  registerWallet: TypedContractMethod<
+    [walletPubKeyHash: BytesLike, ecdsaWalletID: BytesLike],
+    [void],
+    "nonpayable"
+  >;
 
   reimbursementPool: TypedContractMethod<[], [string], "view">;
 
   relay: TypedContractMethod<[], [string], "view">;
 
   requestNewWallet: TypedContractMethod<[], [void], "nonpayable">;
+
+  requestRedemption: TypedContractMethod<
+    [
+      walletPubKeyHash: BytesLike,
+      redeemerOutputScript: BytesLike,
+      amount: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+
+  wallets: TypedContractMethod<
+    [arg0: BytesLike],
+    [
+      [string, string, bigint, bigint, bigint, bigint, bigint] & {
+        ecdsaWalletID: string;
+        mainUtxoHash: string;
+        pendingRedemptionsValue: bigint;
+        createdAt: bigint;
+        movingFundsRequestedAt: bigint;
+        closingStartedAt: bigint;
+        state: bigint;
+      }
+    ],
+    "view"
+  >;
 
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
@@ -209,6 +452,13 @@ export interface BridgeStub extends BaseContract {
     nameOrSignature: "bank"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "calculateRedemptionKey"
+  ): TypedContractMethod<
+    [walletPubKeyHash: BytesLike, redeemerOutputScript: BytesLike],
+    [bigint],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "contractReferences"
   ): TypedContractMethod<
     [],
@@ -229,8 +479,64 @@ export interface BridgeStub extends BaseContract {
     nameOrSignature: "ecdsaWalletRegistry"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "getPendingRedemption"
+  ): TypedContractMethod<
+    [redemptionKey: BigNumberish],
+    [BridgeStub.RedemptionRequestStructOutput],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "getRedemptionWatchtower"
   ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "getWallet"
+  ): TypedContractMethod<
+    [walletPubKeyHash: BytesLike],
+    [BridgeStub.WalletStructOutput],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "pendingRedemptions"
+  ): TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [string, bigint, bigint, bigint, bigint] & {
+        redeemer: string;
+        requestedAmount: bigint;
+        treasuryFee: bigint;
+        txMaxFee: bigint;
+        requestedAt: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "redemptionParameters"
+  ): TypedContractMethod<
+    [],
+    [
+      [bigint, bigint, bigint, bigint, bigint, bigint, bigint] & {
+        redemptionDustThreshold: bigint;
+        redemptionTreasuryFeeDivisor: bigint;
+        redemptionTxMaxFee: bigint;
+        redemptionTxMaxTotalFee: bigint;
+        redemptionTimeout: bigint;
+        redemptionTimeoutSlashingAmount: bigint;
+        redemptionTimeoutNotifierRewardMultiplier: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
+    nameOrSignature: "redemptionRequestMinAge"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "registerWallet"
+  ): TypedContractMethod<
+    [walletPubKeyHash: BytesLike, ecdsaWalletID: BytesLike],
+    [void],
+    "nonpayable"
+  >;
   getFunction(
     nameOrSignature: "reimbursementPool"
   ): TypedContractMethod<[], [string], "view">;
@@ -240,6 +546,53 @@ export interface BridgeStub extends BaseContract {
   getFunction(
     nameOrSignature: "requestNewWallet"
   ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "requestRedemption"
+  ): TypedContractMethod<
+    [
+      walletPubKeyHash: BytesLike,
+      redeemerOutputScript: BytesLike,
+      amount: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "wallets"
+  ): TypedContractMethod<
+    [arg0: BytesLike],
+    [
+      [string, string, bigint, bigint, bigint, bigint, bigint] & {
+        ecdsaWalletID: string;
+        mainUtxoHash: string;
+        pendingRedemptionsValue: bigint;
+        createdAt: bigint;
+        movingFundsRequestedAt: bigint;
+        closingStartedAt: bigint;
+        state: bigint;
+      }
+    ],
+    "view"
+  >;
 
-  filters: {};
+  getEvent(
+    key: "RedemptionRequested"
+  ): TypedContractEvent<
+    RedemptionRequestedEvent.InputTuple,
+    RedemptionRequestedEvent.OutputTuple,
+    RedemptionRequestedEvent.OutputObject
+  >;
+
+  filters: {
+    "RedemptionRequested(bytes20,bytes,address,uint64,uint64,uint64)": TypedContractEvent<
+      RedemptionRequestedEvent.InputTuple,
+      RedemptionRequestedEvent.OutputTuple,
+      RedemptionRequestedEvent.OutputObject
+    >;
+    RedemptionRequested: TypedContractEvent<
+      RedemptionRequestedEvent.InputTuple,
+      RedemptionRequestedEvent.OutputTuple,
+      RedemptionRequestedEvent.OutputObject
+    >;
+  };
 }

@@ -1,5 +1,5 @@
 {
-  "address": "0xc0a2ee534F004a4ec2EFA541489acBD5ff4bBA99",
+  "address": "0xFdfce6c5030Cc243fB2F228df19C0facAbC04832",
   "abi": [
     {
       "inputs": [
@@ -26,6 +26,49 @@
       ],
       "stateMutability": "nonpayable",
       "type": "constructor"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "redeemerOutputScript",
+          "type": "bytes"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "redeemer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "requestedAmount",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "treasuryFee",
+          "type": "uint64"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint64",
+          "name": "txMaxFee",
+          "type": "uint64"
+        }
+      ],
+      "name": "RedemptionRequested",
+      "type": "event"
     },
     {
       "inputs": [
@@ -87,6 +130,30 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes",
+          "name": "redeemerOutputScript",
+          "type": "bytes"
+        }
+      ],
+      "name": "calculateRedemptionKey",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "contractReferences",
       "outputs": [
@@ -135,6 +202,52 @@
       "type": "function"
     },
     {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "redemptionKey",
+          "type": "uint256"
+        }
+      ],
+      "name": "getPendingRedemption",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "redeemer",
+              "type": "address"
+            },
+            {
+              "internalType": "uint64",
+              "name": "requestedAmount",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "treasuryFee",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint64",
+              "name": "txMaxFee",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint32",
+              "name": "requestedAt",
+              "type": "uint32"
+            }
+          ],
+          "internalType": "struct BridgeStub.RedemptionRequest",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
       "inputs": [],
       "name": "getRedemptionWatchtower",
       "outputs": [
@@ -145,6 +258,175 @@
         }
       ],
       "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        }
+      ],
+      "name": "getWallet",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "ecdsaWalletID",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "mainUtxoHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint64",
+              "name": "pendingRedemptionsValue",
+              "type": "uint64"
+            },
+            {
+              "internalType": "uint32",
+              "name": "createdAt",
+              "type": "uint32"
+            },
+            {
+              "internalType": "uint32",
+              "name": "movingFundsRequestedAt",
+              "type": "uint32"
+            },
+            {
+              "internalType": "uint32",
+              "name": "closingStartedAt",
+              "type": "uint32"
+            },
+            {
+              "internalType": "uint32",
+              "name": "state",
+              "type": "uint32"
+            }
+          ],
+          "internalType": "struct BridgeStub.Wallet",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "name": "pendingRedemptions",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "redeemer",
+          "type": "address"
+        },
+        {
+          "internalType": "uint64",
+          "name": "requestedAmount",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "treasuryFee",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "txMaxFee",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "requestedAt",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "redemptionParameters",
+      "outputs": [
+        {
+          "internalType": "uint64",
+          "name": "redemptionDustThreshold",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "redemptionTreasuryFeeDivisor",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "redemptionTxMaxFee",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint64",
+          "name": "redemptionTxMaxTotalFee",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "redemptionTimeout",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint96",
+          "name": "redemptionTimeoutSlashingAmount",
+          "type": "uint96"
+        },
+        {
+          "internalType": "uint32",
+          "name": "redemptionTimeoutNotifierRewardMultiplier",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "redemptionRequestMinAge",
+      "outputs": [
+        {
+          "internalType": "uint32",
+          "name": "",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "ecdsaWalletID",
+          "type": "bytes32"
+        }
+      ],
+      "name": "registerWallet",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {
@@ -178,6 +460,78 @@
       "name": "requestNewWallet",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "walletPubKeyHash",
+          "type": "bytes20"
+        },
+        {
+          "internalType": "bytes",
+          "name": "redeemerOutputScript",
+          "type": "bytes"
+        },
+        {
+          "internalType": "uint64",
+          "name": "amount",
+          "type": "uint64"
+        }
+      ],
+      "name": "requestRedemption",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes20",
+          "name": "",
+          "type": "bytes20"
+        }
+      ],
+      "name": "wallets",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "ecdsaWalletID",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "mainUtxoHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint64",
+          "name": "pendingRedemptionsValue",
+          "type": "uint64"
+        },
+        {
+          "internalType": "uint32",
+          "name": "createdAt",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "movingFundsRequestedAt",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "closingStartedAt",
+          "type": "uint32"
+        },
+        {
+          "internalType": "uint32",
+          "name": "state",
+          "type": "uint32"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     }
   ],

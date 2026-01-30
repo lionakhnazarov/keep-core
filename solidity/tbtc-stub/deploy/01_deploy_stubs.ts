@@ -168,6 +168,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "WalletProposalValidatorStub",
     {
       contract: "WalletProposalValidatorStub",
+      args: [Bridge.address], // Pass Bridge address to constructor
       from: deployer,
       log: true,
       waitConfirmations: 1,
