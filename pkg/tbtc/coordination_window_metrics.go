@@ -120,15 +120,15 @@ func (cwm *coordinationWindowMetrics) recordWindowStart(window *coordinationWind
 	// Initialize window metrics if not exists
 	if _, exists := cwm.windows[windowIndex]; !exists {
 		cwm.windows[windowIndex] = &windowMetrics{
-			WindowIndex:         windowIndex,
-			CoordinationBlock:   window.coordinationBlock,
-			StartTime:           time.Now(),
-			ActivePhaseEndBlock: window.activePhaseEndBlock(),
-			EndBlock:            window.endBlock(),
-			Leaders:             make(map[string]uint64),
-			ActionTypes:         make(map[string]uint64),
-			FaultsByType:        make(map[string]uint64),
-			FaultsByCulprit:      make(map[string]uint64),
+			WindowIndex:               windowIndex,
+			CoordinationBlock:         window.coordinationBlock,
+			StartTime:                 time.Now(),
+			ActivePhaseEndBlock:       window.activePhaseEndBlock(),
+			EndBlock:                  window.endBlock(),
+			Leaders:                   make(map[string]uint64),
+			ActionTypes:               make(map[string]uint64),
+			FaultsByType:              make(map[string]uint64),
+			FaultsByCulprit:           make(map[string]uint64),
 			WalletCoordinationDetails: make([]walletCoordinationDetail, 0),
 		}
 	}
@@ -362,7 +362,7 @@ func (cwm *coordinationWindowMetrics) GetSummary() WindowMetricsSummary {
 	defer cwm.mu.RUnlock()
 
 	summary := WindowMetricsSummary{
-		TotalWindows:           uint64(len(cwm.windows)),
+		TotalWindows:            uint64(len(cwm.windows)),
 		TotalWalletsCoordinated: 0,
 		TotalWalletsSuccessful:  0,
 		TotalWalletsFailed:      0,

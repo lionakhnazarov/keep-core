@@ -636,17 +636,17 @@ const (
 	// Coordination Metrics
 	MetricCoordinationWindowsDetectedTotal    = "coordination_windows_detected_total"
 	MetricCoordinationProceduresExecutedTotal = "coordination_procedures_executed_total"
-	MetricCoordinationFailedTotal             = "coordination_failed_total"              // Only when node is leader
-	MetricCoordinationLeaderTimeoutTotal      = "coordination_leader_timeout_total"      // When follower observes leader timeout
+	MetricCoordinationFailedTotal             = "coordination_failed_total"         // Only when node is leader
+	MetricCoordinationLeaderTimeoutTotal      = "coordination_leader_timeout_total" // When follower observes leader timeout
 	MetricCoordinationDurationSeconds         = "coordination_duration_seconds"
 
 	// Coordination Window Metrics (per-window tracking)
-	MetricCoordinationWindowDurationSeconds      = "coordination_window_duration_seconds"
-	MetricCoordinationWindowWalletsCoordinated  = "coordination_window_wallets_coordinated"
-	MetricCoordinationWindowWalletsSuccessful   = "coordination_window_wallets_successful"
-	MetricCoordinationWindowWalletsFailed       = "coordination_window_wallets_failed"
-	MetricCoordinationWindowTotalFaults         = "coordination_window_total_faults"
-	MetricCoordinationWindowCoordinationBlock   = "coordination_window_coordination_block"
+	MetricCoordinationWindowDurationSeconds    = "coordination_window_duration_seconds"
+	MetricCoordinationWindowWalletsCoordinated = "coordination_window_wallets_coordinated"
+	MetricCoordinationWindowWalletsSuccessful  = "coordination_window_wallets_successful"
+	MetricCoordinationWindowWalletsFailed      = "coordination_window_wallets_failed"
+	MetricCoordinationWindowTotalFaults        = "coordination_window_total_faults"
+	MetricCoordinationWindowCoordinationBlock  = "coordination_window_coordination_block"
 
 	// Network Metrics
 	MetricIncomingMessageQueueSize = "incoming_message_queue_size"
@@ -672,11 +672,11 @@ const (
 	MetricWalletDispatcherRejectedTotal = "wallet_dispatcher_rejected_total"
 
 	// System Metrics
-	MetricCPUUtilization      = "cpu_utilization_percent"
-	MetricMemoryUsageMB       = "memory_usage_mb"
-	MetricGoroutineCount      = "goroutine_count"
-	MetricCPULoadPercent      = "cpu_load_percent"
-	MetricRAMUtilizationPercent = "ram_utilization_percent"
+	MetricCPUUtilization         = "cpu_utilization_percent"
+	MetricMemoryUsageMB          = "memory_usage_mb"
+	MetricGoroutineCount         = "goroutine_count"
+	MetricCPULoadPercent         = "cpu_load_percent"
+	MetricRAMUtilizationPercent  = "ram_utilization_percent"
 	MetricSwapUtilizationPercent = "swap_utilization_percent"
 )
 
