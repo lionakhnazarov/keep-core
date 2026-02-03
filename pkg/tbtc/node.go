@@ -1022,15 +1022,19 @@ func (n *node) runCoordinationLayer(
 	coordinationResultChan := make(chan *coordinationResult)
 
 	// Track the previous window to record its end when a new one starts
+	// Use a mutex to safely access from multiple goroutines
+	var previousWindowMu sync.Mutex
 	var previousWindow *coordinationWindow
 
 	// Prepare a callback function that will be called every time a new
 	// coordination window is detected.
 	onWindowFn := func(window *coordinationWindow) {
+		previousWindowMu.Lock()
 		// Record end of previous window if it exists
 		if previousWindow != nil && n.windowMetricsTracker != nil {
 			n.windowMetricsTracker.recordWindowEnd(previousWindow)
 		}
+		previousWindowMu.Unlock()
 
 		// Track coordination window detection
 		if n.performanceMetrics != nil {
@@ -1042,7 +1046,9 @@ func (n *node) runCoordinationLayer(
 			n.windowMetricsTracker.recordWindowStart(window)
 		}
 
+		previousWindowMu.Lock()
 		previousWindow = window
+		previousWindowMu.Unlock()
 
 		// Fetch all wallets controlled by the node. It is important to
 		// get the wallets every time the window is triggered as the
@@ -1083,6 +1089,17 @@ func (n *node) runCoordinationLayer(
 				return
 			}
 		}
+	}()
+
+	// Start a cleanup goroutine to record the end time of the last window on shutdown
+	go func() {
+		<-ctx.Done()
+		// Record end time for the active window if it exists and hasn't been ended yet
+		previousWindowMu.Lock()
+		if previousWindow != nil && n.windowMetricsTracker != nil {
+			n.windowMetricsTracker.recordWindowEnd(previousWindow)
+		}
+		previousWindowMu.Unlock()
 	}()
 
 	return nil

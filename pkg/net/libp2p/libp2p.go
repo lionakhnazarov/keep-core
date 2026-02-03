@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/keep-network/keep-core/pkg/clientinfo"
 	"github.com/keep-network/keep-core/pkg/operator"
 
 	"github.com/ipfs/go-log"
@@ -594,7 +595,7 @@ func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 					SetGauge(name string, value float64)
 					RecordDuration(name string, duration time.Duration)
 				})
-				recorder.IncrementCounter("peer_connections_total", 1)
+				recorder.IncrementCounter(clientinfo.MetricPeerConnectionsTotal, 1)
 			}
 		}
 
@@ -629,7 +630,7 @@ func buildNotifiee(libp2pHost host.Host, p *provider) libp2pnet.Notifiee {
 					SetGauge(name string, value float64)
 					RecordDuration(name string, duration time.Duration)
 				})
-				recorder.IncrementCounter("peer_disconnections_total", 1)
+				recorder.IncrementCounter(clientinfo.MetricPeerDisconnectionsTotal, 1)
 			}
 		}
 
@@ -658,7 +659,7 @@ func executePingTest(
 	logger.Infof("starting ping test for [%v]", peerMultiaddress)
 
 	if metricsRecorder != nil {
-		metricsRecorder.IncrementCounter("ping_test_total", 1)
+		metricsRecorder.IncrementCounter(clientinfo.MetricPingTestsTotal, 1)
 	}
 
 	ctx, cancelCtx := context.WithTimeout(
@@ -679,7 +680,7 @@ func executePingTest(
 				result.Error,
 			)
 			if metricsRecorder != nil {
-				metricsRecorder.IncrementCounter("ping_test_failed_total", 1)
+				metricsRecorder.IncrementCounter(clientinfo.MetricPingTestFailedTotal, 1)
 			}
 		} else if result.Error == nil && result.RTT == 0 {
 			logger.Warnf(
@@ -687,7 +688,7 @@ func executePingTest(
 				peerMultiaddress,
 			)
 			if metricsRecorder != nil {
-				metricsRecorder.IncrementCounter("ping_test_failed_total", 1)
+				metricsRecorder.IncrementCounter(clientinfo.MetricPingTestFailedTotal, 1)
 			}
 		} else {
 			logger.Infof(
@@ -696,15 +697,15 @@ func executePingTest(
 				result.RTT,
 			)
 			if metricsRecorder != nil {
-				metricsRecorder.IncrementCounter("ping_test_success_total", 1)
+				metricsRecorder.IncrementCounter(clientinfo.MetricPingTestSuccessTotal, 1)
 				// Only record duration on successful ping tests
-				metricsRecorder.RecordDuration("ping_test_duration_seconds", time.Since(startTime))
+				metricsRecorder.RecordDuration(clientinfo.MetricPingTestDurationSeconds, time.Since(startTime))
 			}
 		}
 	case <-ctx.Done():
 		logger.Warnf("ping test for [%v] timed out", peerMultiaddress)
 		if metricsRecorder != nil {
-			metricsRecorder.IncrementCounter("ping_test_failed_total", 1)
+			metricsRecorder.IncrementCounter(clientinfo.MetricPingTestFailedTotal, 1)
 		}
 	}
 }

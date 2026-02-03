@@ -111,6 +111,12 @@ func (cwm *coordinationWindowMetrics) recordWindowStart(window *coordinationWind
 	cwm.mu.Lock()
 	defer cwm.mu.Unlock()
 
+	cwm.initializeWindowIfNeeded(window)
+}
+
+// initializeWindowIfNeeded initializes window metrics if they don't exist.
+// This function assumes the caller already holds cwm.mu.Lock().
+func (cwm *coordinationWindowMetrics) initializeWindowIfNeeded(window *coordinationWindow) {
 	windowIndex := window.index()
 	if windowIndex == 0 {
 		// Invalid window, skip
@@ -152,6 +158,11 @@ func (cwm *coordinationWindowMetrics) recordWindowEnd(window *coordinationWindow
 		return
 	}
 
+	// Don't overwrite EndTime if it's already been set
+	if !wm.EndTime.IsZero() {
+		return
+	}
+
 	wm.EndTime = time.Now()
 	wm.Duration = wm.EndTime.Sub(wm.StartTime)
 
@@ -162,9 +173,6 @@ func (cwm *coordinationWindowMetrics) recordWindowEnd(window *coordinationWindow
 			clientinfo.MetricCoordinationWindowDurationSeconds,
 			wm.Duration,
 		)
-
-		// Record window-level gauges
-		cwm.recordWindowGauges(windowIndex, wm)
 	}
 }
 
@@ -191,7 +199,8 @@ func (cwm *coordinationWindowMetrics) recordWalletCoordination(
 	wm, exists := cwm.windows[windowIndex]
 	if !exists {
 		// Window not initialized, initialize it now
-		cwm.recordWindowStart(window)
+		// Note: we already hold the lock, so use the lock-free helper
+		cwm.initializeWindowIfNeeded(window)
 		wm = cwm.windows[windowIndex]
 	}
 
@@ -246,37 +255,6 @@ func (cwm *coordinationWindowMetrics) recordWalletCoordination(
 	wm.WalletCoordinationDetails = append(wm.WalletCoordinationDetails, detail)
 }
 
-// recordWindowGauges records gauge metrics for a specific window.
-func (cwm *coordinationWindowMetrics) recordWindowGauges(
-	windowIndex uint64,
-	wm *windowMetrics,
-) {
-	// Record window-level gauges with window index suffix
-	// These allow tracking individual window metrics
-	windowSuffix := fmt.Sprintf("_window_%d", windowIndex)
-
-	cwm.performanceMetrics.SetGauge(
-		clientinfo.MetricCoordinationWindowWalletsCoordinated+windowSuffix,
-		float64(wm.WalletsCoordinated),
-	)
-	cwm.performanceMetrics.SetGauge(
-		clientinfo.MetricCoordinationWindowWalletsSuccessful+windowSuffix,
-		float64(wm.WalletsSuccessful),
-	)
-	cwm.performanceMetrics.SetGauge(
-		clientinfo.MetricCoordinationWindowWalletsFailed+windowSuffix,
-		float64(wm.WalletsFailed),
-	)
-	cwm.performanceMetrics.SetGauge(
-		clientinfo.MetricCoordinationWindowTotalFaults+windowSuffix,
-		float64(wm.TotalFaults),
-	)
-	cwm.performanceMetrics.SetGauge(
-		clientinfo.MetricCoordinationWindowCoordinationBlock+windowSuffix,
-		float64(wm.CoordinationBlock),
-	)
-}
-
 // GetWindowMetrics returns metrics for a specific window.
 func (cwm *coordinationWindowMetrics) GetWindowMetrics(windowIndex uint64) (*windowMetrics, bool) {
 	cwm.mu.RLock()
@@ -287,9 +265,8 @@ func (cwm *coordinationWindowMetrics) GetWindowMetrics(windowIndex uint64) (*win
 		return nil, false
 	}
 
-	// Return a copy to avoid race conditions
-	wmCopy := *wm
-	return &wmCopy, true
+	// Return a deep copy to avoid race conditions
+	return wm.deepCopy(), true
 }
 
 // GetRecentWindows returns metrics for the most recent N windows.
@@ -317,12 +294,11 @@ func (cwm *coordinationWindowMetrics) GetRecentWindows(limit int) []*windowMetri
 		indices = indices[:limit]
 	}
 
-	// Return copies
+	// Return deep copies
 	result := make([]*windowMetrics, 0, len(indices))
 	for _, idx := range indices {
 		wm := cwm.windows[idx]
-		wmCopy := *wm
-		result = append(result, &wmCopy)
+		result = append(result, wm.deepCopy())
 	}
 
 	return result
@@ -376,8 +352,7 @@ func (cwm *coordinationWindowMetrics) GetSummary() WindowMetricsSummary {
 		summary.TotalWalletsFailed += wm.WalletsFailed
 		summary.TotalFaults += wm.TotalFaults
 
-		wmCopy := *wm
-		summary.Windows = append(summary.Windows, &wmCopy)
+		summary.Windows = append(summary.Windows, wm.deepCopy())
 	}
 
 	return summary
@@ -391,6 +366,53 @@ type WindowMetricsSummary struct {
 	TotalWalletsFailed      uint64           `json:"total_wallets_failed"`
 	TotalFaults             uint64           `json:"total_faults"`
 	Windows                 []*windowMetrics `json:"windows"`
+}
+
+// deepCopy creates a deep copy of windowMetrics, properly copying all maps and slices.
+func (wm *windowMetrics) deepCopy() *windowMetrics {
+	if wm == nil {
+		return nil
+	}
+
+	wmCopy := &windowMetrics{
+		WindowIndex:               wm.WindowIndex,
+		CoordinationBlock:         wm.CoordinationBlock,
+		StartTime:                 wm.StartTime,
+		EndTime:                   wm.EndTime,
+		Duration:                  wm.Duration,
+		ActivePhaseEndBlock:       wm.ActivePhaseEndBlock,
+		EndBlock:                  wm.EndBlock,
+		WalletsCoordinated:        wm.WalletsCoordinated,
+		WalletsSuccessful:         wm.WalletsSuccessful,
+		WalletsFailed:             wm.WalletsFailed,
+		TotalProceduresStarted:    wm.TotalProceduresStarted,
+		TotalProceduresCompleted:  wm.TotalProceduresCompleted,
+		TotalFaults:               wm.TotalFaults,
+		Leaders:                   make(map[string]uint64, len(wm.Leaders)),
+		ActionTypes:               make(map[string]uint64, len(wm.ActionTypes)),
+		FaultsByType:              make(map[string]uint64, len(wm.FaultsByType)),
+		FaultsByCulprit:           make(map[string]uint64, len(wm.FaultsByCulprit)),
+		WalletCoordinationDetails: make([]walletCoordinationDetail, len(wm.WalletCoordinationDetails)),
+	}
+
+	// Deep copy maps
+	for k, v := range wm.Leaders {
+		wmCopy.Leaders[k] = v
+	}
+	for k, v := range wm.ActionTypes {
+		wmCopy.ActionTypes[k] = v
+	}
+	for k, v := range wm.FaultsByType {
+		wmCopy.FaultsByType[k] = v
+	}
+	for k, v := range wm.FaultsByCulprit {
+		wmCopy.FaultsByCulprit[k] = v
+	}
+
+	// Deep copy slice
+	copy(wmCopy.WalletCoordinationDetails, wm.WalletCoordinationDetails)
+
+	return wmCopy
 }
 
 // String returns a string representation of window metrics for logging.
