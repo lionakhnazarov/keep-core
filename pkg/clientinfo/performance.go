@@ -8,6 +8,9 @@ import (
 	"sync"
 	"time"
 
+	// gopsutil provides cross-platform system and process utilities.
+	// It supports linux/amd64 and darwin/amd64 (the target platforms for this codebase),
+	// as well as Windows, FreeBSD, OpenBSD, and Solaris.
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 )
@@ -424,7 +427,7 @@ func (pm *PerformanceMetrics) SetGauge(name string, value float64) {
 // observeSystemMetrics periodically collects and updates system metrics
 // including CPU utilization, memory usage, and goroutine count.
 func (pm *PerformanceMetrics) observeSystemMetrics(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second) // Update every 10 seconds
+	ticker := time.NewTicker(60 * time.Second) // Update every 10 seconds
 	defer ticker.Stop()
 
 	var lastMemStats runtime.MemStats
@@ -520,6 +523,10 @@ func (pm *PerformanceMetrics) calculateCPUUtilizationHeuristic(
 // including CPU load, RAM utilization, and swapfile utilization.
 func (pm *PerformanceMetrics) updateMachineStats() {
 	// Get CPU load percentage (1-second average)
+	// NOTE: cpu.Percent blocks for the specified duration (1 second) to sample
+	// CPU usage over that interval. This blocking behavior is intentional and
+	// necessary to obtain an accurate CPU utilization measurement. The function
+	// will not return until the 1-second sampling period completes.
 	cpuPercent, err := cpu.Percent(time.Second, false)
 	if err == nil && len(cpuPercent) > 0 {
 		pm.SetGauge(MetricCPULoadPercent, cpuPercent[0])

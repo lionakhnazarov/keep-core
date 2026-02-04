@@ -158,7 +158,11 @@ func (cwm *coordinationWindowMetrics) recordWindowEnd(window *coordinationWindow
 		return
 	}
 
-	// Don't overwrite EndTime if it's already been set
+	// This guard prevents double-recording when recordWindowEnd is called
+	// both during normal operation (when a new window is detected) and during
+	// shutdown cleanup (to ensure the last active window is properly closed).
+	// Without this check, the shutdown cleanup goroutine could overwrite the
+	// EndTime that was already set by the normal window transition flow.
 	if !wm.EndTime.IsZero() {
 		return
 	}
