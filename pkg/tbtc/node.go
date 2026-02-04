@@ -1150,14 +1150,22 @@ func executeCoordinationProcedure(
 		// Record window metrics for failed coordination
 		if node.windowMetricsTracker != nil {
 			walletPublicKeyHash := bitcoin.PublicKeyHash(walletPublicKey)
+			// Extract leader and faults from partial result if available
+			// (e.g., when follower routine fails, we know who the leader was)
+			leader := chain.Address("")
+			var faults []*coordinationFault
+			if result != nil {
+				leader = result.leader
+				faults = result.faults
+			}
 			node.windowMetricsTracker.recordWalletCoordination(
 				window,
 				walletPublicKeyHash,
-				chain.Address(""), // unknown leader on failure
+				leader,
 				"",
 				false,
 				duration,
-				nil,
+				faults,
 				err, // capture the error message
 			)
 		}

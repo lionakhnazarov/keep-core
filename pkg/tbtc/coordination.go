@@ -454,7 +454,15 @@ func (ce *coordinationExecutor) coordinate(
 			if ce.metricsRecorder != nil {
 				ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationLeaderTimeoutTotal, 1)
 			}
-			return nil, fmt.Errorf(
+			// Return a partial result with leader and faults information
+			partialResult := &coordinationResult{
+				wallet:   ce.coordinatedWallet,
+				window:   window,
+				leader:   leader,
+				proposal: nil, // no proposal on failure
+				faults:   faults,
+			}
+			return partialResult, fmt.Errorf(
 				"failed to execute follower's routine: [%v]",
 				err,
 			)
