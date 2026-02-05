@@ -375,11 +375,6 @@ func (ce *coordinationExecutor) coordinate(
 
 	// Record duration metric once at the end using defer
 	var coordinationFailed bool
-	defer func() {
-		if ce.metricsRecorder != nil {
-			ce.metricsRecorder.RecordDuration(clientinfo.MetricCoordinationDurationSeconds, time.Since(startTime))
-		}
-	}()
 
 	seed, err := ce.getSeed(window.coordinationBlock)
 	if err != nil {
@@ -454,10 +449,20 @@ func (ce *coordinationExecutor) coordinate(
 		)
 		if err != nil {
 			coordinationFailed = true
+			// Record as leader timeout observation, not as a failure of this node.
+			// The actual failure is on the leader's side.
 			if ce.metricsRecorder != nil {
-				ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationFailedTotal, 1)
+				ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationLeaderTimeoutTotal, 1)
 			}
-			return nil, fmt.Errorf(
+			// Return a partial result with leader and faults information
+			partialResult := &coordinationResult{
+				wallet:   ce.coordinatedWallet,
+				window:   window,
+				leader:   leader,
+				proposal: nil, // no proposal on failure
+				faults:   faults,
+			}
+			return partialResult, fmt.Errorf(
 				"failed to execute follower's routine: [%v]",
 				err,
 			)
@@ -488,6 +493,7 @@ func (ce *coordinationExecutor) coordinate(
 	// Record successful coordination counter
 	if ce.metricsRecorder != nil && !coordinationFailed {
 		ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationProceduresExecutedTotal, 1)
+		ce.metricsRecorder.RecordDuration(clientinfo.MetricCoordinationDurationSeconds, time.Since(startTime))
 	}
 
 	return result, nil
