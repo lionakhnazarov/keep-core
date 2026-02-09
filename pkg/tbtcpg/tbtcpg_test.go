@@ -59,7 +59,7 @@ func TestProposalGenerator_Generate(t *testing.T) {
 			},
 			expectedProposal: &mockCoordinationProposal{tbtc.ActionDepositSweep},
 		},
-		"first task returns error": {
+		"first task returns error but second succeeds": {
 			tasks: []ProposalTask{
 				&mockProposalTask{
 					action: tbtc.ActionRedemption,
@@ -78,8 +78,30 @@ func TestProposalGenerator_Generate(t *testing.T) {
 				tbtc.ActionRedemption,
 				tbtc.ActionDepositSweep,
 			},
-			expectedProposal: nil,
-			expectedErr:      fmt.Errorf("error while running proposal task [Redemption]: [proposal task error]"),
+			expectedProposal: &mockCoordinationProposal{tbtc.ActionDepositSweep},
+			expectedErr:      nil,
+		},
+		"all tasks return error": {
+			tasks: []ProposalTask{
+				&mockProposalTask{
+					action: tbtc.ActionRedemption,
+					results: map[[20]byte]mockProposalTaskResult{
+						walletPublicKeyHash: resultError,
+					},
+				},
+				&mockProposalTask{
+					action: tbtc.ActionDepositSweep,
+					results: map[[20]byte]mockProposalTaskResult{
+						walletPublicKeyHash: resultError,
+					},
+				},
+			},
+			actionsChecklist: []tbtc.WalletActionType{
+				tbtc.ActionRedemption,
+				tbtc.ActionDepositSweep,
+			},
+			expectedProposal: &tbtc.NoopProposal{},
+			expectedErr:      nil,
 		},
 		"first task is unsupported": {
 			tasks: []ProposalTask{
