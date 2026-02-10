@@ -100,6 +100,28 @@ func TestProposalGenerator_Generate(t *testing.T) {
 				tbtc.ActionRedemption,
 				tbtc.ActionDepositSweep,
 			},
+			expectedProposal: nil,
+			expectedErr:      fmt.Errorf("all proposal tasks failed: [task [Redemption]: [proposal task error] task [DepositSweep]: [proposal task error]]"),
+		},
+		"some tasks return error but others complete without result": {
+			tasks: []ProposalTask{
+				&mockProposalTask{
+					action: tbtc.ActionRedemption,
+					results: map[[20]byte]mockProposalTaskResult{
+						walletPublicKeyHash: resultError,
+					},
+				},
+				&mockProposalTask{
+					action: tbtc.ActionDepositSweep,
+					results: map[[20]byte]mockProposalTaskResult{
+						walletPublicKeyHash: resultEmpty,
+					},
+				},
+			},
+			actionsChecklist: []tbtc.WalletActionType{
+				tbtc.ActionRedemption,
+				tbtc.ActionDepositSweep,
+			},
 			expectedProposal: &tbtc.NoopProposal{},
 			expectedErr:      nil,
 		},
