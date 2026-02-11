@@ -113,7 +113,6 @@ describe("WalletRegistry - Custom Errors", () => {
     await t.connect(owner).approve(staking.address, stakedAmount)
     await staking
       .connect(owner)
-      // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
       .stake(
         stakingProvider.address,
         beneficiary.address,
@@ -126,7 +125,6 @@ describe("WalletRegistry - Custom Errors", () => {
     // Authorize and register operator
     await staking
       .connect(authorizer)
-      // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
       .increaseAuthorization(
         stakingProvider.address,
         walletRegistry.address,

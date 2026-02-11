@@ -150,7 +150,6 @@ describe("WalletRegistry - Slashing", () => {
         })
 
         it("should slash all group members", async () => {
-          // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
           expect(await staking.getSlashingQueueLength()).to.equal(
             constants.groupSize
           )
@@ -158,7 +157,6 @@ describe("WalletRegistry - Slashing", () => {
 
         it("should slash with correct amounts", async () => {
           for (let i = 0; i < constants.groupSize; i++) {
-            // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
             const slashing = await staking.slashingQueue(i)
             expect(slashing.amount).to.equal(amountToSlash)
           }
@@ -166,7 +164,6 @@ describe("WalletRegistry - Slashing", () => {
 
         it("should slash correct staking providers", async () => {
           for (let i = 0; i < constants.groupSize; i++) {
-            // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
             const slashing = await staking.slashingQueue(i)
             const expectedStakingProvider =
               await walletRegistry.operatorToStakingProvider(

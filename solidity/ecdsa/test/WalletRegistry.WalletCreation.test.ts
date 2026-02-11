@@ -2415,7 +2415,6 @@ describe("WalletRegistry - Wallet Creation", async () => {
                       .connect(thirdParty)
                       .challengeDkgResult(dkgResult)
 
-                    // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
                     slashingTx = await staking.processSlashing(1)
                   })
 
@@ -2494,7 +2493,6 @@ describe("WalletRegistry - Wallet Creation", async () => {
                       .connect(thirdParty)
                       .challengeDkgResult(dkgResult)
 
-                    // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
                     slashingTx = await staking.processSlashing(1)
                   })
 
@@ -2609,7 +2607,6 @@ describe("WalletRegistry - Wallet Creation", async () => {
                     .connect(thirdParty)
                     .challengeDkgResult(dkgResult)
 
-                  // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
                   slashingTx = await staking.processSlashing(1)
                 })
 
@@ -2955,7 +2952,6 @@ describe("WalletRegistry - Wallet Creation", async () => {
                   .connect(thirdParty)
                   .challengeDkgResult(dkgResult)
 
-                // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
                 slashingTx = await staking.processSlashing(1)
               })
 
@@ -3032,7 +3028,6 @@ describe("WalletRegistry - Wallet Creation", async () => {
                   .connect(thirdParty)
                   .challengeDkgResult(dkgResult)
 
-                // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
                 slashingTx = await staking.processSlashing(1)
               })
 
@@ -3135,7 +3130,6 @@ describe("WalletRegistry - Wallet Creation", async () => {
                 .connect(thirdParty)
                 .challengeDkgResult(dkgResult)
 
-              // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
               slashingTx = await staking.processSlashing(1)
             })
 
