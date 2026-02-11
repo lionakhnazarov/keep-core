@@ -47,6 +47,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       address: EcdsaSortitionPool.address,
     })
   }
+
+  return true
 }
 
 export default func

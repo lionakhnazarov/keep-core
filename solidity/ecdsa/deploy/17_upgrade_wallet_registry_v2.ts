@@ -1,3 +1,6 @@
+import * as fs from "fs"
+import * as path from "path"
+
 import type { HardhatRuntimeEnvironment } from "hardhat/types"
 import type { DeployFunction } from "hardhat-deploy/types"
 
@@ -183,6 +186,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     console.log("Or using cast:")
     console.log("```")
     console.log(`cast send ${proxyAdminAddress} \\`)
+    // prettier-ignore
     console.log("  \"upgradeAndCall(address,address,bytes)\" \\")
     console.log(`  ${walletRegistryDeployment.address} \\`)
     console.log(`  ${newImplementation.address} \\`)
@@ -227,8 +231,6 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       },
     }
 
-    const fs = require("fs")
-    const path = require("path")
     const proposalPath = path.join(
       __dirname,
       "../upgrade-proposal-mainnet.json"
@@ -251,6 +253,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       console.log("Manual upgrade command:")
       console.log("```")
       console.log(`cast send ${proxyAdminAddress} \\`)
+      // prettier-ignore
       console.log("  \"upgradeAndCall(address,address,bytes)\" \\")
       console.log(`  ${walletRegistryDeployment.address} \\`)
       console.log(`  ${newImplementation.address} \\`)
@@ -311,6 +314,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     console.log("Try manual upgrade with cast:")
     console.log("```")
     console.log(`cast send ${proxyAdminAddress} \\`)
+    // prettier-ignore
     console.log("  \"upgradeAndCall(address,address,bytes)\" \\")
     console.log(`  ${walletRegistryDeployment.address} \\`)
     console.log(`  ${newImplementation.address} \\`)

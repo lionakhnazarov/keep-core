@@ -21,11 +21,8 @@ describe("WalletRegistry - Dual-Mode Authorization", () => {
 
   beforeEach(async () => {
     const signers = await ethers.getSigners()
-    deployer = signers[0]
-    governance = signers[1]
-    stakingProvider = signers[2]
-    operator = signers[3]
-    unauthorizedCaller = signers[4]
+    ;[deployer, governance, stakingProvider, operator, unauthorizedCaller] =
+      signers
 
     // Deploy EcdsaInactivity library
     const EcdsaInactivityFactory = await ethers.getContractFactory(

@@ -102,6 +102,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
   // Display beta staker consolidation summary
   console.log("=== BETA STAKER CONSOLIDATION ===")
+  // eslint-disable-next-line no-restricted-syntax
   for (const consolidation of weightsData.betaStakerConsolidation) {
     console.log(
       `${consolidation.providerGroup}: ` +
@@ -125,9 +126,11 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     txHash?: string
   }> = []
 
+  // eslint-disable-next-line no-restricted-syntax
   for (const op of weightsData.operators) {
     try {
       // Check if already added
+      // eslint-disable-next-line no-await-in-loop
       const existingWeight = await allowlist.authorizedStake(
         op.stakingProvider,
         ethers.constants.AddressZero
@@ -147,6 +150,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
           accumulatedTStake: op.accumulatedTStake,
           status: "skipped - already exists",
         })
+        // eslint-disable-next-line no-continue
         continue
       }
 
@@ -158,10 +162,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       }
 
       // Add to Allowlist with accumulated weight
+      // eslint-disable-next-line no-await-in-loop
       const tx = await allowlist
         .connect(ownerSigner)
         .addStakingProvider(op.stakingProvider, op.weight)
 
+      // eslint-disable-next-line no-await-in-loop
       const receipt = await tx.wait()
 
       console.log(`  TX: ${tx.hash}`)

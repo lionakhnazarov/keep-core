@@ -33,6 +33,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       address: EcdsaDkgValidator.address,
     })
   }
+
+  return true
 }
 
 export default func

@@ -76,6 +76,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       address: walletRegistry.address,
     })
   }
+
+  return true
 }
 
 export default func

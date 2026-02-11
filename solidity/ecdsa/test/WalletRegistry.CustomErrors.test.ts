@@ -113,7 +113,7 @@ describe("WalletRegistry - Custom Errors", () => {
     await t.connect(owner).approve(staking.address, stakedAmount)
     await staking
       .connect(owner)
-      // @ts-ignore - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
+      // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
       .stake(
         stakingProvider.address,
         beneficiary.address,
@@ -126,7 +126,7 @@ describe("WalletRegistry - Custom Errors", () => {
     // Authorize and register operator
     await staking
       .connect(authorizer)
-      // @ts-ignore - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
+      // @ts-expect-error legacy type mismatch - Deprecated API removed in TIP-092. Full migration tracked in issue #3839.
       .increaseAuthorization(
         stakingProvider.address,
         walletRegistry.address,
@@ -229,6 +229,7 @@ describe("WalletRegistry - Custom Errors", () => {
     describe("CallerNotRandomBeacon", () => {
       it("should revert with custom error when unauthorized caller attempts __beaconCallback", async () => {
         await expect(
+          // eslint-disable-next-line no-underscore-dangle
           walletRegistry.connect(unauthorized).__beaconCallback(12345, 0)
         ).to.be.reverted
       })

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
+/* eslint-disable @typescript-eslint/no-unused-expressions, no-restricted-syntax, no-await-in-loop */
 import { ethers } from "hardhat"
 import { smock } from "@defi-wonderland/smock"
 import { expect } from "chai"

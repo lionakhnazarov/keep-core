@@ -1,3 +1,4 @@
+/* eslint-disable import/no-extraneous-dependencies, no-restricted-syntax, no-await-in-loop, no-continue, no-plusplus, global-require, @typescript-eslint/no-var-requires */
 import { ethers } from "hardhat"
 import { Command } from "commander"
 
