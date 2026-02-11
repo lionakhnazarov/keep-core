@@ -229,25 +229,20 @@ export async function stake(
   await t.connect(deployer).mint(owner.address, stakeAmount)
   await t.connect(owner).approve(staking.address, stakeAmount)
 
-  // NOTE: These methods no longer exist in TokenStaking interface
-  // await staking
-  //   .connect(owner)
-  //   .stake(
-  //     stakingProvider.address,
-  //     beneficiary.address,
-  //     authorizer.address,
-  //     stakeAmount
-  //   )
+  await staking
+    .connect(owner)
+    .stake(
+      stakingProvider.address,
+      beneficiary.address,
+      authorizer.address,
+      stakeAmount
+    )
 
-  // await staking
-  //   .connect(authorizer)
-  //   .increaseAuthorization(
-  //     stakingProvider.address,
-  //     randomBeacon.address,
-  //     stakeAmount
-  //   )
-
-  throw new Error(
-    "stake() function is deprecated - TokenStaking.stake() and increaseAuthorization() no longer exist. Use Allowlist.addStakingProvider() instead."
-  )
+  await staking
+    .connect(authorizer)
+    .increaseAuthorization(
+      stakingProvider.address,
+      randomBeacon.address,
+      stakeAmount
+    )
 }

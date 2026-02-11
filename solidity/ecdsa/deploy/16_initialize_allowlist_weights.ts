@@ -50,9 +50,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // Use network-specific file if available
   const networkSpecificPath = path.join(
     __dirname,
-    `data/allowlist-weights-${hre.network.name}.json`
+    `../deploy-data/allowlist-weights-${hre.network.name}.json`
   )
-  const defaultPath = path.join(__dirname, "data/allowlist-weights.json")
+  const defaultPath = path.join(
+    __dirname,
+    "../deploy-data/allowlist-weights.json"
+  )
   const weightsPath = fs.existsSync(networkSpecificPath)
     ? networkSpecificPath
     : defaultPath
@@ -60,7 +63,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   if (!fs.existsSync(weightsPath)) {
     throw new Error(
       `Weights file not found at ${weightsPath}. ` +
-        "Please ensure allowlist-weights.json exists in deploy/data/"
+        "Please ensure allowlist-weights.json exists in deploy-data/"
     )
   }
 

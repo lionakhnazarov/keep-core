@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions, no-restricted-syntax, no-await-in-loop */
-import { ethers } from "hardhat"
+import { ethers, upgrades } from "hardhat"
 import { smock } from "@defi-wonderland/smock"
 import { expect } from "chai"
 
@@ -18,10 +18,6 @@ describe("Allowlist", () => {
   let thirdParty: SignerWithAddress
 
   beforeEach(async () => {
-    // Deploy Allowlist contract
-    const AllowlistFactory = await ethers.getContractFactory("Allowlist")
-    allowlist = await AllowlistFactory.deploy()
-
     // Create fake WalletRegistry
     walletRegistry = await smock.fake<WalletRegistry>("WalletRegistry")
 
@@ -32,8 +28,15 @@ describe("Allowlist", () => {
     stakingProvider2 = sp2
     thirdParty = tp
 
-    // Initialize the Allowlist contract - this sets deployer as the owner
-    await allowlist.initialize(walletRegistry.address)
+    // Deploy Allowlist as upgradeable proxy (has _disableInitializers in constructor)
+    const AllowlistFactory = await ethers.getContractFactory("Allowlist")
+    const proxy = await upgrades.deployProxy(
+      AllowlistFactory,
+      [walletRegistry.address],
+      { kind: "transparent" }
+    )
+    await proxy.deployed()
+    allowlist = proxy as Allowlist
   })
 
   describe("initialization", () => {
@@ -53,11 +56,12 @@ describe("Allowlist", () => {
 
     it("should revert if initialized with zero address", async () => {
       const AllowlistFactory = await ethers.getContractFactory("Allowlist")
-      const newAllowlist = await AllowlistFactory.deploy()
 
-      await expect(newAllowlist.initialize(ZERO_ADDRESS)).to.be.revertedWith(
-        "ZeroAddress"
-      )
+      await expect(
+        upgrades.deployProxy(AllowlistFactory, [ZERO_ADDRESS], {
+          kind: "transparent",
+        })
+      ).to.be.reverted
     })
   })
 

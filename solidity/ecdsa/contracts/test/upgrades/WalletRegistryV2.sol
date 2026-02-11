@@ -34,6 +34,7 @@ import "@keep-network/random-beacon/contracts/Governable.sol";
 
 import "@threshold-network/solidity-contracts/contracts/staking/IApplication.sol";
 import "@threshold-network/solidity-contracts/contracts/staking/IStaking.sol";
+import "../../Allowlist.sol";
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
@@ -122,6 +123,7 @@ contract WalletRegistryV2 is
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IStaking public immutable staking;
     IRandomBeacon public randomBeacon;
+    Allowlist public allowlist;
 
     // TEST: New variable
     string public newVar;
