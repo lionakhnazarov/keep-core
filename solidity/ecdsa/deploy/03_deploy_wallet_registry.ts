@@ -8,7 +8,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // Skip if WalletRegistry already deployed (for existing testnet deployments)
   const existingWalletRegistry = await deployments.getOrNull("WalletRegistry")
   if (existingWalletRegistry) {
-    console.log(`using existing WalletRegistry at ${existingWalletRegistry.address}`)
+    console.log(
+      `using existing WalletRegistry at ${existingWalletRegistry.address}`
+    )
     return true
   }
 

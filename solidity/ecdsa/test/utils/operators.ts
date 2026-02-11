@@ -147,12 +147,12 @@ export async function registerOperators(
       // Get the deployer signer who owns the Allowlist contract.
       // The Allowlist.addStakingProvider() function has onlyOwner modifier,
       // so it must be called by the deployer account.
-      const { deployer: deployerSigner } = await helpers.signers.getNamedSigners()
+      const { deployer: deployerSigner } =
+        await helpers.signers.getNamedSigners()
 
-      await authorizationSource.connect(deployerSigner).addStakingProvider(
-        stakingProvider.address,
-        stakeAmount
-      )
+      await authorizationSource
+        .connect(deployerSigner)
+        .addStakingProvider(stakingProvider.address, stakeAmount)
     } else {
       // TokenStaking mode: Use traditional staking flow.
       // This mints T tokens, stakes them via TokenStaking.stake(), and
@@ -247,5 +247,7 @@ export async function stake(
   //     stakeAmount
   //   )
 
-  throw new Error("stake() function is deprecated - TokenStaking.stake() and increaseAuthorization() no longer exist. Use Allowlist.addStakingProvider() instead.")
+  throw new Error(
+    "stake() function is deprecated - TokenStaking.stake() and increaseAuthorization() no longer exist. Use Allowlist.addStakingProvider() instead."
+  )
 }

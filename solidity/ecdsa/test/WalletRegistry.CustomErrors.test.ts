@@ -53,7 +53,6 @@ describe.skip("TokenStaking Integration (DEPRECATED TIP-092)", () => {
    * - Full test validation deferred pending Allowlist migration
    * - Strategic migration tracked in issue #3839
    */
-
   // Original tests preserved for reference during migration
   // Will be rewritten for Allowlist mode or archived
 })
@@ -133,7 +132,9 @@ describe("WalletRegistry - Custom Errors", () => {
         walletRegistry.address,
         minimumAuthorization
       )
-    await walletRegistry.connect(stakingProvider).registerOperator(operator.address)
+    await walletRegistry
+      .connect(stakingProvider)
+      .registerOperator(operator.address)
 
     // Mock random beacon
     randomBeacon = await smock.fake<IRandomBeacon>("IRandomBeacon")
@@ -180,16 +181,14 @@ describe("WalletRegistry - Custom Errors", () => {
 
     describe("CallerNotWalletOwner", () => {
       it("should revert with custom error when unauthorized caller attempts requestNewWallet", async () => {
-        await expect(
-          walletRegistry.connect(unauthorized).requestNewWallet()
-        ).to.be.reverted
+        await expect(walletRegistry.connect(unauthorized).requestNewWallet()).to
+          .be.reverted
       })
 
       it("should revert with custom error when unauthorized caller attempts closeWallet", async () => {
         const walletID = ethers.utils.formatBytes32String("test-wallet")
-        await expect(
-          walletRegistry.connect(unauthorized).closeWallet(walletID)
-        ).to.be.reverted
+        await expect(walletRegistry.connect(unauthorized).closeWallet(walletID))
+          .to.be.reverted
       })
 
       it("should revert with custom error when unauthorized caller attempts seize", async () => {
@@ -258,25 +257,22 @@ describe("WalletRegistry - Custom Errors", () => {
         )
         await newImplementation.deployed()
 
-        await expect(
-          newImplementation.initializeV2(ZERO_ADDRESS)
-        ).to.be.reverted
+        await expect(newImplementation.initializeV2(ZERO_ADDRESS)).to.be
+          .reverted
       })
     })
 
     describe("UnknownOperator", () => {
       it("should revert with custom error when withdrawRewards called for unregistered operator", async () => {
         const unregisteredProvider = unauthorized.address
-        await expect(
-          walletRegistry.withdrawRewards(unregisteredProvider)
-        ).to.be.reverted
+        await expect(walletRegistry.withdrawRewards(unregisteredProvider)).to.be
+          .reverted
       })
 
       it("should revert with custom error when availableRewards called for unregistered operator", async () => {
         const unregisteredProvider = unauthorized.address
-        await expect(
-          walletRegistry.availableRewards(unregisteredProvider)
-        ).to.be.reverted
+        await expect(walletRegistry.availableRewards(unregisteredProvider)).to
+          .be.reverted
       })
     })
 
@@ -298,7 +294,7 @@ describe("WalletRegistry - Custom Errors", () => {
         const wrongNonce = 999 // Expected nonce is 0 initially
 
         const claim = {
-          walletID: walletID,
+          walletID,
           inactiveMembersIndices: [],
           heartbeatFailed: false,
           signatures: "0x",
@@ -333,7 +329,7 @@ describe("WalletRegistry - Custom Errors", () => {
         const nonce = 0
 
         const claim = {
-          walletID: walletID,
+          walletID,
           inactiveMembersIndices: [],
           heartbeatFailed: false,
           signatures: "0x",

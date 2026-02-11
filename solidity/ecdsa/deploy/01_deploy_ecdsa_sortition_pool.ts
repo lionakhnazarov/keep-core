@@ -8,9 +8,13 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   const { to1e18 } = helpers.number
 
   // Skip if EcdsaSortitionPool already deployed (for existing mainnet/testnet deployments)
-  const existingSortitionPool = await deployments.getOrNull("EcdsaSortitionPool")
+  const existingSortitionPool = await deployments.getOrNull(
+    "EcdsaSortitionPool"
+  )
   if (existingSortitionPool) {
-    console.log(`using existing EcdsaSortitionPool at ${existingSortitionPool.address}`)
+    console.log(
+      `using existing EcdsaSortitionPool at ${existingSortitionPool.address}`
+    )
     return true
   }
 

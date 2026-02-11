@@ -6,7 +6,12 @@ import { walletRegistryFixture } from "./fixtures"
 import type { IWalletOwner } from "../typechain/IWalletOwner"
 import type { FakeContract } from "@defi-wonderland/smock"
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
-import type { WalletRegistry, WalletRegistryStub, IRandomBeacon, WalletRegistryGovernance } from "../typechain"
+import type {
+  WalletRegistry,
+  WalletRegistryStub,
+  IRandomBeacon,
+  WalletRegistryGovernance,
+} from "../typechain"
 
 const { createSnapshot, restoreSnapshot } = helpers.snapshot
 
@@ -22,8 +27,15 @@ describe("WalletRegistry - Parameters", async () => {
 
   before("load test fixture", async () => {
     // eslint-disable-next-line @typescript-eslint/no-extra-semi
-    ;({ walletRegistry, walletRegistryGovernance, walletOwner, randomBeacon, deployer, governance, thirdParty } =
-      await walletRegistryFixture())
+    ;({
+      walletRegistry,
+      walletRegistryGovernance,
+      walletOwner,
+      randomBeacon,
+      deployer,
+      governance,
+      thirdParty,
+    } = await walletRegistryFixture())
   })
 
   describe("updateAuthorizationParameters", () => {

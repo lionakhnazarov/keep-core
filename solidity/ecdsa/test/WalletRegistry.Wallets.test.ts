@@ -458,7 +458,10 @@ describe("WalletRegistry - Wallets", async () => {
                       walletMembersAddresses[0],
                       0
                     )
-                  ).to.be.revertedWithCustomError(walletRegistry, "WalletMemberIndexOutOfRange")
+                  ).to.be.revertedWithCustomError(
+                    walletRegistry,
+                    "WalletMemberIndexOutOfRange"
+                  )
                 })
               }
             )
@@ -475,7 +478,10 @@ describe("WalletRegistry - Wallets", async () => {
                       walletMembersAddresses[0],
                       walletMembersIDs.length + 1
                     )
-                  ).to.be.revertedWithCustomError(walletRegistry, "WalletMemberIndexOutOfRange")
+                  ).to.be.revertedWithCustomError(
+                    walletRegistry,
+                    "WalletMemberIndexOutOfRange"
+                  )
                 })
               }
             )
@@ -495,7 +501,10 @@ describe("WalletRegistry - Wallets", async () => {
                   walletMembersAddresses[0],
                   0
                 )
-              ).to.be.revertedWithCustomError(walletRegistry, "InvalidWalletMembersIdentifiers")
+              ).to.be.revertedWithCustomError(
+                walletRegistry,
+                "InvalidWalletMembersIdentifiers"
+              )
             })
           }
         )
@@ -518,7 +527,10 @@ describe("WalletRegistry - Wallets", async () => {
               operator,
               0
             )
-          ).to.be.revertedWithCustomError(walletRegistry, "NotSortitionPoolOperator")
+          ).to.be.revertedWithCustomError(
+            walletRegistry,
+            "NotSortitionPoolOperator"
+          )
         })
       }
     )

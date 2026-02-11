@@ -64,12 +64,11 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       if (currentAllowlist.toLowerCase() === Allowlist.address.toLowerCase()) {
         console.log("Allowlist address matches. No upgrade needed.")
         return true
-      } else {
-        console.error("ERROR: Allowlist address mismatch!")
-        console.error(`  Current: ${currentAllowlist}`)
-        console.error(`  Expected: ${Allowlist.address}`)
-        return false
       }
+      console.error("ERROR: Allowlist address mismatch!")
+      console.error(`  Current: ${currentAllowlist}`)
+      console.error(`  Expected: ${Allowlist.address}`)
+      return false
     }
   } catch (error) {
     // V1 doesn't have allowlist() function - upgrade is needed
@@ -77,21 +76,25 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   }
 
   // Get ProxyAdmin address from EIP-1967 slot
-  const ADMIN_SLOT = "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
+  const ADMIN_SLOT =
+    "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103"
   const proxyAdminSlot = await ethers.provider.getStorageAt(
     walletRegistryDeployment.address,
     ADMIN_SLOT
   )
-  const proxyAdminAddress = ethers.utils.getAddress("0x" + proxyAdminSlot.slice(-40))
+  const proxyAdminAddress = ethers.utils.getAddress(
+    `0x${proxyAdminSlot.slice(-40)}`
+  )
   console.log(`  ProxyAdmin: ${proxyAdminAddress}`)
 
   // Get current implementation
-  const IMPL_SLOT = "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+  const IMPL_SLOT =
+    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
   const implSlot = await ethers.provider.getStorageAt(
     walletRegistryDeployment.address,
     IMPL_SLOT
   )
-  const currentImpl = ethers.utils.getAddress("0x" + implSlot.slice(-40))
+  const currentImpl = ethers.utils.getAddress(`0x${implSlot.slice(-40)}`)
   console.log(`  Current Implementation: ${currentImpl}`)
 
   // Verify governance state is preserved
@@ -103,12 +106,15 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   console.log("=== DEPLOYING NEW IMPLEMENTATION ===")
   console.log()
 
-  const WalletRegistryFactory = await ethers.getContractFactory("WalletRegistry", {
-    signer: deployer,
-    libraries: {
-      EcdsaInactivity: EcdsaInactivity.address,
-    },
-  })
+  const WalletRegistryFactory = await ethers.getContractFactory(
+    "WalletRegistry",
+    {
+      signer: deployer,
+      libraries: {
+        EcdsaInactivity: EcdsaInactivity.address,
+      },
+    }
+  )
 
   // Deploy implementation with constructor args (immutable variables)
   const newImplementation = await WalletRegistryFactory.deploy(
@@ -137,12 +143,16 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // Encode upgradeAndCall for ProxyAdmin
   const proxyAdminInterface = new ethers.utils.Interface([
     "function upgradeAndCall(address proxy, address implementation, bytes calldata data) external payable",
-    "function owner() external view returns (address)"
+    "function owner() external view returns (address)",
   ])
 
   const upgradeCalldata = proxyAdminInterface.encodeFunctionData(
     "upgradeAndCall",
-    [walletRegistryDeployment.address, newImplementation.address, initializeV2Data]
+    [
+      walletRegistryDeployment.address,
+      newImplementation.address,
+      initializeV2Data,
+    ]
   )
 
   // Get ProxyAdmin owner
@@ -158,7 +168,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     console.log()
     console.log("=== MAINNET GOVERNANCE PROPOSAL ===")
     console.log()
-    console.log("The upgrade must be executed through the Timelock (24h delay).")
+    console.log(
+      "The upgrade must be executed through the Timelock (24h delay)."
+    )
     console.log()
     console.log("Step 1: Schedule the upgrade via Timelock")
     console.log("----------------------------------------")
@@ -171,12 +183,12 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     console.log("Or using cast:")
     console.log("```")
     console.log(`cast send ${proxyAdminAddress} \\`)
-    console.log(`  "upgradeAndCall(address,address,bytes)" \\`)
+    console.log("  \"upgradeAndCall(address,address,bytes)\" \\")
     console.log(`  ${walletRegistryDeployment.address} \\`)
     console.log(`  ${newImplementation.address} \\`)
     console.log(`  ${initializeV2Data} \\`)
-    console.log(`  --rpc-url $CHAIN_API_URL \\`)
-    console.log(`  --private-key <TIMELOCK_EXECUTOR_KEY>`)
+    console.log("  --rpc-url $CHAIN_API_URL \\")
+    console.log("  --private-key <TIMELOCK_EXECUTOR_KEY>")
     console.log("```")
     console.log()
     console.log("NOTE: This call must come from the Timelock after scheduling!")
@@ -197,7 +209,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       newImplementation: newImplementation.address,
       proxy: walletRegistryDeployment.address,
       proxyAdmin: proxyAdminAddress,
-      proxyAdminOwner: proxyAdminOwner,
+      proxyAdminOwner,
       allowlist: Allowlist.address,
       timelockDelay: "24 hours",
       calls: [
@@ -205,104 +217,108 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
           target: proxyAdminAddress,
           value: "0",
           data: upgradeCalldata,
-          description: "ProxyAdmin.upgradeAndCall(proxy, newImpl, initializeV2Data)"
-        }
+          description:
+            "ProxyAdmin.upgradeAndCall(proxy, newImpl, initializeV2Data)",
+        },
       ],
       verification: {
         initializeV2Args: [Allowlist.address],
-        initializeV2Data: initializeV2Data,
-      }
+        initializeV2Data,
+      },
     }
 
     const fs = require("fs")
     const path = require("path")
-    const proposalPath = path.join(__dirname, "../upgrade-proposal-mainnet.json")
+    const proposalPath = path.join(
+      __dirname,
+      "../upgrade-proposal-mainnet.json"
+    )
     fs.writeFileSync(proposalPath, JSON.stringify(proposalData, null, 2))
     console.log(`Proposal data saved to: ${proposalPath}`)
 
     return true
-  } else {
-    // TESTNET: Execute upgrade directly
-    console.log("=== EXECUTING UPGRADE (TESTNET) ===")
-    console.log()
+  }
+  // TESTNET: Execute upgrade directly
+  console.log("=== EXECUTING UPGRADE (TESTNET) ===")
+  console.log()
 
-    try {
-      // Check if esdm is the ProxyAdmin owner
-      if (proxyAdminOwner.toLowerCase() !== esdm.address.toLowerCase()) {
-        console.error(`ERROR: esdm (${esdm.address}) is not the ProxyAdmin owner`)
-        console.error(`ProxyAdmin owner is: ${proxyAdminOwner}`)
-        console.log()
-        console.log("Manual upgrade command:")
-        console.log("```")
-        console.log(`cast send ${proxyAdminAddress} \\`)
-        console.log(`  "upgradeAndCall(address,address,bytes)" \\`)
-        console.log(`  ${walletRegistryDeployment.address} \\`)
-        console.log(`  ${newImplementation.address} \\`)
-        console.log(`  "${initializeV2Data}" \\`)
-        console.log(`  --rpc-url $CHAIN_API_URL \\`)
-        console.log(`  --private-key <OWNER_KEY>`)
-        console.log("```")
-        return false
-      }
-
-      // Execute upgrade via ProxyAdmin
-      const proxyAdminContract = await ethers.getContractAt(
-        ["function upgradeAndCall(address proxy, address implementation, bytes calldata data) external payable"],
-        proxyAdminAddress,
-        esdm
-      )
-
-      console.log("Calling ProxyAdmin.upgradeAndCall()...")
-      const tx = await proxyAdminContract.upgradeAndCall(
-        walletRegistryDeployment.address,
-        newImplementation.address,
-        initializeV2Data
-      )
-
-      console.log(`TX: ${tx.hash}`)
-      await tx.wait()
-      console.log("Upgrade executed successfully!")
+  try {
+    // Check if esdm is the ProxyAdmin owner
+    if (proxyAdminOwner.toLowerCase() !== esdm.address.toLowerCase()) {
+      console.error(`ERROR: esdm (${esdm.address}) is not the ProxyAdmin owner`)
+      console.error(`ProxyAdmin owner is: ${proxyAdminOwner}`)
       console.log()
-
-      // Verify upgrade
-      console.log("=== POST-UPGRADE VERIFICATION ===")
-      console.log()
-
-      const walletRegistryV2 = await ethers.getContractAt(
-        "WalletRegistry",
-        walletRegistryDeployment.address
-      )
-
-      const newAllowlist = await walletRegistryV2.allowlist()
-      const governanceAfter = await walletRegistryV2.governance()
-
-      console.log(`Allowlist: ${newAllowlist}`)
-      console.log(`Governance: ${governanceAfter}`)
-
-      if (newAllowlist.toLowerCase() === Allowlist.address.toLowerCase()) {
-        console.log()
-        console.log("UPGRADE VERIFIED SUCCESSFULLY!")
-        return true
-      } else {
-        console.error("VERIFICATION FAILED: Allowlist mismatch!")
-        return false
-      }
-    } catch (error: any) {
-      console.error("UPGRADE FAILED!")
-      console.error("Error:", error.message)
-      console.log()
-      console.log("Try manual upgrade with cast:")
+      console.log("Manual upgrade command:")
       console.log("```")
       console.log(`cast send ${proxyAdminAddress} \\`)
-      console.log(`  "upgradeAndCall(address,address,bytes)" \\`)
+      console.log("  \"upgradeAndCall(address,address,bytes)\" \\")
       console.log(`  ${walletRegistryDeployment.address} \\`)
       console.log(`  ${newImplementation.address} \\`)
       console.log(`  "${initializeV2Data}" \\`)
-      console.log(`  --rpc-url $CHAIN_API_URL \\`)
-      console.log(`  --private-key <OWNER_KEY>`)
+      console.log("  --rpc-url $CHAIN_API_URL \\")
+      console.log("  --private-key <OWNER_KEY>")
       console.log("```")
       return false
     }
+
+    // Execute upgrade via ProxyAdmin
+    const proxyAdminContract = await ethers.getContractAt(
+      [
+        "function upgradeAndCall(address proxy, address implementation, bytes calldata data) external payable",
+      ],
+      proxyAdminAddress,
+      esdm
+    )
+
+    console.log("Calling ProxyAdmin.upgradeAndCall()...")
+    const tx = await proxyAdminContract.upgradeAndCall(
+      walletRegistryDeployment.address,
+      newImplementation.address,
+      initializeV2Data
+    )
+
+    console.log(`TX: ${tx.hash}`)
+    await tx.wait()
+    console.log("Upgrade executed successfully!")
+    console.log()
+
+    // Verify upgrade
+    console.log("=== POST-UPGRADE VERIFICATION ===")
+    console.log()
+
+    const walletRegistryV2 = await ethers.getContractAt(
+      "WalletRegistry",
+      walletRegistryDeployment.address
+    )
+
+    const newAllowlist = await walletRegistryV2.allowlist()
+    const governanceAfter = await walletRegistryV2.governance()
+
+    console.log(`Allowlist: ${newAllowlist}`)
+    console.log(`Governance: ${governanceAfter}`)
+
+    if (newAllowlist.toLowerCase() === Allowlist.address.toLowerCase()) {
+      console.log()
+      console.log("UPGRADE VERIFIED SUCCESSFULLY!")
+      return true
+    }
+    console.error("VERIFICATION FAILED: Allowlist mismatch!")
+    return false
+  } catch (error: any) {
+    console.error("UPGRADE FAILED!")
+    console.error("Error:", error.message)
+    console.log()
+    console.log("Try manual upgrade with cast:")
+    console.log("```")
+    console.log(`cast send ${proxyAdminAddress} \\`)
+    console.log("  \"upgradeAndCall(address,address,bytes)\" \\")
+    console.log(`  ${walletRegistryDeployment.address} \\`)
+    console.log(`  ${newImplementation.address} \\`)
+    console.log(`  "${initializeV2Data}" \\`)
+    console.log("  --rpc-url $CHAIN_API_URL \\")
+    console.log("  --private-key <OWNER_KEY>")
+    console.log("```")
+    return false
   }
 }
 

@@ -198,8 +198,8 @@ describe.skip("TokenStaking Integration (DEPRECATED TIP-092)", () => {
    * - Strategic migration tracked in issue #3839
    */
 
-  // Original tests preserved for reference during migration
-  // Will be rewritten for Allowlist mode or archived
+// Original tests preserved for reference during migration
+// Will be rewritten for Allowlist mode or archived
 
 /* TEMPORARILY COMMENTED OUT - START (Second legacy test block)
 
@@ -3725,7 +3725,7 @@ describe("WalletRegistry - Migration Scenario Tests (TIP-092)", () => {
   let operator: SignerWithAddress
   let beneficiary: SignerWithAddress
 
-  const minimumAuthorization = params.minimumAuthorization
+  const { minimumAuthorization } = params
   const stakedAmount = to1e18(1000000) // 1M T
 
   before("load test fixture", async () => {

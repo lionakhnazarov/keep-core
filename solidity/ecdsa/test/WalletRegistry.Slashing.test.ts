@@ -45,7 +45,6 @@ describe.skip("TokenStaking Integration (DEPRECATED TIP-092)", () => {
    * - Full test validation deferred pending Allowlist migration
    * - Strategic migration tracked in issue #3839
    */
-
   // Original tests preserved for reference during migration
   // Will be rewritten for Allowlist mode or archived
 })
@@ -119,7 +118,10 @@ describe("WalletRegistry - Slashing", () => {
                 walletID,
                 corruptedMembersIDs
               )
-          ).to.be.revertedWithCustomError(walletRegistry, "InvalidWalletMembersIdentifiers")
+          ).to.be.revertedWithCustomError(
+            walletRegistry,
+            "InvalidWalletMembersIdentifiers"
+          )
         })
       })
 

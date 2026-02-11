@@ -64,7 +64,6 @@ describe.skip("TokenStaking Integration (DEPRECATED TIP-092)", () => {
    * - Full test validation deferred pending Allowlist migration
    * - Strategic migration tracked in issue #3839
    */
-
   // Original tests preserved for reference during migration
   // Will be rewritten for Allowlist mode or archived
 })
@@ -190,7 +189,10 @@ describe("WalletRegistry - Wallet Creation", async () => {
           it("should revert with 'Current state is not IDLE' error", async () => {
             await expect(
               walletRegistry.connect(walletOwner.wallet).requestNewWallet()
-            ).to.be.revertedWithCustomError(walletRegistry, "CurrentStateNotIdle")
+            ).to.be.revertedWithCustomError(
+              walletRegistry,
+              "CurrentStateNotIdle"
+            )
           })
 
           context("with relay entry submitted", async () => {
@@ -2313,11 +2315,13 @@ describe("WalletRegistry - Wallet Creation", async () => {
         // EOA check has been removed (audit-driven change for EIP-7702 compatibility)
         // Contract callers can now challenge DKG results
         // Gas manipulation protection maintained via inline check
-        await expect(
-          dkgChallenger.challengeDkgResult(dkgResult)
-        )
+        await expect(dkgChallenger.challengeDkgResult(dkgResult))
           .to.emit(walletRegistry, "DkgResultChallenged")
-          .withArgs(dkgResultHash, dkgChallenger.address, "Invalid group members")
+          .withArgs(
+            dkgResultHash,
+            dkgChallenger.address,
+            "Invalid group members"
+          )
       })
     })
 
@@ -2835,9 +2839,9 @@ describe("WalletRegistry - Wallet Creation", async () => {
                     })
 
                     it("should complete challenge successfully", async () => {
-                      expect(await walletRegistry.getWalletCreationState()).to.equal(
-                        dkgState.AWAITING_RESULT
-                      )
+                      expect(
+                        await walletRegistry.getWalletCreationState()
+                      ).to.equal(dkgState.AWAITING_RESULT)
                     })
 
                     it("should still emit DkgMaliciousResultSlashed event on success", async () => {
@@ -2853,7 +2857,6 @@ describe("WalletRegistry - Wallet Creation", async () => {
                     })
                   }
                 )
-
               }
             )
           })

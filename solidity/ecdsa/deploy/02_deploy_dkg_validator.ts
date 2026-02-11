@@ -8,7 +8,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // Skip if EcdsaDkgValidator already deployed (for existing mainnet/testnet deployments)
   const existingDkgValidator = await deployments.getOrNull("EcdsaDkgValidator")
   if (existingDkgValidator) {
-    console.log(`using existing EcdsaDkgValidator at ${existingDkgValidator.address}`)
+    console.log(
+      `using existing EcdsaDkgValidator at ${existingDkgValidator.address}`
+    )
     return true
   }
 

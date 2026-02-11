@@ -43,7 +43,9 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   )
   console.log(`Allowlist owner: ${await allowlist.owner()} (deployer)`)
   if (governance && governance !== deployer) {
-    console.log(`Ownership will be transferred to governance (${governance}) after weights initialization`)
+    console.log(
+      `Ownership will be transferred to governance (${governance}) after weights initialization`
+    )
   }
 
   return true
@@ -60,7 +62,9 @@ func.skip = async (hre: HardhatRuntimeEnvironment) => {
   const { deployments } = hre
   const existingAllowlist = await deployments.getOrNull("Allowlist")
   if (existingAllowlist) {
-    console.log(`Skipping Allowlist deployment - already deployed at ${existingAllowlist.address}`)
+    console.log(
+      `Skipping Allowlist deployment - already deployed at ${existingAllowlist.address}`
+    )
     return true
   }
   return false

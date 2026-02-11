@@ -70,7 +70,9 @@ describe("WalletRegistry - Upgrade", async () => {
         // Expected to FAIL in RED phase because onlyGovernance modifier is still present
         // Expected to PASS in GREEN phase after modifier is removed
 
-        const walletRegistry = await helpers.contracts.getContract("WalletRegistry")
+        const walletRegistry = await helpers.contracts.getContract(
+          "WalletRegistry"
+        )
 
         const newWalletRegistry = await upgradeProxy(
           "WalletRegistry",
@@ -113,7 +115,9 @@ describe("WalletRegistry - Upgrade", async () => {
           },
         })
 
-        const walletRegistry = await helpers.contracts.getContract("WalletRegistry")
+        const walletRegistry = await helpers.contracts.getContract(
+          "WalletRegistry"
+        )
 
         // Deploy another allowlist for re-initialization attempt
         const AllowlistFactory = await ethers.getContractFactory("Allowlist")

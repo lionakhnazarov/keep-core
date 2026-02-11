@@ -1,7 +1,8 @@
-import type { HardhatRuntimeEnvironment } from "hardhat/types"
-import type { DeployFunction } from "hardhat-deploy/types"
 import * as fs from "fs"
 import * as path from "path"
+
+import type { HardhatRuntimeEnvironment } from "hardhat/types"
+import type { DeployFunction } from "hardhat-deploy/types"
 
 // Type definitions for the weights JSON structure
 interface OperatorWeight {
@@ -47,14 +48,19 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   // Load pre-calculated weights from JSON
   // These weights include accumulated stakes from consolidated beta stakers
   // Use network-specific file if available
-  const networkSpecificPath = path.join(__dirname, `data/allowlist-weights-${hre.network.name}.json`)
+  const networkSpecificPath = path.join(
+    __dirname,
+    `data/allowlist-weights-${hre.network.name}.json`
+  )
   const defaultPath = path.join(__dirname, "data/allowlist-weights.json")
-  const weightsPath = fs.existsSync(networkSpecificPath) ? networkSpecificPath : defaultPath
+  const weightsPath = fs.existsSync(networkSpecificPath)
+    ? networkSpecificPath
+    : defaultPath
 
   if (!fs.existsSync(weightsPath)) {
     throw new Error(
       `Weights file not found at ${weightsPath}. ` +
-      `Please ensure allowlist-weights.json exists in deploy/data/`
+        "Please ensure allowlist-weights.json exists in deploy/data/"
     )
   }
 
@@ -99,8 +105,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
   for (const consolidation of weightsData.betaStakerConsolidation) {
     console.log(
       `${consolidation.providerGroup}: ` +
-      `${consolidation.consolidatedOperators} operators -> 1 ` +
-      `(accumulated: ${consolidation.accumulatedStake.toLocaleString()} T)`
+        `${consolidation.consolidatedOperators} operators -> 1 ` +
+        `(accumulated: ${consolidation.accumulatedStake.toLocaleString()} T)`
     )
   }
   console.log()
@@ -129,7 +135,10 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
 
       if (existingWeight.gt(0)) {
         console.log(
-          `Skipping ${op.identification} (${op.stakingProvider.slice(0, 10)}...) - already in Allowlist`
+          `Skipping ${op.identification} (${op.stakingProvider.slice(
+            0,
+            10
+          )}...) - already in Allowlist`
         )
         migrationResults.push({
           stakingProvider: op.stakingProvider,
@@ -141,9 +150,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
         continue
       }
 
-      console.log(
-        `Adding ${op.identification} (${op.operatorType}):`
-      )
+      console.log(`Adding ${op.identification} (${op.operatorType}):`)
       console.log(`  Staking Provider: ${op.stakingProvider}`)
       console.log(`  Weight: ${op.accumulatedTStake.toLocaleString()} T`)
       if (op.providerGroup) {
@@ -158,7 +165,7 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       const receipt = await tx.wait()
 
       console.log(`  TX: ${tx.hash}`)
-      console.log(`  Status: SUCCESS`)
+      console.log("  Status: SUCCESS")
       console.log()
 
       migrationResults.push({
@@ -192,37 +199,55 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     console.error("ERROR: WalletRegistry V2 is not initialized!")
     console.error()
     console.error("Please run the upgrade script first:")
-    console.error("  UPGRADE_WALLET_REGISTRY_V2=true npx hardhat deploy --tags UpgradeWalletRegistryV2")
+    console.error(
+      "  UPGRADE_WALLET_REGISTRY_V2=true npx hardhat deploy --tags UpgradeWalletRegistryV2"
+    )
     console.error()
-    console.error("The upgrade script atomically upgrades WalletRegistry and calls initializeV2.")
+    console.error(
+      "The upgrade script atomically upgrades WalletRegistry and calls initializeV2."
+    )
     return false
   }
 
   if (currentAllowlist.toLowerCase() !== allowlist.address.toLowerCase()) {
-    console.error("ERROR: WalletRegistry is initialized with a different Allowlist!")
+    console.error(
+      "ERROR: WalletRegistry is initialized with a different Allowlist!"
+    )
     console.error(`  Current: ${currentAllowlist}`)
     console.error(`  Expected: ${allowlist.address}`)
     return false
   }
 
-  console.log(`WalletRegistry V2 initialized with Allowlist: ${currentAllowlist}`)
+  console.log(
+    `WalletRegistry V2 initialized with Allowlist: ${currentAllowlist}`
+  )
   console.log("Verification: PASSED")
 
   // Summary
   console.log()
   console.log("=== MIGRATION SUMMARY ===")
 
-  const successful = migrationResults.filter((r) => r.status === "success").length
-  const failed = migrationResults.filter((r) => r.status.startsWith("failed")).length
-  const skipped = migrationResults.filter((r) => r.status.startsWith("skipped")).length
+  const successful = migrationResults.filter(
+    (r) => r.status === "success"
+  ).length
+  const failed = migrationResults.filter((r) =>
+    r.status.startsWith("failed")
+  ).length
+  const skipped = migrationResults.filter((r) =>
+    r.status.startsWith("skipped")
+  ).length
 
   console.log(`Total operators processed: ${migrationResults.length}`)
   console.log(`Successfully added: ${successful}`)
   console.log(`Skipped (already exists): ${skipped}`)
   console.log(`Failed: ${failed}`)
   console.log()
-  console.log(`Total accumulated stake: ${weightsData.summary.totalAccumulatedTStake.toLocaleString()} T`)
-  console.log(`Stake increase from consolidation: +${weightsData.summary.stakeIncreaseFromConsolidation.toLocaleString()} T`)
+  console.log(
+    `Total accumulated stake: ${weightsData.summary.totalAccumulatedTStake.toLocaleString()} T`
+  )
+  console.log(
+    `Stake increase from consolidation: +${weightsData.summary.stakeIncreaseFromConsolidation.toLocaleString()} T`
+  )
 
   // Save migration results
   const resultsPath = path.join(__dirname, "../migration-results.json")
@@ -242,7 +267,8 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
           skipped,
           failed,
           totalAccumulatedStake: weightsData.summary.totalAccumulatedTStake,
-          stakeIncreaseFromConsolidation: weightsData.summary.stakeIncreaseFromConsolidation,
+          stakeIncreaseFromConsolidation:
+            weightsData.summary.stakeIncreaseFromConsolidation,
         },
         betaStakerConsolidation: weightsData.betaStakerConsolidation,
         results: migrationResults,
@@ -271,11 +297,15 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
     console.log()
     console.log("Allowlist uses Ownable2StepUpgradeable (two-step transfer):")
     console.log("  Step 1: transferOwnership(governance) - sets pendingOwner")
-    console.log("  Step 2: governance calls acceptOwnership() - completes transfer")
+    console.log(
+      "  Step 2: governance calls acceptOwnership() - completes transfer"
+    )
     console.log()
 
     try {
-      console.log(`Initiating transfer from ${currentOwner} to ${governance}...`)
+      console.log(
+        `Initiating transfer from ${currentOwner} to ${governance}...`
+      )
 
       const tx = await allowlist
         .connect(ownerSigner)
@@ -284,22 +314,30 @@ const func: DeployFunction = async (hre: HardhatRuntimeEnvironment) => {
       await tx.wait()
 
       console.log(`  TX: ${tx.hash}`)
-      console.log(`  Status: SUCCESS`)
+      console.log("  Status: SUCCESS")
       console.log()
 
       const pendingOwner = await allowlist.pendingOwner()
       console.log(`Pending owner set to: ${pendingOwner}`)
       console.log()
-      console.log("IMPORTANT: Governance must call Allowlist.acceptOwnership() to complete the transfer!")
-      console.log("Until then, the current owner remains: " + await allowlist.owner())
+      console.log(
+        "IMPORTANT: Governance must call Allowlist.acceptOwnership() to complete the transfer!"
+      )
+      console.log(
+        `Until then, the current owner remains: ${await allowlist.owner()}`
+      )
     } catch (error: any) {
       console.error(`  FAILED: ${error.message}`)
       console.log()
-      console.warn("WARNING: Ownership transfer failed. Manual intervention required.")
+      console.warn(
+        "WARNING: Ownership transfer failed. Manual intervention required."
+      )
     }
   } else {
     console.log()
-    console.log("Ownership transfer not needed (owner is already governance or same account).")
+    console.log(
+      "Ownership transfer not needed (owner is already governance or same account)."
+    )
   }
 
   console.log()
