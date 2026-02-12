@@ -175,16 +175,13 @@ describe("WalletRegistry - Slashing", () => {
         })
 
         it("should send correct reward to notifier", async () => {
-          // reward multiplier is in % so we first multiply and then divide by
-          // 100 to get the actual number
-          const perMemberReward = constants.tokenStakingNotificationReward
-            .mul(rewardMultiplier)
-            .div(100)
-
+          // Notification rewards are no longer configured in TokenStaking
+          // (pushNotificationReward/setNotificationReward methods removed).
+          // The notifier receives 0 reward.
           const receivedReward = notifierBalanceAfter.sub(notifierBalanceBefore)
 
           expect(receivedReward).to.equal(
-            perMemberReward.mul(constants.groupSize)
+            0
           )
         })
       })

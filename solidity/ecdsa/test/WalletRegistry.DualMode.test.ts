@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions */
-import { ethers, upgrades } from "hardhat"
+import { ethers, helpers } from "hardhat"
 import { smock } from "@defi-wonderland/smock"
 import { expect } from "chai"
 
 import type { FakeContract } from "@defi-wonderland/smock"
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import type { WalletRegistry, Allowlist, IStaking } from "../typechain"
+
+const { createSnapshot, restoreSnapshot } = helpers.snapshot
 
 const ZERO_ADDRESS = ethers.constants.AddressZero
 
@@ -18,6 +20,14 @@ describe("WalletRegistry - Dual-Mode Authorization", () => {
   let stakingProvider: SignerWithAddress
   let operator: SignerWithAddress
   let unauthorizedCaller: SignerWithAddress
+
+  before(async () => {
+    await createSnapshot()
+  })
+
+  after(async () => {
+    await restoreSnapshot()
+  })
 
   beforeEach(async () => {
     const signers = await ethers.getSigners()
@@ -41,7 +51,16 @@ describe("WalletRegistry - Dual-Mode Authorization", () => {
     const randomBeacon = await smock.fake("IRandomBeacon")
     const reimbursementPool = await smock.fake("ReimbursementPool")
 
-    // Deploy WalletRegistry as upgradeable proxy with library linking
+    // Deploy WalletRegistry proxy using ERC1967Proxy directly instead of
+    // @openzeppelin/hardhat-upgrades' upgrades.deployProxy(). Using
+    // upgrades.deployProxy with kind:"transparent" creates a shared
+    // ProxyAdmin in the OZ manifest. Because this test file runs before
+    // tests that use deployments.fixture(), that ProxyAdmin would be owned
+    // by signer[0], but the deploy scripts expect signer[1] (named
+    // "deployer") to own it. This mismatch causes
+    // deploy/11_transfer_proxy_admin_ownership.ts to fail with
+    // "Ownable: caller is not the owner" when other test suites call
+    // deployments.fixture().
     const WalletRegistryFactory = await ethers.getContractFactory(
       "WalletRegistry",
       {
@@ -51,15 +70,25 @@ describe("WalletRegistry - Dual-Mode Authorization", () => {
       }
     )
 
-    walletRegistry = (await upgrades.deployProxy(
-      WalletRegistryFactory,
-      [dkgValidator.address, randomBeacon.address, reimbursementPool.address],
-      {
-        constructorArgs: [sortitionPool.address, stakingContract.address],
-        unsafeAllow: ["external-library-linking", "state-variable-immutable"],
-      }
-    )) as WalletRegistry
-    await walletRegistry.deployed()
+    const impl = await WalletRegistryFactory.deploy(
+      sortitionPool.address,
+      stakingContract.address
+    )
+    await impl.deployed()
+
+    const initData = WalletRegistryFactory.interface.encodeFunctionData(
+      "initialize",
+      [dkgValidator.address, randomBeacon.address, reimbursementPool.address]
+    )
+
+    const ERC1967ProxyFactory =
+      await ethers.getContractFactory("ERC1967Proxy")
+    const proxy = await ERC1967ProxyFactory.deploy(impl.address, initData)
+    await proxy.deployed()
+
+    walletRegistry = WalletRegistryFactory.attach(
+      proxy.address
+    ) as WalletRegistry
   })
 
   describe("initializeV2", () => {

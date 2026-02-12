@@ -75,35 +75,45 @@ const MAX_UINT64 = ethers.BigNumber.from("18446744073709551615") // 2^64 - 1
  */
 
 /**
- * Creates a Smock fake for TokenStaking contract with mocked authorization data.
- * Used in Pre-Upgrade and Upgrade Flow tests to simulate stake authorization
- * without using deprecated TokenStaking.stake() and increaseAuthorization() methods.
+ * Sets up real TokenStaking authorization for a staking provider using actual
+ * contract calls instead of smock.fake. This avoids a known smock issue where
+ * smock.fake({address: existingAddress}) corrupts EVM storage in a way that
+ * evm_revert cannot restore, breaking subsequent test suites.
  *
- * TIP-092 Context: Real TokenStaking contract has no write methods for test setup,
- * so we mock the read methods (authorizedStake, rolesOf) to return expected values.
- *
- * @param stakingAddress - Address of the deployed TokenStaking contract to fake
- * @param minimumAuthorization - Amount to return from authorizedStake() calls
- * @param stakingProvider - Address to return as owner/authorizer in rolesOf()
- * @param beneficiary - Address to return as beneficiary in rolesOf()
- * @returns Configured FakeContract<TokenStaking>
+ * @param t - T token contract for minting
+ * @param staking - TokenStaking contract
+ * @param walletRegistry - WalletRegistry contract (application to authorize)
+ * @param deployer - Deployer signer (can mint tokens)
+ * @param stakingProvider - Staking provider signer
+ * @param beneficiary - Beneficiary signer
+ * @param amount - Amount to stake and authorize
  */
-async function createTokenStakingFake(
-  stakingAddress: string,
-  minimumAuthorization: any,
+async function setupRealStaking(
+  t: T,
+  staking: TokenStaking,
+  walletRegistry: WalletRegistry,
+  deployer: SignerWithAddress,
   stakingProvider: SignerWithAddress,
-  beneficiary: SignerWithAddress
-): Promise<FakeContract<TokenStaking>> {
-  const stakingFake = await smock.fake<TokenStaking>("TokenStaking", {
-    address: stakingAddress,
-  })
-  stakingFake.authorizedStake.returns(minimumAuthorization)
-  stakingFake.rolesOf.returns([
-    stakingProvider.address,
-    beneficiary.address,
-    stakingProvider.address,
-  ])
-  return stakingFake
+  beneficiary: SignerWithAddress,
+  amount: any
+): Promise<void> {
+  await t.connect(deployer).mint(stakingProvider.address, amount)
+  await t.connect(stakingProvider).approve(staking.address, amount)
+  await staking
+    .connect(stakingProvider)
+    .stake(
+      stakingProvider.address,
+      beneficiary.address,
+      stakingProvider.address,
+      amount
+    )
+  await staking
+    .connect(stakingProvider)
+    .increaseAuthorization(
+      stakingProvider.address,
+      walletRegistry.address,
+      amount
+    )
 }
 
 /**
@@ -3729,10 +3739,15 @@ describe("WalletRegistry - Migration Scenario Tests (TIP-092)", () => {
   const stakedAmount = to1e18(1000000) // 1M T
 
   before("load test fixture", async () => {
-    await createSnapshot()
-
-    // Deploy fixture in default TokenStaking mode
+    // Deploy fixture BEFORE taking snapshot. The order matters because
+    // deployments.fixture() caches an internal EVM snapshot. If we took
+    // our snapshot first (lower ID), restoreSnapshot() would call
+    // evm_revert(lowerID) which invalidates ALL snapshots with higher IDs
+    // — including the deploy cache. This would break deployments.fixture()
+    // for all subsequent test suites (e.g., Slashing, WalletCreation).
     await deployments.fixture()
+
+    await createSnapshot()
 
     t = await helpers.contracts.getContract("T")
     walletRegistry = await helpers.contracts.getContract("WalletRegistry")
@@ -3770,30 +3785,23 @@ describe("WalletRegistry - Migration Scenario Tests (TIP-092)", () => {
    * Coverage: Tests the false branch of ternary operator in _currentAuthorizationSource()
    */
   describe("Pre-Upgrade Mode (TokenStaking Authorization)", () => {
-    let stakingFake: FakeContract<TokenStaking>
-
     before(async () => {
       await createSnapshot()
 
-      // Setup: Mock TokenStaking authorization using Smock fake
-      stakingFake = await createTokenStakingFake(
-        staking.address,
-        minimumAuthorization,
+      // Setup: Use real TokenStaking for authorization (avoids smock.fake
+      // storage corruption that breaks evm_revert for subsequent tests)
+      await setupRealStaking(
+        t,
+        staking,
+        walletRegistry,
+        deployer,
         stakingProvider,
-        beneficiary
+        beneficiary,
+        minimumAuthorization
       )
 
       // Setup: Deactivate chaosnet to allow operators to join sortition pool
       await deactivateChaosnetMode(sortitionPool)
-
-      // Setup: Trigger authorization callback for staking provider
-      await triggerAuthorizationCallback(
-        walletRegistry,
-        staking.address,
-        stakingProvider.address,
-        ethers.BigNumber.from(0),
-        minimumAuthorization
-      )
 
       // Setup: Register operator with authorized stake
       await walletRegistry
@@ -3979,17 +3987,19 @@ describe("WalletRegistry - Migration Scenario Tests (TIP-092)", () => {
    */
   describe("NOT MIGRATED Touchpoints", () => {
     let allowlist: FakeContract<IStaking>
-    let stakingFake: FakeContract<TokenStaking>
 
     before(async () => {
       await createSnapshot()
 
-      // Setup: Mock TokenStaking for beneficiary lookup (NOT migrated to Allowlist)
-      stakingFake = await createTokenStakingFake(
-        staking.address,
-        minimumAuthorization,
+      // Setup: Use real TokenStaking for beneficiary roles (NOT migrated to Allowlist)
+      await setupRealStaking(
+        t,
+        staking,
+        walletRegistry,
+        deployer,
         stakingProvider,
-        beneficiary
+        beneficiary,
+        minimumAuthorization
       )
 
       // Setup: Create allowlist fake and upgrade (but beneficiary still in TokenStaking)
@@ -4043,30 +4053,23 @@ describe("WalletRegistry - Migration Scenario Tests (TIP-092)", () => {
    */
   describe("Upgrade Flow", () => {
     let allowlist: FakeContract<IStaking>
-    let stakingFake: FakeContract<TokenStaking>
 
     before(async () => {
       await createSnapshot()
 
-      // Setup: Mock TokenStaking authorization (pre-upgrade state)
-      stakingFake = await createTokenStakingFake(
-        staking.address,
-        minimumAuthorization,
+      // Setup: Use real TokenStaking authorization (pre-upgrade state)
+      await setupRealStaking(
+        t,
+        staking,
+        walletRegistry,
+        deployer,
         stakingProvider,
-        beneficiary
+        beneficiary,
+        minimumAuthorization
       )
 
       // Setup: Deactivate chaosnet to allow operators to join sortition pool
       await deactivateChaosnetMode(sortitionPool)
-
-      // Setup: Trigger authorization callback for staking provider (pre-upgrade)
-      await triggerAuthorizationCallback(
-        walletRegistry,
-        staking.address,
-        stakingProvider.address,
-        ethers.BigNumber.from(0),
-        minimumAuthorization
-      )
 
       // Setup: Register operator and join pool (before upgrade)
       await walletRegistry

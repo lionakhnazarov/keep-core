@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-unused-expressions, no-restricted-syntax, no-await-in-loop */
-import { ethers, upgrades } from "hardhat"
+import { ethers, helpers } from "hardhat"
 import { smock } from "@defi-wonderland/smock"
 import { expect } from "chai"
 
 import type { FakeContract } from "@defi-wonderland/smock"
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import type { Allowlist, WalletRegistry } from "../typechain"
+
+const { createSnapshot, restoreSnapshot } = helpers.snapshot
 
 const ZERO_ADDRESS = ethers.constants.AddressZero
 
@@ -16,6 +18,14 @@ describe("Allowlist", () => {
   let stakingProvider1: SignerWithAddress
   let stakingProvider2: SignerWithAddress
   let thirdParty: SignerWithAddress
+
+  before(async () => {
+    await createSnapshot()
+  })
+
+  after(async () => {
+    await restoreSnapshot()
+  })
 
   beforeEach(async () => {
     // Create fake WalletRegistry
@@ -28,15 +38,34 @@ describe("Allowlist", () => {
     stakingProvider2 = sp2
     thirdParty = tp
 
-    // Deploy Allowlist as upgradeable proxy (has _disableInitializers in constructor)
+    // Fund the fake WalletRegistry so it can send transactions when
+    // impersonated via walletRegistry.wallet (needed for
+    // approveAuthorizationDecrease which checks msg.sender == walletRegistry).
+    await governance.sendTransaction({
+      to: walletRegistry.address,
+      value: ethers.utils.parseEther("10"),
+    })
+
+    // Deploy Allowlist proxy using ERC1967Proxy directly instead of
+    // @openzeppelin/hardhat-upgrades' upgrades.deployProxy(). Using
+    // upgrades.deployProxy with kind:"transparent" creates a shared
+    // ProxyAdmin in the OZ manifest. Because this test file runs first
+    // (alphabetically), that ProxyAdmin would be owned by signer[0], but
+    // the deploy scripts expect signer[1] (named "deployer") to own it.
+    // This mismatch causes deploy/11_transfer_proxy_admin_ownership.ts to
+    // fail with "Ownable: caller is not the owner" when other test suites
+    // call deployments.fixture().
     const AllowlistFactory = await ethers.getContractFactory("Allowlist")
-    const proxy = await upgrades.deployProxy(
-      AllowlistFactory,
-      [walletRegistry.address],
-      { kind: "transparent" }
+    const impl = await AllowlistFactory.deploy()
+    await impl.deployed()
+    const initData = AllowlistFactory.interface.encodeFunctionData(
+      "initialize",
+      [walletRegistry.address]
     )
+    const ERC1967ProxyFactory = await ethers.getContractFactory("ERC1967Proxy")
+    const proxy = await ERC1967ProxyFactory.deploy(impl.address, initData)
     await proxy.deployed()
-    allowlist = proxy as Allowlist
+    allowlist = AllowlistFactory.attach(proxy.address) as Allowlist
   })
 
   describe("initialization", () => {
@@ -56,11 +85,17 @@ describe("Allowlist", () => {
 
     it("should revert if initialized with zero address", async () => {
       const AllowlistFactory = await ethers.getContractFactory("Allowlist")
-
+      const impl = await AllowlistFactory.deploy()
+      await impl.deployed()
+      const initData = AllowlistFactory.interface.encodeFunctionData(
+        "initialize",
+        [ZERO_ADDRESS]
+      )
+      const ERC1967ProxyFactory = await ethers.getContractFactory(
+        "ERC1967Proxy"
+      )
       await expect(
-        upgrades.deployProxy(AllowlistFactory, [ZERO_ADDRESS], {
-          kind: "transparent",
-        })
+        ERC1967ProxyFactory.deploy(impl.address, initData)
       ).to.be.reverted
     })
   })

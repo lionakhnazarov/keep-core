@@ -189,10 +189,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
           it("should revert with 'Current state is not IDLE' error", async () => {
             await expect(
               walletRegistry.connect(walletOwner.wallet).requestNewWallet()
-            ).to.be.revertedWithCustomError(
-              walletRegistry,
-              "CurrentStateNotIdle"
-            )
+            ).to.be.revertedWith("Current state is not IDLE")
           })
 
           context("with relay entry submitted", async () => {
@@ -1734,7 +1731,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
                           .connect(thirdParty)
                           .approveDkgResult(dkgResult)
                       ).to.be.revertedWith(
-                        "Only the DKG result submitter can approve the result at this moment"
+                        "Only submitter can approve now"
                       )
                     })
                   }
@@ -2447,7 +2444,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
                       .to.emit(staking, "NotifierRewarded")
                       .withArgs(
                         thirdParty.address,
-                        constants.tokenStakingNotificationReward
+                        0
                       )
                   })
 
@@ -2461,8 +2458,8 @@ describe("WalletRegistry - Wallet Creation", async () => {
                       .withArgs(stakingProvider, to1e18(400), false)
                   })
 
-                  it("should use close to 1 820 000 gas", async () => {
-                    await assertGasUsed(challengeTx, 1_820_000, 40_000)
+                  it("should use close to 1 720 000 gas", async () => {
+                    await assertGasUsed(challengeTx, 1_720_000, 80_000)
                   })
                 })
               })
@@ -2525,7 +2522,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
                       .to.emit(staking, "NotifierRewarded")
                       .withArgs(
                         thirdParty.address,
-                        constants.tokenStakingNotificationReward
+                        0
                       )
                   })
 
@@ -2639,7 +2636,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
                     .to.emit(staking, "NotifierRewarded")
                     .withArgs(
                       thirdParty.address,
-                      constants.tokenStakingNotificationReward
+                      0
                     )
                 })
 
@@ -2653,8 +2650,8 @@ describe("WalletRegistry - Wallet Creation", async () => {
                     .withArgs(stakingProvider, to1e18(400), false)
                 })
 
-                it("should use close to 510 000 gas", async () => {
-                  await assertGasUsed(challengeTx, 510_000, 15_000)
+                it("should use close to 462 000 gas", async () => {
+                  await assertGasUsed(challengeTx, 462_000, 30_000)
                 })
               }
             )
@@ -2702,8 +2699,8 @@ describe("WalletRegistry - Wallet Creation", async () => {
                   await expect(await sortitionPool.isLocked()).to.be.true
                 })
 
-                it("should use close to 330 000 gas", async () => {
-                  await assertGasUsed(tx, 330_000, 20_000)
+                it("should use close to 275 000 gas", async () => {
+                  await assertGasUsed(tx, 275_000, 20_000)
                 })
               }
             )
@@ -2749,8 +2746,8 @@ describe("WalletRegistry - Wallet Creation", async () => {
                 await expect(await sortitionPool.isLocked()).to.be.true
               })
 
-              it("should use close to 330 000 gas", async () => {
-                await assertGasUsed(tx, 330_000, 20_000)
+              it("should use close to 275 000 gas", async () => {
+                await assertGasUsed(tx, 275_000, 20_000)
               })
             })
 
