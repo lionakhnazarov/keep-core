@@ -94,9 +94,8 @@ describe("Allowlist", () => {
       const ERC1967ProxyFactory = await ethers.getContractFactory(
         "ERC1967Proxy"
       )
-      await expect(
-        ERC1967ProxyFactory.deploy(impl.address, initData)
-      ).to.be.reverted
+      await expect(ERC1967ProxyFactory.deploy(impl.address, initData)).to.be
+        .reverted
     })
   })
 

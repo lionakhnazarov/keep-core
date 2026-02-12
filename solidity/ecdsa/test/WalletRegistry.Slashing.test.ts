@@ -180,9 +180,7 @@ describe("WalletRegistry - Slashing", () => {
           // The notifier receives 0 reward.
           const receivedReward = notifierBalanceAfter.sub(notifierBalanceBefore)
 
-          expect(receivedReward).to.equal(
-            0
-          )
+          expect(receivedReward).to.equal(0)
         })
       })
 

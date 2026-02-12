@@ -1730,9 +1730,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
                         walletRegistry
                           .connect(thirdParty)
                           .approveDkgResult(dkgResult)
-                      ).to.be.revertedWith(
-                        "Only submitter can approve now"
-                      )
+                      ).to.be.revertedWith("Only submitter can approve now")
                     })
                   }
                 )
@@ -2442,10 +2440,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
                   it("should reward the notifier", async () => {
                     await expect(challengeTx)
                       .to.emit(staking, "NotifierRewarded")
-                      .withArgs(
-                        thirdParty.address,
-                        0
-                      )
+                      .withArgs(thirdParty.address, 0)
                   })
 
                   it("should slash malicious result submitter", async () => {
@@ -2520,10 +2515,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
                   it("should reward the notifier", async () => {
                     await expect(challengeTx)
                       .to.emit(staking, "NotifierRewarded")
-                      .withArgs(
-                        thirdParty.address,
-                        0
-                      )
+                      .withArgs(thirdParty.address, 0)
                   })
 
                   it("should slash malicious result submitter", async () => {
@@ -2634,10 +2626,7 @@ describe("WalletRegistry - Wallet Creation", async () => {
                 it("should reward the notifier", async () => {
                   await expect(challengeTx)
                     .to.emit(staking, "NotifierRewarded")
-                    .withArgs(
-                      thirdParty.address,
-                      0
-                    )
+                    .withArgs(thirdParty.address, 0)
                 })
 
                 it("should slash malicious result submitter", async () => {

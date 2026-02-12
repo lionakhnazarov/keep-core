@@ -81,8 +81,7 @@ describe("WalletRegistry - Dual-Mode Authorization", () => {
       [dkgValidator.address, randomBeacon.address, reimbursementPool.address]
     )
 
-    const ERC1967ProxyFactory =
-      await ethers.getContractFactory("ERC1967Proxy")
+    const ERC1967ProxyFactory = await ethers.getContractFactory("ERC1967Proxy")
     const proxy = await ERC1967ProxyFactory.deploy(impl.address, initData)
     await proxy.deployed()
 
