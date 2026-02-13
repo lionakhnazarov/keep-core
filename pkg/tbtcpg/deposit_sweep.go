@@ -19,6 +19,11 @@ import (
 // This will ensure that deposit sweep transaction fees are not underestimated.
 const depositScriptByteSize = 126
 
+// DepositSweepLookBackBlocks is the look-back period in blocks used
+// when searching for submitted deposit-related events. It's equal to
+// 30 days assuming 12 seconds per block.
+const DepositSweepLookBackBlocks = uint64(216000)
+
 // DepositSweepTask is a task that may produce a deposit sweep proposal.
 type DepositSweepTask struct {
 	chain    Chain
@@ -110,7 +115,9 @@ type Deposit struct {
 	Confirmations       uint
 }
 
-// FindDeposits finds deposits according to the given criteria.
+// FindDeposits finds deposits according to the given criteria. It always
+// performs a full-history scan (from block 0) to ensure all matching deposits
+// are returned regardless of age.
 func FindDeposits(
 	chain Chain,
 	btcChain bitcoin.Chain,
@@ -127,10 +134,13 @@ func FindDeposits(
 		maxNumberOfDeposits,
 		skipSwept,
 		skipUnconfirmed,
+		0,
 	)
 }
 
 // findDeposits finds deposits according to the given criteria.
+// The filterStartBlock parameter controls the earliest block from which
+// deposit-revealed events are queried.
 func findDeposits(
 	fnLogger log.StandardLogger,
 	chain Chain,
@@ -139,6 +149,7 @@ func findDeposits(
 	maxNumberOfDeposits int,
 	skipSwept bool,
 	skipUnconfirmed bool,
+	filterStartBlock uint64,
 ) ([]*Deposit, error) {
 	fnLogger.Infof("reading revealed deposits from chain")
 
@@ -151,7 +162,9 @@ func findDeposits(
 	}
 	depositMinAge := time.Duration(depositMinAgeSeconds) * time.Second
 
-	filter := &tbtc.DepositRevealedEventFilter{}
+	filter := &tbtc.DepositRevealedEventFilter{
+		StartBlock: filterStartBlock,
+	}
 	if walletPublicKeyHash != [20]byte{} {
 		filter.WalletPublicKeyHash = [][20]byte{walletPublicKeyHash}
 	}
@@ -280,6 +293,27 @@ func (dst *DepositSweepTask) FindDepositsToSweep(
 
 	taskLogger.Infof("fetching max [%d] deposits", maxNumberOfDeposits)
 
+	blockCounter, err := dst.chain.BlockCounter()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to get block counter: [%w]",
+			err,
+		)
+	}
+
+	currentBlockNumber, err := blockCounter.CurrentBlock()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to get current block number: [%w]",
+			err,
+		)
+	}
+
+	filterStartBlock := uint64(0)
+	if currentBlockNumber > DepositSweepLookBackBlocks {
+		filterStartBlock = currentBlockNumber - DepositSweepLookBackBlocks
+	}
+
 	unsweptDeposits, err := findDeposits(
 		taskLogger,
 		dst.chain,
@@ -288,6 +322,7 @@ func (dst *DepositSweepTask) FindDepositsToSweep(
 		int(maxNumberOfDeposits),
 		true,
 		true,
+		filterStartBlock,
 	)
 	if err != nil {
 		return nil, err
