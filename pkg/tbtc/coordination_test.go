@@ -560,13 +560,11 @@ func TestCoordinationExecutor_GetLeader(t *testing.T) {
 }
 
 func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
-	// All test cases below exercise the post-activation code path because
-	// DepositSweepEveryWindowActivationBlock is uint64(0), making the
-	// condition coordinationBlock < 0 always false for unsigned integers.
-	// As a result, DepositSweep and MovedFundsSweep are checked on every
-	// valid coordination window, while MovingFunds remains gated to every
-	// 4th window. When the activation constant is set to a real future
-	// block, a separate test function should cover pre-activation behavior.
+	// All test cases below exercise the pre-activation code path because
+	// their coordination blocks are below
+	// DepositSweepEveryWindowActivationBlock. In this mode, all three
+	// actions (DepositSweep, MovedFundsSweep, MovingFunds) are gated to
+	// every 4th coordination window.
 	tests := map[string]struct {
 		coordinationBlock uint64
 		expectedChecklist []WalletActionType
@@ -576,38 +574,26 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 			coordinationBlock: 0,
 			expectedChecklist: nil,
 		},
-		// Non-4th-window: Redemption + DepositSweep + MovedFundsSweep.
+		// Non-4th-window: only Redemption.
 		"block 900": {
 			coordinationBlock: 900,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
 		// Incorrect coordination window (windowIndex == 0, returns nil).
 		"block 901": {
 			coordinationBlock: 901,
 			expectedChecklist: nil,
 		},
-		// Non-4th-window: Redemption + DepositSweep + MovedFundsSweep.
+		// Non-4th-window: only Redemption.
 		"block 1800": {
 			coordinationBlock: 1800,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
 		"block 2700": {
 			coordinationBlock: 2700,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
-		// 4th-window (window 4): adds MovingFunds. Heartbeat randomly
+		// 4th-window (window 4): all actions present. Heartbeat randomly
 		// selected for this specific seed.
 		"block 3600": {
 			coordinationBlock: 3600,
@@ -621,29 +607,17 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 		},
 		"block 4500": {
 			coordinationBlock: 4500,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
 		"block 5400": {
 			coordinationBlock: 5400,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
 		"block 6300": {
 			coordinationBlock: 6300,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
-		// 4th-window (window 8): adds MovingFunds.
+		// 4th-window (window 8): all actions present except heartbeat.
 		"block 7200": {
 			coordinationBlock: 7200,
 			expectedChecklist: []WalletActionType{
@@ -655,29 +629,17 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 		},
 		"block 8100": {
 			coordinationBlock: 8100,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
 		"block 9000": {
 			coordinationBlock: 9000,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
 		"block 9900": {
 			coordinationBlock: 9900,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
-		// 4th-window (window 12): adds MovingFunds.
+		// 4th-window (window 12): all actions present except heartbeat.
 		"block 10800": {
 			coordinationBlock: 10800,
 			expectedChecklist: []WalletActionType{
@@ -689,29 +651,19 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 		},
 		"block 11700": {
 			coordinationBlock: 11700,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
 		"block 12600": {
 			coordinationBlock: 12600,
 			expectedChecklist: []WalletActionType{
 				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
 			},
 		},
 		"block 13500": {
 			coordinationBlock: 13500,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
+			expectedChecklist: []WalletActionType{ActionRedemption},
 		},
-		// 4th-window (window 16): adds MovingFunds.
+		// 4th-window (window 16): all actions present except heartbeat.
 		"block 14400": {
 			coordinationBlock: 14400,
 			expectedChecklist: []WalletActionType{
@@ -765,28 +717,19 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 // are explicitly asserted beyond simple checklist comparison to guard
 // against regressions that a full-list deep-equal alone might miss.
 //
-// When DepositSweepEveryWindowActivationBlock is set to a real future
-// block height, pre-activation boundary cases should be added to a
-// separate test function.
+// All coordination blocks used here are above
+// DepositSweepEveryWindowActivationBlock to exercise the post-activation
+// code path.
 func TestCoordinationExecutor_GetActionsChecklist_PostActivation(t *testing.T) {
 	tests := map[string]struct {
 		coordinationBlock uint64
 		expectedChecklist []WalletActionType
 		is4thWindow       bool
 	}{
-		// Activation boundary: block 0 equals
-		// DepositSweepEveryWindowActivationBlock. Window index is 0
-		// (invalid), so the function returns nil.
-		"activation block boundary": {
-			coordinationBlock: 0,
-			expectedChecklist: nil,
-			is4thWindow:       false,
-		},
-		// First valid coordination window after the activation block.
-		// Non-4th window: DepositSweep and MovedFundsSweep present,
-		// MovingFunds absent.
-		"post-activation window 1": {
-			coordinationBlock: 900,
+		// Non-4th window (window 27289): DepositSweep and
+		// MovedFundsSweep present, MovingFunds absent.
+		"post-activation non-4th window 27289": {
+			coordinationBlock: 24560100,
 			expectedChecklist: []WalletActionType{
 				ActionRedemption,
 				ActionDepositSweep,
@@ -794,8 +737,8 @@ func TestCoordinationExecutor_GetActionsChecklist_PostActivation(t *testing.T) {
 			},
 			is4thWindow: false,
 		},
-		"post-activation window 2": {
-			coordinationBlock: 1800,
+		"post-activation non-4th window 27290": {
+			coordinationBlock: 24561000,
 			expectedChecklist: []WalletActionType{
 				ActionRedemption,
 				ActionDepositSweep,
@@ -803,8 +746,8 @@ func TestCoordinationExecutor_GetActionsChecklist_PostActivation(t *testing.T) {
 			},
 			is4thWindow: false,
 		},
-		"post-activation window 3": {
-			coordinationBlock: 2700,
+		"post-activation non-4th window 27291": {
+			coordinationBlock: 24561900,
 			expectedChecklist: []WalletActionType{
 				ActionRedemption,
 				ActionDepositSweep,
@@ -812,11 +755,44 @@ func TestCoordinationExecutor_GetActionsChecklist_PostActivation(t *testing.T) {
 			},
 			is4thWindow: false,
 		},
-		// 4th window (window index 4, divisible by 4): MovingFunds
-		// appears. Heartbeat is included because the seed derived from
-		// block 3602 triggers the probabilistic selection.
-		"post-activation window 4 (4th window with heartbeat)": {
-			coordinationBlock: 3600,
+		// 4th window (window 27292, divisible by 4): MovingFunds
+		// appears. Heartbeat is NOT triggered for this seed.
+		"post-activation 4th window 27292 no heartbeat": {
+			coordinationBlock: 24562800,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+				ActionMovingFunds,
+			},
+			is4thWindow: true,
+		},
+		"post-activation non-4th window 27293": {
+			coordinationBlock: 24563700,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
+			is4thWindow: false,
+		},
+		// Non-4th window (window 27310) with heartbeat triggered by
+		// seed, verifying heartbeat works independently of the 4th-
+		// window gate.
+		"post-activation non-4th window 27310 with heartbeat": {
+			coordinationBlock: 24579000,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+				ActionHeartbeat,
+			},
+			is4thWindow: false,
+		},
+		// 4th window (window 27320, divisible by 4): MovingFunds
+		// appears. Heartbeat is also triggered for this seed.
+		"post-activation 4th window 27320 with heartbeat": {
+			coordinationBlock: 24588000,
 			expectedChecklist: []WalletActionType{
 				ActionRedemption,
 				ActionDepositSweep,
@@ -826,29 +802,11 @@ func TestCoordinationExecutor_GetActionsChecklist_PostActivation(t *testing.T) {
 			},
 			is4thWindow: true,
 		},
-		"post-activation window 5": {
-			coordinationBlock: 4500,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
-			is4thWindow: false,
-		},
-		"post-activation window 6": {
-			coordinationBlock: 5400,
-			expectedChecklist: []WalletActionType{
-				ActionRedemption,
-				ActionDepositSweep,
-				ActionMovedFundsSweep,
-			},
-			is4thWindow: false,
-		},
-		// 4th window (window index 8, divisible by 4): MovingFunds
-		// appears. Heartbeat is NOT triggered for this seed, verifying
-		// that 4th-window behavior works independently of heartbeat.
-		"post-activation window 8 (4th window no heartbeat)": {
-			coordinationBlock: 7200,
+		// 4th window (window 27296, divisible by 4): MovingFunds
+		// appears. Heartbeat is NOT triggered, verifying that
+		// 4th-window behavior works independently of heartbeat.
+		"post-activation 4th window 27296 no heartbeat": {
+			coordinationBlock: 24566400,
 			expectedChecklist: []WalletActionType{
 				ActionRedemption,
 				ActionDepositSweep,

@@ -64,9 +64,8 @@ const (
 	// which DepositSweep and MovedFundsSweep actions become available on every
 	// coordination window instead of every 4th window only. All operators must
 	// upgrade to a binary containing this constant before the activation block
-	// is reached. The placeholder value must be replaced with the actual
-	// activation block height before release.
-	DepositSweepEveryWindowActivationBlock = uint64(0)
+	// is reached.
+	DepositSweepEveryWindowActivationBlock = uint64(24559289)
 )
 
 // errCoordinationExecutorBusy is an error returned when the coordination
