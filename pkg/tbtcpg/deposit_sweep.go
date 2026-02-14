@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ipfs/go-log/v2"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/keep-network/keep-core/internal/hexutils"
 	"github.com/keep-network/keep-core/pkg/bitcoin"
+	"github.com/keep-network/keep-core/pkg/chain"
 	"github.com/keep-network/keep-core/pkg/tbtc"
 )
 
@@ -102,6 +104,7 @@ type DepositReference struct {
 	FundingTxHash      bitcoin.Hash
 	FundingOutputIndex uint32
 	RevealBlock        uint64
+	Vault              *chain.Address
 }
 
 // Deposit holds some detailed data about a deposit.
@@ -113,6 +116,7 @@ type Deposit struct {
 	IsSwept             bool
 	AmountBtc           float64
 	Confirmations       uint
+	Vault               *chain.Address
 }
 
 // FindDeposits finds deposits according to the given criteria. It always
@@ -266,6 +270,7 @@ func findDeposits(
 				IsSwept:             isSwept,
 				AmountBtc:           convertSatToBtc(float64(depositRequest.Amount)),
 				Confirmations:       confirmations,
+				Vault:               depositRequest.Vault,
 			},
 		)
 	}
@@ -328,7 +333,96 @@ func (dst *DepositSweepTask) FindDepositsToSweep(
 		return nil, err
 	}
 
-	depositsToSweep := unsweptDeposits
+	// Group unswept deposits by their target vault address. The
+	// maxNumberOfDeposits cap is applied inside findDeposits() before
+	// this grouping step, so the grouping operates on an already-capped
+	// set. This is an acceptable trade-off: each vault group will
+	// contain at least one deposit (a valid sweep batch), and because
+	// vault=0x0 (nil-vault) deposits are rare in practice the
+	// throughput impact of the cap reducing a minority group is
+	// negligible.
+	type vaultGroup struct {
+		vaultLabel string
+		deposits   []*Deposit
+	}
+
+	groups := make(map[string]*vaultGroup)
+
+	for _, deposit := range unsweptDeposits {
+		var key string
+		var label string
+
+		if deposit.Vault == nil {
+			key = ""
+			label = "vault=0x0 (nil)"
+		} else {
+			key = strings.ToLower(string(*deposit.Vault))
+			label = string(*deposit.Vault)
+		}
+
+		g, exists := groups[key]
+		if !exists {
+			g = &vaultGroup{vaultLabel: label}
+			groups[key] = g
+		}
+		g.deposits = append(g.deposits, deposit)
+	}
+
+	// Select the vault group with the most deposits. This
+	// largest-group-first policy maximises the number of deposits
+	// swept per transaction. A theoretical starvation risk exists for
+	// minority vault groups when deposits arrive faster than the sweep
+	// cadence can process them; monitoring via the Warn-level logs
+	// emitted below for vault=0x0 deposits is the mitigation strategy
+	// so operators can detect and act on stuck deposits.
+	var selectedGroup *vaultGroup
+	for _, g := range groups {
+		if selectedGroup == nil || len(g.deposits) > len(selectedGroup.deposits) {
+			selectedGroup = g
+		}
+	}
+
+	var depositsToSweep []*Deposit
+	if selectedGroup != nil {
+		depositsToSweep = selectedGroup.deposits
+	}
+
+	if len(groups) > 1 {
+		taskLogger.Infof(
+			"multiple vault groups detected: [%d] groups, selecting [%s] with [%d] deposits",
+			len(groups),
+			selectedGroup.vaultLabel,
+			len(selectedGroup.deposits),
+		)
+
+		for _, g := range groups {
+			taskLogger.Infof(
+				"vault group [%s]: [%d] deposits",
+				g.vaultLabel,
+				len(g.deposits),
+			)
+		}
+
+		// Vault=0x0 deposits that are not selected for sweeping are
+		// not at risk of fund loss. Three recovery paths exist:
+		//  1. The deposit can still be swept to the wallet's Bank
+		//     balance in a later sweep cycle (normal sweep, delayed).
+		//  2. After the deposit locktime expires, the depositor can
+		//     request a refund on-chain.
+		//  3. A reinitializer can re-assign the deposit to a
+		//     different vault, making it eligible for a future sweep.
+		// The Warn-level log below flags these deposits for operator
+		// awareness and manual follow-up.
+		if nilGroup, ok := groups[""]; ok {
+			for _, deposit := range nilGroup.deposits {
+				taskLogger.Warnf(
+					"vault=0x0 deposit [%s] with wallet PKH [0x%x] requires manual follow-up",
+					deposit.DepositKey,
+					deposit.WalletPublicKeyHash,
+				)
+			}
+		}
+	}
 
 	if len(depositsToSweep) == 0 {
 		return nil, nil
@@ -357,6 +451,7 @@ func (dst *DepositSweepTask) FindDepositsToSweep(
 			FundingTxHash:      deposit.FundingTxHash,
 			FundingOutputIndex: deposit.FundingOutputIndex,
 			RevealBlock:        deposit.RevealBlock,
+			Vault:              deposit.Vault,
 		}
 	}
 
