@@ -560,33 +560,55 @@ func TestCoordinationExecutor_GetLeader(t *testing.T) {
 }
 
 func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
+	// All test cases below exercise the post-activation code path because
+	// DepositSweepEveryWindowActivationBlock is uint64(0), making the
+	// condition coordinationBlock < 0 always false for unsigned integers.
+	// As a result, DepositSweep and MovedFundsSweep are checked on every
+	// valid coordination window, while MovingFunds remains gated to every
+	// 4th window. When the activation constant is set to a real future
+	// block, a separate test function should cover pre-activation behavior.
 	tests := map[string]struct {
 		coordinationBlock uint64
 		expectedChecklist []WalletActionType
 	}{
-		// Incorrect coordination window.
+		// Incorrect coordination window (windowIndex == 0, returns nil).
 		"block 0": {
 			coordinationBlock: 0,
 			expectedChecklist: nil,
 		},
+		// Non-4th-window: Redemption + DepositSweep + MovedFundsSweep.
 		"block 900": {
 			coordinationBlock: 900,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
-		// Incorrect coordination window.
+		// Incorrect coordination window (windowIndex == 0, returns nil).
 		"block 901": {
 			coordinationBlock: 901,
 			expectedChecklist: nil,
 		},
+		// Non-4th-window: Redemption + DepositSweep + MovedFundsSweep.
 		"block 1800": {
 			coordinationBlock: 1800,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
 		"block 2700": {
 			coordinationBlock: 2700,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
-		// Heartbeat randomly selected for the 4th coordination window.
+		// 4th-window (window 4): adds MovingFunds. Heartbeat randomly
+		// selected for this specific seed.
 		"block 3600": {
 			coordinationBlock: 3600,
 			expectedChecklist: []WalletActionType{
@@ -599,18 +621,29 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 		},
 		"block 4500": {
 			coordinationBlock: 4500,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
 		"block 5400": {
 			coordinationBlock: 5400,
 			expectedChecklist: []WalletActionType{
 				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
 			},
 		},
 		"block 6300": {
 			coordinationBlock: 6300,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
+		// 4th-window (window 8): adds MovingFunds.
 		"block 7200": {
 			coordinationBlock: 7200,
 			expectedChecklist: []WalletActionType{
@@ -622,16 +655,29 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 		},
 		"block 8100": {
 			coordinationBlock: 8100,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
 		"block 9000": {
 			coordinationBlock: 9000,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
 		"block 9900": {
 			coordinationBlock: 9900,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
+		// 4th-window (window 12): adds MovingFunds.
 		"block 10800": {
 			coordinationBlock: 10800,
 			expectedChecklist: []WalletActionType{
@@ -643,18 +689,29 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 		},
 		"block 11700": {
 			coordinationBlock: 11700,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
 		"block 12600": {
 			coordinationBlock: 12600,
 			expectedChecklist: []WalletActionType{
 				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
 			},
 		},
 		"block 13500": {
 			coordinationBlock: 13500,
-			expectedChecklist: []WalletActionType{ActionRedemption},
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
 		},
+		// 4th-window (window 16): adds MovingFunds.
 		"block 14400": {
 			coordinationBlock: 14400,
 			expectedChecklist: []WalletActionType{
@@ -665,6 +722,11 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 			},
 		},
 	}
+
+	// Verify that the activation block constant is accessible and typed
+	// as uint64. This is a compile-time assertion placed outside the test
+	// loop since it does not vary per subtest.
+	var _ uint64 = DepositSweepEveryWindowActivationBlock
 
 	executor := &coordinationExecutor{}
 
@@ -678,7 +740,7 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 					big.NewInt(int64(window.coordinationBlock) + 2).Bytes(),
 				)
 
-				checklist := executor.getActionsChecklist(window.index(), seed)
+				checklist := executor.getActionsChecklist(window.index(), seed, window.coordinationBlock)
 
 				if diff := deep.Equal(
 					checklist,
@@ -693,6 +755,252 @@ func TestCoordinationExecutor_GetActionsChecklist(t *testing.T) {
 				}
 			},
 		)
+	}
+}
+
+// TestCoordinationExecutor_GetActionsChecklist_PostActivation verifies
+// post-activation behavior where DepositSweep and MovedFundsSweep appear
+// on every coordination window, MovingFunds remains gated to every 4th
+// window, and ActionRedemption is always at index 0. Safety invariants
+// are explicitly asserted beyond simple checklist comparison to guard
+// against regressions that a full-list deep-equal alone might miss.
+//
+// When DepositSweepEveryWindowActivationBlock is set to a real future
+// block height, pre-activation boundary cases should be added to a
+// separate test function.
+func TestCoordinationExecutor_GetActionsChecklist_PostActivation(t *testing.T) {
+	tests := map[string]struct {
+		coordinationBlock uint64
+		expectedChecklist []WalletActionType
+		is4thWindow       bool
+	}{
+		// Activation boundary: block 0 equals
+		// DepositSweepEveryWindowActivationBlock. Window index is 0
+		// (invalid), so the function returns nil.
+		"activation block boundary": {
+			coordinationBlock: 0,
+			expectedChecklist: nil,
+			is4thWindow:       false,
+		},
+		// First valid coordination window after the activation block.
+		// Non-4th window: DepositSweep and MovedFundsSweep present,
+		// MovingFunds absent.
+		"post-activation window 1": {
+			coordinationBlock: 900,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
+			is4thWindow: false,
+		},
+		"post-activation window 2": {
+			coordinationBlock: 1800,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
+			is4thWindow: false,
+		},
+		"post-activation window 3": {
+			coordinationBlock: 2700,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
+			is4thWindow: false,
+		},
+		// 4th window (window index 4, divisible by 4): MovingFunds
+		// appears. Heartbeat is included because the seed derived from
+		// block 3602 triggers the probabilistic selection.
+		"post-activation window 4 (4th window with heartbeat)": {
+			coordinationBlock: 3600,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+				ActionMovingFunds,
+				ActionHeartbeat,
+			},
+			is4thWindow: true,
+		},
+		"post-activation window 5": {
+			coordinationBlock: 4500,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
+			is4thWindow: false,
+		},
+		"post-activation window 6": {
+			coordinationBlock: 5400,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+			},
+			is4thWindow: false,
+		},
+		// 4th window (window index 8, divisible by 4): MovingFunds
+		// appears. Heartbeat is NOT triggered for this seed, verifying
+		// that 4th-window behavior works independently of heartbeat.
+		"post-activation window 8 (4th window no heartbeat)": {
+			coordinationBlock: 7200,
+			expectedChecklist: []WalletActionType{
+				ActionRedemption,
+				ActionDepositSweep,
+				ActionMovedFundsSweep,
+				ActionMovingFunds,
+			},
+			is4thWindow: true,
+		},
+	}
+
+	// Compile-time assertion: DepositSweepEveryWindowActivationBlock must
+	// be typed as uint64.
+	var _ uint64 = DepositSweepEveryWindowActivationBlock
+
+	executor := &coordinationExecutor{}
+
+	for testName, test := range tests {
+		t.Run(
+			testName, func(t *testing.T) {
+				window := newCoordinationWindow(test.coordinationBlock)
+
+				seed := sha256.Sum256(
+					big.NewInt(int64(window.coordinationBlock) + 2).Bytes(),
+				)
+
+				checklist := executor.getActionsChecklist(
+					window.index(),
+					seed,
+					window.coordinationBlock,
+				)
+
+				// Primary correctness check: the full checklist must
+				// match the expected value exactly.
+				if diff := deep.Equal(
+					checklist,
+					test.expectedChecklist,
+				); diff != nil {
+					t.Errorf(
+						"compare failed: %v\nactual: %s\nexpected: %s",
+						diff,
+						checklist,
+						test.expectedChecklist,
+					)
+				}
+
+				// Safety and ordering assertions apply only to non-nil
+				// checklists.
+				if checklist == nil {
+					return
+				}
+
+				assertPostActivationSafety(
+					t,
+					checklist,
+					test.is4thWindow,
+				)
+				assertChecklistOrdering(t, checklist)
+			},
+		)
+	}
+}
+
+// assertPostActivationSafety verifies the safety invariants that must hold
+// for every non-nil post-activation checklist:
+//   - ActionRedemption is at index 0.
+//   - ActionDepositSweep is present.
+//   - ActionMovedFundsSweep is present.
+//   - ActionMovingFunds is absent on non-4th windows.
+func assertPostActivationSafety(
+	t *testing.T,
+	checklist []WalletActionType,
+	is4thWindow bool,
+) {
+	t.Helper()
+
+	if checklist[0] != ActionRedemption {
+		t.Errorf(
+			"ActionRedemption must be at index 0, got %s",
+			checklist[0],
+		)
+	}
+
+	if !slices.Contains(checklist, ActionDepositSweep) {
+		t.Error(
+			"ActionDepositSweep must be present " +
+				"in every post-activation window",
+		)
+	}
+
+	if !slices.Contains(checklist, ActionMovedFundsSweep) {
+		t.Error(
+			"ActionMovedFundsSweep must be present " +
+				"in every post-activation window",
+		)
+	}
+
+	// ActionMovingFunds must NOT appear on non-4th windows. This is
+	// the key invariant protecting against excessive chain scans.
+	if !is4thWindow && slices.Contains(checklist, ActionMovingFunds) {
+		t.Error(
+			"ActionMovingFunds must not appear " +
+				"on non-4th windows post-activation",
+		)
+	}
+}
+
+// assertChecklistOrdering verifies that actions appear in canonical priority
+// order: Redemption < DepositSweep < MovedFundsSweep < MovingFunds <
+// Heartbeat. Each consecutive pair of actions must have strictly increasing
+// priority values.
+func assertChecklistOrdering(
+	t *testing.T,
+	checklist []WalletActionType,
+) {
+	t.Helper()
+
+	actionPriority := map[WalletActionType]int{
+		ActionRedemption:      0,
+		ActionDepositSweep:    1,
+		ActionMovedFundsSweep: 2,
+		ActionMovingFunds:     3,
+		ActionHeartbeat:       4,
+	}
+
+	for i := 1; i < len(checklist); i++ {
+		prevPriority, prevOk := actionPriority[checklist[i-1]]
+		currPriority, currOk := actionPriority[checklist[i]]
+
+		if !prevOk || !currOk {
+			t.Errorf(
+				"unknown action type in checklist "+
+					"at index %d or %d",
+				i-1,
+				i,
+			)
+			continue
+		}
+
+		if prevPriority >= currPriority {
+			t.Errorf(
+				"ordering invariant violated: "+
+					"%s (priority %d) at index %d "+
+					"must come before %s (priority %d) "+
+					"at index %d",
+				checklist[i-1],
+				prevPriority,
+				i-1,
+				checklist[i],
+				currPriority,
+				i,
+			)
+		}
 	}
 }
 
