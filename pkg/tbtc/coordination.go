@@ -59,6 +59,13 @@ const (
 	// and before they are filtered out as not interesting for the follower,
 	// they are buffered in the channel.
 	coordinationMessageReceiveBuffer = 512
+
+	// DepositSweepEveryWindowActivationBlock is the Ethereum block height at
+	// which DepositSweep and MovedFundsSweep actions become available on every
+	// coordination window instead of every 4th window only. All operators must
+	// upgrade to a binary containing this constant before the activation block
+	// is reached.
+	DepositSweepEveryWindowActivationBlock = uint64(24559289)
 )
 
 // errCoordinationExecutorBusy is an error returned when the coordination
@@ -387,7 +394,7 @@ func (ce *coordinationExecutor) coordinate(
 
 	execLogger.Infof("coordination leader is: [%s]", leader)
 
-	actionsChecklist := ce.getActionsChecklist(window.index(), seed)
+	actionsChecklist := ce.getActionsChecklist(window.index(), seed, window.coordinationBlock)
 
 	execLogger.Infof("actions checklist is: [%v]", actionsChecklist)
 
@@ -575,6 +582,7 @@ func (ce *coordinationExecutor) getLeader(seed [32]byte) chain.Address {
 func (ce *coordinationExecutor) getActionsChecklist(
 	windowIndex uint64,
 	seed [32]byte,
+	coordinationBlock uint64,
 ) []WalletActionType {
 	// Return nil checklist for incorrect coordination windows.
 	if windowIndex == 0 {
@@ -591,16 +599,36 @@ func (ce *coordinationExecutor) getActionsChecklist(
 	// frequency is every 4 coordination windows.
 	frequencyWindows := uint64(4)
 
-	if windowIndex%frequencyWindows == 0 {
+	// The activation gate determines how often DepositSweep and
+	// MovedFundsSweep actions are checked. Before the activation block,
+	// all three actions (DepositSweep, MovedFundsSweep, MovingFunds)
+	// are gated by the frequency window. After the activation block,
+	// DepositSweep and MovedFundsSweep are checked on every coordination
+	// window while MovingFunds stays frequency-gated because its
+	// proposal generator performs a full-history chain scan.
+	if coordinationBlock < DepositSweepEveryWindowActivationBlock {
+		if windowIndex%frequencyWindows == 0 {
+			actions = append(actions, ActionDepositSweep)
+		}
+
+		if windowIndex%frequencyWindows == 0 {
+			actions = append(actions, ActionMovedFundsSweep)
+		}
+
+		if windowIndex%frequencyWindows == 0 {
+			actions = append(actions, ActionMovingFunds)
+		}
+	} else {
 		actions = append(actions, ActionDepositSweep)
-	}
-
-	if windowIndex%frequencyWindows == 0 {
 		actions = append(actions, ActionMovedFundsSweep)
-	}
 
-	if windowIndex%frequencyWindows == 0 {
-		actions = append(actions, ActionMovingFunds)
+		// MovingFunds retains the frequency guard because its proposal
+		// generator (MovingFundsTask.Run) calls FindDeposits which scans
+		// from block 0, i.e. the full Ethereum history. Removing this
+		// guard would multiply the scan load proportionally.
+		if windowIndex%frequencyWindows == 0 {
+			actions = append(actions, ActionMovingFunds)
+		}
 	}
 
 	// #nosec G404 (insecure random number source (rand))
