@@ -3,10 +3,25 @@ package spv
 import (
 	"bytes"
 	"fmt"
+	"math/big"
 	"sync"
 
+	"github.com/btcsuite/btcd/blockchain"
 	"github.com/keep-network/keep-core/pkg/bitcoin"
 )
+
+// blockHeaderWithDifficulty returns a header whose Difficulty() matches the
+// given value (within Bitcoin compact encoding precision).
+func blockHeaderWithDifficulty(difficulty *big.Int) *bitcoin.BlockHeader {
+	maxTarget := new(big.Int)
+	maxTarget.SetString(
+		"ffff0000000000000000000000000000000000000000000000000000",
+		16,
+	)
+	target := new(big.Int).Div(maxTarget, difficulty)
+	bits := blockchain.BigToCompact(target)
+	return &bitcoin.BlockHeader{Bits: bits}
+}
 
 type localBitcoinChain struct {
 	mutex sync.Mutex
@@ -200,6 +215,20 @@ func (lbc *localBitcoinChain) addBlockHeader(
 
 	lbc.blockHeaders[blockNumber] = blockHeader
 
+	return nil
+}
+
+// populateBlockHeaders adds headers for [fromHeight, toHeight] inclusive using
+// difficultyAt(height) for each block's Bits-derived difficulty.
+func (lbc *localBitcoinChain) populateBlockHeaders(
+	fromHeight, toHeight uint,
+	difficultyAt func(uint) *big.Int,
+) error {
+	for h := fromHeight; h <= toHeight; h++ {
+		if err := lbc.addBlockHeader(h, blockHeaderWithDifficulty(difficultyAt(h))); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

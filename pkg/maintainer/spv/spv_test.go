@@ -12,12 +12,16 @@ import (
 )
 
 func TestGetProofInfo(t *testing.T) {
+	// First block height of Bitcoin difficulty epoch 392 (392 * 2016).
+	const epoch392Start = 392 * 2016
+
 	tests := map[string]struct {
 		latestBlockHeight                uint
 		transactionConfirmations         uint
 		currentEpoch                     uint64
 		currentEpochDifficulty           *big.Int
 		previousEpochDifficulty          *big.Int
+		difficultyAtBlock                func(uint) *big.Int
 		expectedIsProofWithinRelayRange  bool
 		expectedAccumulatedConfirmations uint
 		expectedRequiredConfirmations    uint
@@ -26,58 +30,79 @@ func TestGetProofInfo(t *testing.T) {
 			latestBlockHeight:                790277,
 			transactionConfirmations:         3,
 			currentEpoch:                     392,
-			currentEpochDifficulty:           nil, // not needed
-			previousEpochDifficulty:          nil, // not needed
+			currentEpochDifficulty:           big.NewInt(1),
+			previousEpochDifficulty:          big.NewInt(1),
+			difficultyAtBlock:                func(uint) *big.Int { return big.NewInt(1) },
 			expectedIsProofWithinRelayRange:  true,
 			expectedAccumulatedConfirmations: 3,
-			expectedRequiredConfirmations:    6,
+			// Only 3 blocks of work available (sum 3 < 6); need one more block.
+			expectedRequiredConfirmations: 4,
 		},
 		"proof entirely within previous epoch": {
 			latestBlockHeight:                790300,
 			transactionConfirmations:         2041,
 			currentEpoch:                     392,
-			currentEpochDifficulty:           nil, // not needed
-			previousEpochDifficulty:          nil, // not needed
+			currentEpochDifficulty:           big.NewInt(1),
+			previousEpochDifficulty:          big.NewInt(1),
+			difficultyAtBlock:                func(uint) *big.Int { return big.NewInt(1) },
 			expectedAccumulatedConfirmations: 2041,
 			expectedIsProofWithinRelayRange:  true,
 			expectedRequiredConfirmations:    6,
 		},
 		"proof spans previous and current epochs and difficulty drops": {
-			latestBlockHeight:                790300,
-			transactionConfirmations:         31,
-			currentEpoch:                     392,
-			currentEpochDifficulty:           big.NewInt(50000000000000),
-			previousEpochDifficulty:          big.NewInt(30000000000000),
+			latestBlockHeight:        790300,
+			transactionConfirmations: 31,
+			currentEpoch:             392,
+			currentEpochDifficulty:   big.NewInt(50000),
+			previousEpochDifficulty:  big.NewInt(30000),
+			difficultyAtBlock: func(h uint) *big.Int {
+				if h < epoch392Start {
+					return big.NewInt(30000)
+				}
+				return big.NewInt(50000)
+			},
 			expectedIsProofWithinRelayRange:  true,
 			expectedAccumulatedConfirmations: 31,
-			expectedRequiredConfirmations:    9,
+			// requestedDiff 30000 * factor 6 = 180000; first 5 headers suffice.
+			expectedRequiredConfirmations: 5,
 		},
 		"proof spans previous and current epochs and difficulty raises": {
-			latestBlockHeight:                790300,
-			transactionConfirmations:         31,
-			currentEpoch:                     392,
-			currentEpochDifficulty:           big.NewInt(30000000000000),
-			previousEpochDifficulty:          big.NewInt(60000000000000),
+			latestBlockHeight:        790300,
+			transactionConfirmations: 31,
+			currentEpoch:             392,
+			currentEpochDifficulty:   big.NewInt(30000),
+			previousEpochDifficulty:  big.NewInt(60000),
+			difficultyAtBlock: func(h uint) *big.Int {
+				if h < epoch392Start {
+					return big.NewInt(60000)
+				}
+				return big.NewInt(30000)
+			},
 			expectedIsProofWithinRelayRange:  true,
 			expectedAccumulatedConfirmations: 31,
-			expectedRequiredConfirmations:    4,
+			// requestedDiff 60000 * 6 = 360000; needs 10 headers from proof start.
+			expectedRequiredConfirmations: 10,
 		},
 		"proof begins outside previous epoch": {
 			latestBlockHeight:                790300,
 			transactionConfirmations:         2048,
 			currentEpoch:                     392,
-			currentEpochDifficulty:           nil, // not needed
-			previousEpochDifficulty:          nil, // not needed
+			currentEpochDifficulty:           big.NewInt(1),
+			previousEpochDifficulty:          big.NewInt(1),
+			difficultyAtBlock:                func(uint) *big.Int { return big.NewInt(1) },
 			expectedIsProofWithinRelayRange:  false,
 			expectedAccumulatedConfirmations: 0,
 			expectedRequiredConfirmations:    0,
 		},
 		"proof ends outside current epoch": {
-			latestBlockHeight:                792285,
-			transactionConfirmations:         3,
+			// Tx in 792283; six difficulty-1 blocks reach 792288 (next epoch), which
+			// is past relay currentEpoch 392.
+			latestBlockHeight:                792288,
+			transactionConfirmations:         6,
 			currentEpoch:                     392,
-			currentEpochDifficulty:           nil, // not needed
-			previousEpochDifficulty:          nil, // not needed
+			currentEpochDifficulty:           big.NewInt(1),
+			previousEpochDifficulty:          big.NewInt(1),
+			difficultyAtBlock:                func(uint) *big.Int { return big.NewInt(1) },
 			expectedIsProofWithinRelayRange:  false,
 			expectedAccumulatedConfirmations: 0,
 			expectedRequiredConfirmations:    0,
@@ -97,10 +122,15 @@ func TestGetProofInfo(t *testing.T) {
 			localChain := newLocalChain()
 
 			btcChain := newLocalBitcoinChain()
-			btcChain.addBlockHeader(
+			proofStart := test.latestBlockHeight - test.transactionConfirmations + 1
+			err = btcChain.populateBlockHeaders(
+				proofStart,
 				test.latestBlockHeight,
-				&bitcoin.BlockHeader{},
+				test.difficultyAtBlock,
 			)
+			if err != nil {
+				t.Fatal(err)
+			}
 			btcChain.addTransactionConfirmations(
 				transactionHash,
 				test.transactionConfirmations,
@@ -109,8 +139,8 @@ func TestGetProofInfo(t *testing.T) {
 			localChain.setTxProofDifficultyFactor(big.NewInt(6))
 			localChain.setCurrentEpoch(test.currentEpoch)
 			localChain.setCurrentAndPrevEpochDifficulty(
-				test.currentEpochDifficulty,
 				test.previousEpochDifficulty,
+				test.currentEpochDifficulty,
 			)
 
 			isProofWithinRelayRange,
