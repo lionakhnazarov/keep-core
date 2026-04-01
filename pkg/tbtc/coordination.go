@@ -16,6 +16,7 @@ import (
 
 	"github.com/keep-network/keep-core/pkg/bitcoin"
 	"github.com/keep-network/keep-core/pkg/chain"
+	"github.com/keep-network/keep-core/pkg/clientinfo"
 	"github.com/keep-network/keep-core/pkg/generator"
 	"github.com/keep-network/keep-core/pkg/net"
 	"github.com/keep-network/keep-core/pkg/protocol/group"
@@ -295,6 +296,13 @@ type coordinationExecutor struct {
 	protocolLatch       *generator.ProtocolLatch
 
 	waitForBlockFn waitForBlockFn
+
+	// metricsRecorder is optional and used for recording performance metrics
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+		SetGauge(name string, value float64)
+		RecordDuration(name string, duration time.Duration)
+	}
 }
 
 // newCoordinationExecutor creates a new coordination executor for the
@@ -363,6 +371,11 @@ func (ce *coordinationExecutor) coordinate(
 
 	execLogger.Info("starting coordination")
 
+	startTime := time.Now()
+
+	// Record duration metric once at the end using defer
+	var coordinationFailed bool
+
 	seed, err := ce.getSeed(window.coordinationBlock)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compute coordination seed: [%v]", err)
@@ -411,6 +424,10 @@ func (ce *coordinationExecutor) coordinate(
 			// no point to keep the context active as retransmissions do not
 			// occur anyway.
 			cancelCtx()
+			coordinationFailed = true
+			if ce.metricsRecorder != nil {
+				ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationFailedTotal, 1)
+			}
 			return nil, fmt.Errorf(
 				"failed to execute leader's routine: [%v]",
 				err,
@@ -431,7 +448,21 @@ func (ce *coordinationExecutor) coordinate(
 			append(actionsChecklist, ActionNoop),
 		)
 		if err != nil {
-			return nil, fmt.Errorf(
+			coordinationFailed = true
+			// Record as leader timeout observation, not as a failure of this node.
+			// The actual failure is on the leader's side.
+			if ce.metricsRecorder != nil {
+				ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationLeaderTimeoutTotal, 1)
+			}
+			// Return a partial result with leader and faults information
+			partialResult := &coordinationResult{
+				wallet:   ce.coordinatedWallet,
+				window:   window,
+				leader:   leader,
+				proposal: nil, // no proposal on failure
+				faults:   faults,
+			}
+			return partialResult, fmt.Errorf(
 				"failed to execute follower's routine: [%v]",
 				err,
 			)
@@ -459,7 +490,22 @@ func (ce *coordinationExecutor) coordinate(
 
 	execLogger.Infof("coordination completed with result: [%s]", result)
 
+	// Record successful coordination counter
+	if ce.metricsRecorder != nil && !coordinationFailed {
+		ce.metricsRecorder.IncrementCounter(clientinfo.MetricCoordinationProceduresExecutedTotal, 1)
+		ce.metricsRecorder.RecordDuration(clientinfo.MetricCoordinationDurationSeconds, time.Since(startTime))
+	}
+
 	return result, nil
+}
+
+// setMetricsRecorder sets the metrics recorder for the coordination executor.
+func (ce *coordinationExecutor) setMetricsRecorder(recorder interface {
+	IncrementCounter(name string, value float64)
+	SetGauge(name string, value float64)
+	RecordDuration(name string, duration time.Duration)
+}) {
+	ce.metricsRecorder = recorder
 }
 
 // getSeed computes the coordination seed for the given coordination window.

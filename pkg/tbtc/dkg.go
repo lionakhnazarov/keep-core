@@ -4,15 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/maps"
 	"math/big"
 	"sort"
+	"time"
+
+	"golang.org/x/exp/maps"
 
 	"go.uber.org/zap"
 
 	"github.com/ipfs/go-log/v2"
 	"github.com/keep-network/keep-common/pkg/persistence"
 	"github.com/keep-network/keep-core/pkg/chain"
+	"github.com/keep-network/keep-core/pkg/clientinfo"
 	"github.com/keep-network/keep-core/pkg/generator"
 	"github.com/keep-network/keep-core/pkg/net"
 	"github.com/keep-network/keep-core/pkg/protocol/announcer"
@@ -64,6 +67,13 @@ type dkgExecutor struct {
 	waitForBlockFn waitForBlockFn
 
 	tecdsaExecutor *dkg.Executor
+
+	// metricsRecorder is optional and used for recording performance metrics
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+		SetGauge(name string, value float64)
+		RecordDuration(name string, duration time.Duration)
+	}
 }
 
 // newDkgExecutor creates a new instance of dkgExecutor struct. There should
@@ -103,6 +113,15 @@ func newDkgExecutor(
 		tecdsaExecutor:  tecdsaExecutor,
 		waitForBlockFn:  waitForBlockFn,
 	}
+}
+
+// setMetricsRecorder sets the metrics recorder for the DKG executor.
+func (de *dkgExecutor) setMetricsRecorder(recorder interface {
+	IncrementCounter(name string, value float64)
+	SetGauge(name string, value float64)
+	RecordDuration(name string, duration time.Duration)
+}) {
+	de.metricsRecorder = recorder
 }
 
 // preParamsCount returns the current count of the ECDSA DKG pre-parameters.
@@ -151,6 +170,10 @@ func (de *dkgExecutor) executeDkgIfEligible(
 			"joining DKG and controlling [%v] group members",
 			membersCount,
 		)
+
+		if de.metricsRecorder != nil {
+			de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGJoinedTotal, float64(membersCount))
+		}
 
 		de.generateSigningGroup(
 			dkgLogger,
@@ -283,6 +306,7 @@ func (de *dkgExecutor) generateSigningGroup(
 		memberIndex := index
 
 		go func() {
+			dkgStartTime := time.Now()
 			de.protocolLatch.Lock()
 			defer de.protocolLatch.Unlock()
 
@@ -388,6 +412,10 @@ func (de *dkgExecutor) generateSigningGroup(
 				},
 			)
 			if err != nil {
+				if de.metricsRecorder != nil {
+					de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGFailedTotal, 1)
+					de.metricsRecorder.RecordDuration(clientinfo.MetricDKGDurationSeconds, time.Since(dkgStartTime))
+				}
 				if errors.Is(err, context.Canceled) {
 					dkgLogger.Infof(
 						"[member:%v] DKG is no longer awaiting the result; "+
@@ -419,6 +447,11 @@ func (de *dkgExecutor) generateSigningGroup(
 			}
 
 			dkgLogger.Infof("registered %s", signer)
+
+			// Record successful DKG completion
+			if de.metricsRecorder != nil {
+				de.metricsRecorder.RecordDuration(clientinfo.MetricDKGDurationSeconds, time.Since(dkgStartTime))
+			}
 
 			err = de.publishDkgResult(
 				ctx,
@@ -557,6 +590,10 @@ func (de *dkgExecutor) executeDkgValidation(
 
 	dkgLogger.Infof("starting DKG result validation")
 
+	if de.metricsRecorder != nil {
+		de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGValidationTotal, 1)
+	}
+
 	isValid, err := de.chain.IsDKGResultValid(result)
 	if err != nil {
 		dkgLogger.Errorf("cannot validate DKG result: [%v]", err)
@@ -584,6 +621,10 @@ func (de *dkgExecutor) executeDkgValidation(
 					err,
 				)
 				return
+			}
+
+			if de.metricsRecorder != nil {
+				de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGChallengesSubmittedTotal, 1)
 			}
 
 			confirmationBlock := submissionBlock +
@@ -730,6 +771,10 @@ func (de *dkgExecutor) executeDkgValidation(
 					err,
 				)
 				return
+			}
+
+			if de.metricsRecorder != nil {
+				de.metricsRecorder.IncrementCounter(clientinfo.MetricDKGApprovalsSubmittedTotal, 1)
 			}
 
 			dkgLogger.Infof("[member:%v] approving DKG result", memberIndex)

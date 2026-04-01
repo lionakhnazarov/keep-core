@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/keep-network/keep-core/pkg/tbtc"
@@ -36,6 +37,34 @@ func Initialize(
 	}
 
 	go spvMaintainer.startControlLoop(ctx)
+}
+
+// globalMetricsRecorder is a package-level variable to access metrics recorder
+// from proof submission functions.
+var (
+	globalMetricsRecorderMu sync.RWMutex
+	globalMetricsRecorder   interface {
+		IncrementCounter(name string, value float64)
+	}
+)
+
+// SetMetricsRecorder sets the metrics recorder for the SPV maintainer.
+// This allows recording metrics for proof submissions.
+func SetMetricsRecorder(recorder interface {
+	IncrementCounter(name string, value float64)
+}) {
+	globalMetricsRecorderMu.Lock()
+	defer globalMetricsRecorderMu.Unlock()
+	globalMetricsRecorder = recorder
+}
+
+// getMetricsRecorder safely retrieves the metrics recorder.
+func getMetricsRecorder() interface {
+	IncrementCounter(name string, value float64)
+} {
+	globalMetricsRecorderMu.RLock()
+	defer globalMetricsRecorderMu.RUnlock()
+	return globalMetricsRecorder
 }
 
 // proofTypes holds the information about proof types supported by the

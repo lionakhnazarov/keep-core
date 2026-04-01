@@ -48,6 +48,13 @@ type channelManager struct {
 
 	topicsMutex sync.Mutex
 	topics      map[string]*pubsub.Topic
+
+	// metricsRecorder is optional and used for recording performance metrics
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+		SetGauge(name string, value float64)
+		RecordDuration(name string, duration time.Duration)
+	}
 }
 
 func newChannelManager(
@@ -108,9 +115,29 @@ func (cm *channelManager) getChannel(name string) (*channel, error) {
 		}
 
 		cm.channels[name] = channel
+		// Wire metrics recorder into channel if available
+		if cm.metricsRecorder != nil {
+			channel.setMetricsRecorder(cm.metricsRecorder)
+		}
 	}
 
 	return channel, nil
+}
+
+// setMetricsRecorder sets the metrics recorder for the channel manager
+// and wires it into existing channels.
+func (cm *channelManager) setMetricsRecorder(recorder interface {
+	IncrementCounter(name string, value float64)
+	SetGauge(name string, value float64)
+	RecordDuration(name string, duration time.Duration)
+}) {
+	// Wire metrics into existing channels
+	cm.channelsMutex.Lock()
+	defer cm.channelsMutex.Unlock()
+	cm.metricsRecorder = recorder
+	for _, channel := range cm.channels {
+		channel.setMetricsRecorder(recorder)
+	}
 }
 
 func (cm *channelManager) newChannel(name string) (*channel, error) {
@@ -134,6 +161,7 @@ func (cm *channelManager) newChannel(name string) (*channel, error) {
 
 	channel := &channel{
 		name:                 name,
+		ctx:                  cm.ctx,
 		clientIdentity:       cm.identity,
 		peerStore:            cm.peerStore,
 		validator:            cm.pubsub,

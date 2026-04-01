@@ -87,6 +87,12 @@ type depositSweepAction struct {
 	signingTimeoutSafetyMarginBlocks uint64
 	broadcastTimeout                 time.Duration
 	broadcastCheckDelay              time.Duration
+
+	// metricsRecorder is optional and used for recording performance metrics
+	metricsRecorder interface {
+		IncrementCounter(name string, value float64)
+		RecordDuration(name string, duration time.Duration)
+	}
 }
 
 func newDepositSweepAction(
@@ -124,6 +130,13 @@ func newDepositSweepAction(
 }
 
 func (dsa *depositSweepAction) execute() error {
+	executionStartTime := time.Now()
+
+	// Record deposit sweep execution attempt
+	if dsa.metricsRecorder != nil {
+		dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_total", 1)
+	}
+
 	validateProposalLogger := dsa.logger.With(
 		zap.String("step", "validateProposal"),
 	)
@@ -139,6 +152,10 @@ func (dsa *depositSweepAction) execute() error {
 		dsa.btcChain,
 	)
 	if err != nil {
+		if dsa.metricsRecorder != nil {
+			dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_failed_total", 1)
+			dsa.metricsRecorder.RecordDuration("deposit_sweep_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("validate proposal step failed: [%v]", err)
 	}
 
@@ -148,6 +165,10 @@ func (dsa *depositSweepAction) execute() error {
 		dsa.btcChain,
 	)
 	if err != nil {
+		if dsa.metricsRecorder != nil {
+			dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_failed_total", 1)
+			dsa.metricsRecorder.RecordDuration("deposit_sweep_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf(
 			"error while determining wallet's main UTXO: [%v]",
 			err,
@@ -161,6 +182,10 @@ func (dsa *depositSweepAction) execute() error {
 		dsa.btcChain,
 	)
 	if err != nil {
+		if dsa.metricsRecorder != nil {
+			dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_failed_total", 1)
+			dsa.metricsRecorder.RecordDuration("deposit_sweep_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf(
 			"error while ensuring wallet state is synced between "+
 				"BTC and host chain: [%v]",
@@ -176,6 +201,10 @@ func (dsa *depositSweepAction) execute() error {
 		dsa.proposal.SweepTxFee.Int64(),
 	)
 	if err != nil {
+		if dsa.metricsRecorder != nil {
+			dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_failed_total", 1)
+			dsa.metricsRecorder.RecordDuration("deposit_sweep_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf(
 			"error while assembling deposit sweep transaction: [%v]",
 			err,
@@ -188,9 +217,14 @@ func (dsa *depositSweepAction) execute() error {
 
 	// Just in case. This should never happen.
 	if dsa.proposalExpiryBlock < dsa.signingTimeoutSafetyMarginBlocks {
+		if dsa.metricsRecorder != nil {
+			dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_failed_total", 1)
+			dsa.metricsRecorder.RecordDuration("deposit_sweep_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("invalid proposal expiry block")
 	}
 
+	signingStartTime := time.Now()
 	sweepTx, err := dsa.transactionExecutor.signTransaction(
 		signTxLogger,
 		unsignedSweepTx,
@@ -198,7 +232,16 @@ func (dsa *depositSweepAction) execute() error {
 		dsa.proposalExpiryBlock-dsa.signingTimeoutSafetyMarginBlocks,
 	)
 	if err != nil {
+		if dsa.metricsRecorder != nil {
+			dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_failed_total", 1)
+			dsa.metricsRecorder.RecordDuration("deposit_sweep_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("sign transaction step failed: [%v]", err)
+	}
+
+	// Record deposit sweep transaction signing duration
+	if dsa.metricsRecorder != nil {
+		dsa.metricsRecorder.RecordDuration("deposit_sweep_tx_signing_duration_seconds", time.Since(signingStartTime))
 	}
 
 	broadcastTxLogger := dsa.logger.With(
@@ -213,7 +256,17 @@ func (dsa *depositSweepAction) execute() error {
 		dsa.broadcastCheckDelay,
 	)
 	if err != nil {
+		if dsa.metricsRecorder != nil {
+			dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_failed_total", 1)
+			dsa.metricsRecorder.RecordDuration("deposit_sweep_execution_duration_seconds", time.Since(executionStartTime))
+		}
 		return fmt.Errorf("broadcast transaction step failed: [%v]", err)
+	}
+
+	// Record successful deposit sweep execution
+	if dsa.metricsRecorder != nil {
+		dsa.metricsRecorder.IncrementCounter("deposit_sweep_executions_success_total", 1)
+		dsa.metricsRecorder.RecordDuration("deposit_sweep_execution_duration_seconds", time.Since(executionStartTime))
 	}
 
 	return nil
@@ -422,6 +475,14 @@ func (dsa *depositSweepAction) wallet() wallet {
 
 func (dsa *depositSweepAction) actionType() WalletActionType {
 	return ActionDepositSweep
+}
+
+// setMetricsRecorder sets the metrics recorder for the deposit sweep action.
+func (dsa *depositSweepAction) setMetricsRecorder(recorder interface {
+	IncrementCounter(name string, value float64)
+	RecordDuration(name string, duration time.Duration)
+}) {
+	dsa.metricsRecorder = recorder
 }
 
 // assembleDepositSweepTransaction constructs an unsigned deposit sweep Bitcoin

@@ -18,6 +18,11 @@ import (
 type RedemptionTask struct {
 	chain    Chain
 	btcChain bitcoin.Chain
+
+	// metricsRecorder is optional and used for recording performance metrics
+	metricsRecorder interface {
+		SetGauge(name string, value float64)
+	}
 }
 
 func NewRedemptionTask(
@@ -28,6 +33,13 @@ func NewRedemptionTask(
 		chain:    chain,
 		btcChain: btcChain,
 	}
+}
+
+// setMetricsRecorder sets the metrics recorder for the redemption task.
+func (rt *RedemptionTask) setMetricsRecorder(recorder interface {
+	SetGauge(name string, value float64)
+}) {
+	rt.metricsRecorder = recorder
 }
 
 func (rt *RedemptionTask) Run(request *tbtc.CoordinationProposalRequest) (
@@ -164,6 +176,11 @@ func (rt *RedemptionTask) FindPendingRedemptions(
 	}
 
 	taskLogger.Infof("found [%d] redemption requests", len(pendingRedemptions))
+
+	// Record pending redemption requests count
+	if rt.metricsRecorder != nil {
+		rt.metricsRecorder.SetGauge("redemption_pending_requests_count", float64(len(pendingRedemptions)))
+	}
 
 	result := make([]bitcoin.Script, 0)
 

@@ -2,6 +2,7 @@ package clientinfo
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/keep-network/keep-common/pkg/clientinfo"
@@ -159,7 +160,16 @@ func (r *Registry) observe(
 ) {
 	observer, err := r.NewMetricGaugeObserver(name, clientinfo.MetricObserverInput(input))
 	if err != nil {
-		logger.Warnf("could not create gauge observer [%v]", name)
+		// Check if the error is due to metric already existing (expected in some cases)
+		errStr := err.Error()
+		if strings.Contains(errStr, "already exists") {
+			// Metric already registered, this is expected if registerAllMetrics is called multiple times
+			// or if the same metric is registered in multiple places. Log at debug level.
+			logger.Debugf("metric [%v] already registered, skipping duplicate registration: %v", name, err)
+			return
+		}
+		// For other errors, log as warning
+		logger.Warnf("could not create gauge observer [%v]: %v", name, err)
 		return
 	}
 
