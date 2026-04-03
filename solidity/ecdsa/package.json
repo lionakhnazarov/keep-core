@@ -80,9 +80,6 @@
   "engines": {
     "node": ">= 14.0.0"
   },
-  "resolutions": {
-    "web3-eth-accounts": "1.2.11"
-  },
   "overrides": {
     "get-func-name": "^2.0.2"
   }
