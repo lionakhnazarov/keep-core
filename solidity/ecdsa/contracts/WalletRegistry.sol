@@ -479,7 +479,9 @@ contract WalletRegistry is
     function withdrawRewards(address stakingProvider) external {
         address operator = stakingProviderToOperator(stakingProvider);
         if (operator == address(0)) revert UnknownOperator();
-        (, address beneficiary, ) = staking.rolesOf(stakingProvider);
+        (, address beneficiary, ) = _currentAuthorizationSource().rolesOf(
+            stakingProvider
+        );
         uint96 amount = sortitionPool.withdrawRewards(operator, beneficiary);
         // slither-disable-next-line reentrancy-events
         emit RewardsWithdrawn(stakingProvider, amount);
