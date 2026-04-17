@@ -1,4 +1,4 @@
-import { helpers } from "hardhat"
+import { ethers, helpers } from "hardhat"
 import { expect } from "chai"
 
 import { walletRegistryFixture } from "./fixtures"
@@ -10,6 +10,7 @@ import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 import type { FakeContract } from "@defi-wonderland/smock"
 import type { Operator, OperatorID } from "./utils/operators"
 import type {
+  Allowlist,
   SortitionPool,
   WalletRegistry,
   WalletRegistryGovernance,
@@ -282,17 +283,17 @@ describe("WalletRegistry - Rewards", () => {
 
     it("should pay rewards to _currentAuthorizationSource().rolesOf beneficiary (Allowlist)", async () => {
       const operator = membersLocal[0].signer.address
-      const stakingProvider = await walletRegistryLocal.operatorToStakingProvider(
-        operator
-      )
+      const stakingProvider =
+        await walletRegistryLocal.operatorToStakingProvider(operator)
       const allowlistAddr = await walletRegistryLocal.allowlist()
       const allowlist = (await ethers.getContractAt(
         "Allowlist",
         allowlistAddr
       )) as Allowlist
 
-      const { beneficiary: expectedBeneficiary } =
-        await allowlist.rolesOf(stakingProvider)
+      const { beneficiary: expectedBeneficiary } = await allowlist.rolesOf(
+        stakingProvider
+      )
       expect(expectedBeneficiary).to.equal(stakingProvider)
 
       await tTokenLocal
