@@ -1,0 +1,7 @@
+# UBS scanner false-positive suppressions.
+#
+# pkg/beacon/gjkr/integration_test.go: the scanner flags == comparisons on
+# variables whose type names contain "Secret" (SecretSharesAccusationsMessage)
+# or "Key" (EphemeralPublicKeyMessage). These are DKG protocol message types,
+# not cryptographic material being compared with ==.
+pkg/beacon/gjkr/integration_test.go
