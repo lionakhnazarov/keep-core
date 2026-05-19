@@ -184,7 +184,7 @@ func TestSigningRetryLoop(t *testing.T) {
 			incomingAnnouncementsFn: func(
 				sessionID string,
 			) ([]group.MemberIndex, error) {
-				if sessionID == fmt.Sprintf("%v-%v", message, 1) {
+				if sessionID == signingAttemptSessionID(message, 206, 1) {
 					// Minority of members announced their readiness.
 					return []group.MemberIndex{1, 2, 3, 6, 7}, nil
 				}
@@ -245,7 +245,7 @@ func TestSigningRetryLoop(t *testing.T) {
 			incomingAnnouncementsFn: func(
 				sessionID string,
 			) ([]group.MemberIndex, error) {
-				if sessionID == fmt.Sprintf("%v-%v", message, 1) {
+				if sessionID == signingAttemptSessionID(message, 206, 1) {
 					return nil, fmt.Errorf("unexpected error")
 				}
 
@@ -697,6 +697,29 @@ func TestSigningRetryLoop(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestSigningAttemptSessionIDIncludesAttemptStartBlock(t *testing.T) {
+	message := big.NewInt(100)
+
+	firstCeremony := signingAttemptSessionID(message, 206, 1)
+	repeatedDigestCeremony := signingAttemptSessionID(message, 247, 1)
+	retryAttempt := signingAttemptSessionID(message, 247, 2)
+
+	testutils.AssertStringsEqual(
+		t,
+		"session ID format",
+		"64-206-1",
+		firstCeremony,
+	)
+
+	if firstCeremony == repeatedDigestCeremony {
+		t.Fatal("same digest and attempt number must not reuse the session ID across ceremonies")
+	}
+
+	if repeatedDigestCeremony == retryAttempt {
+		t.Fatal("attempts within a ceremony must not reuse the session ID")
 	}
 }
 
