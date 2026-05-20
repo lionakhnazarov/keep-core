@@ -710,9 +710,12 @@ func TestSigningAttemptSessionIDIncludesAttemptStartBlock(t *testing.T) {
 	testutils.AssertStringsEqual(
 		t,
 		"session ID format",
-		"64-206-1",
+		"signing-64-00000000000000ce-1",
 		firstCeremony,
 	)
+	if len(firstCeremony) < 16 {
+		t.Fatal("signing session ID must satisfy tss-lib SetSessionNonceBytes minimum length")
+	}
 
 	if firstCeremony == repeatedDigestCeremony {
 		t.Fatal("same digest and attempt number must not reuse the session ID across ceremonies")
