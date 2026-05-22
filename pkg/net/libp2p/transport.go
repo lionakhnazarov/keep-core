@@ -2,6 +2,7 @@ package libp2p
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync/atomic"
 	"time"
@@ -23,6 +24,14 @@ const (
 	// authProtocolID is the ID of the authentication protocol.
 	authProtocolID = "keep"
 )
+
+// handshakeTimeout bounds the Keep authentication handshake that runs after
+// the TLS layer completes. Without it, a peer that completes TLS and then
+// stops sending data parks the connection inside a blocking proto-delim read,
+// holding the libp2p resource-manager transient inbound slot until the daemon
+// restarts. The TLS context (defaultAcceptTimeout = 15s upstream) does not
+// propagate to those reads, per crypto/tls' HandshakeContext contract.
+const handshakeTimeout = 15 * time.Second
 
 // Compile time assertions of custom types
 var _ sec.SecureTransport = (*transport)(nil)
@@ -105,7 +114,12 @@ func (t *transport) SecureInbound(
 		return nil, err
 	}
 
-	return newAuthenticatedInboundConnection(
+	if err := setHandshakeDeadline(ctx, encryptedConnection); err != nil {
+		_ = encryptedConnection.Close()
+		return nil, err
+	}
+
+	ac, err := newAuthenticatedInboundConnection(
 		encryptedConnection,
 		encryptedConnection.ConnState(),
 		t.localPeerID,
@@ -114,6 +128,16 @@ func (t *transport) SecureInbound(
 		t.authProtocolID,
 		t.getMetricsRecorder(),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := clearHandshakeDeadline(encryptedConnection); err != nil {
+		_ = ac.Close()
+		return nil, err
+	}
+
+	return ac, nil
 }
 
 // SecureOutbound secures an outbound connection.
@@ -131,7 +155,12 @@ func (t *transport) SecureOutbound(
 		return nil, err
 	}
 
-	return newAuthenticatedOutboundConnection(
+	if err := setHandshakeDeadline(ctx, encryptedConnection); err != nil {
+		_ = encryptedConnection.Close()
+		return nil, err
+	}
+
+	ac, err := newAuthenticatedOutboundConnection(
 		encryptedConnection,
 		encryptedConnection.ConnState(),
 		t.localPeerID,
@@ -141,6 +170,40 @@ func (t *transport) SecureOutbound(
 		t.authProtocolID,
 		t.getMetricsRecorder(),
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := clearHandshakeDeadline(encryptedConnection); err != nil {
+		_ = ac.Close()
+		return nil, err
+	}
+
+	return ac, nil
+}
+
+// setHandshakeDeadline arms an absolute read/write deadline on the encrypted
+// connection covering the Keep authentication handshake. It picks the earlier
+// of handshakeTimeout and the parent context's deadline (if any) so that
+// caller-supplied deadlines still tighten the bound.
+func setHandshakeDeadline(ctx context.Context, conn net.Conn) error {
+	deadline := time.Now().Add(handshakeTimeout)
+	if d, ok := ctx.Deadline(); ok && d.Before(deadline) {
+		deadline = d
+	}
+	if err := conn.SetDeadline(deadline); err != nil {
+		return fmt.Errorf("failed to set handshake deadline: %w", err)
+	}
+	return nil
+}
+
+// clearHandshakeDeadline removes the deadline armed for the handshake so that
+// post-handshake stream I/O is not subject to the handshake bound.
+func clearHandshakeDeadline(conn net.Conn) error {
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return fmt.Errorf("failed to clear handshake deadline: %w", err)
+	}
+	return nil
 }
 
 // ID is the protocol ID of the security protocol.
