@@ -2,9 +2,7 @@ package libp2p
 
 import (
 	"context"
-	"errors"
 	"net"
-	"os"
 	"testing"
 	"time"
 
@@ -40,7 +38,9 @@ func TestResponderHandshakeRespectsConnectionDeadline(t *testing.T) {
 	// block forever.
 
 	// Arm the deadline that transport.SecureInbound would arm in production.
-	if err := responderConn.SetDeadline(time.Now().Add(150 * time.Millisecond)); err != nil {
+	const deadlineWindow = 150 * time.Millisecond
+	armedAt := time.Now()
+	if err := responderConn.SetDeadline(armedAt.Add(deadlineWindow)); err != nil {
 		t.Fatalf("SetDeadline: %v", err)
 	}
 
@@ -58,17 +58,66 @@ func TestResponderHandshakeRespectsConnectionDeadline(t *testing.T) {
 		done <- err
 	}()
 
+	// The regression we're guarding against is the responder blocking past
+	// the armed deadline. The inbound handshake wraps the underlying error
+	// with %v (breaking errors.Is/As), so we assert on the timing: the call
+	// must return shortly after the deadline fires. A future regression that
+	// returns for an unrelated reason would still need to return promptly,
+	// keeping this assertion meaningful.
+	const slack = 500 * time.Millisecond
 	select {
 	case err := <-done:
+		elapsed := time.Since(armedAt)
 		if err == nil {
 			t.Fatal("expected handshake to fail under armed deadline")
 		}
-		// Either a wrapped i/o timeout or io.EOF (pipe closed by deadline) is acceptable.
-		if !isTimeoutErr(err) && !errIsIOEOF(err) {
-			t.Logf("non-timeout error (still acceptable, must just be non-nil): %v", err)
+		if elapsed < deadlineWindow {
+			t.Fatalf("handshake returned before deadline fired: elapsed=%v window=%v err=%v",
+				elapsed, deadlineWindow, err)
+		}
+		if elapsed > deadlineWindow+slack {
+			t.Fatalf("handshake returned too late: elapsed=%v window=%v err=%v",
+				elapsed, deadlineWindow, err)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("responder handshake did not return after deadline — the unbounded read is still present")
+	}
+}
+
+// TestClearHandshakeDeadlineRemovesArmedDeadline verifies that
+// clearHandshakeDeadline actually disarms a previously-armed deadline, so
+// post-handshake stream I/O is not subject to the handshake bound. A
+// regression here would manifest as established connections being torn down
+// 15s after the handshake completes.
+func TestClearHandshakeDeadlineRemovesArmedDeadline(t *testing.T) {
+	a, b := net.Pipe()
+	defer a.Close()
+	defer b.Close()
+
+	short := 50 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), short)
+	defer cancel()
+
+	if err := setHandshakeDeadline(ctx, a); err != nil {
+		t.Fatalf("setHandshakeDeadline: %v", err)
+	}
+	if err := clearHandshakeDeadline(a); err != nil {
+		t.Fatalf("clearHandshakeDeadline: %v", err)
+	}
+
+	// After clearing, a read must NOT trip the previously-armed 50ms deadline.
+	// Wait past that window with the read still in flight.
+	done := make(chan error, 1)
+	go func() {
+		_, err := a.Read(make([]byte, 1))
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		t.Fatalf("Read returned at %v with %v — cleared deadline still armed", short, err)
+	case <-time.After(short + 200*time.Millisecond):
+		// Expected: read still blocked, the 50ms deadline did not fire.
 	}
 }
 
@@ -130,22 +179,4 @@ func TestSetHandshakeDeadlineUsesDefaultWhenNoContextDeadline(t *testing.T) {
 	if err := clearHandshakeDeadline(a); err != nil {
 		t.Fatalf("clearHandshakeDeadline: %v", err)
 	}
-}
-
-func isTimeoutErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	var ne net.Error
-	if errors.As(err, &ne) && ne.Timeout() {
-		return true
-	}
-	return errors.Is(err, os.ErrDeadlineExceeded)
-}
-
-func errIsIOEOF(err error) bool {
-	if err == nil {
-		return false
-	}
-	return errors.Is(err, net.ErrClosed)
 }

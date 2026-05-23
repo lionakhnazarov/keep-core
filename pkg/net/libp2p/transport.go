@@ -29,8 +29,11 @@ const (
 // the TLS layer completes. Without it, a peer that completes TLS and then
 // stops sending data parks the connection inside a blocking proto-delim read,
 // holding the libp2p resource-manager transient inbound slot until the daemon
-// restarts. The TLS context (defaultAcceptTimeout = 15s upstream) does not
-// propagate to those reads, per crypto/tls' HandshakeContext contract.
+// restarts. The libp2p upgrader threads a 15s-deadline context into
+// SecureInbound, but per Go's crypto/tls.HandshakeContext contract the ctx
+// deadline applies only to the TLS handshake itself, not to subsequent reads
+// on the resulting conn — so we arm an absolute deadline on the encrypted
+// conn for the duration of the Keep handshake.
 const handshakeTimeout = 15 * time.Second
 
 // Compile time assertions of custom types
