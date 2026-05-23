@@ -378,6 +378,7 @@ contract RandomBeacon is IRandomBeacon, IApplication, Governable, Reimbursable {
         dkg.init(_sortitionPool, _dkgValidator);
         relay.initSeedEntry();
 
+        _reentrancyStatus = 1;
         _transferGovernance(msg.sender);
 
         //
@@ -471,7 +472,18 @@ contract RandomBeacon is IRandomBeacon, IApplication, Governable, Reimbursable {
         _dkgResultSubmissionGas = 237_650;
         _dkgResultApprovalGasOffset = 41_500;
         _notifyOperatorInactivityGasOffset = 54_500;
-        _relayEntrySubmissionGasOffset = 11_250;
+        _relayEntrySubmissionGasOffset = 13_450;
+    }
+
+    // Reentrancy guard -- inline to avoid OZ abstract contract bytecode overhead.
+    error ReentrantCall();
+    uint256 private _reentrancyStatus; // 1 = not entered, 2 = entered
+
+    modifier nonReentrant() {
+        if (_reentrancyStatus == 2) revert ReentrantCall();
+        _reentrancyStatus = 2;
+        _;
+        _reentrancyStatus = 1;
     }
 
     modifier onlyStakingContract() {
@@ -1039,7 +1051,7 @@ contract RandomBeacon is IRandomBeacon, IApplication, Governable, Reimbursable {
     ///         called only before the soft timeout. This should be the majority
     ///         of cases.
     /// @param entry Group BLS signature over the previous entry.
-    function submitRelayEntry(bytes calldata entry) external {
+    function submitRelayEntry(bytes calldata entry) external nonReentrant {
         uint256 gasStart = gasleft();
 
         Groups.Group storage group = groups.getGroup(
@@ -1068,7 +1080,7 @@ contract RandomBeacon is IRandomBeacon, IApplication, Governable, Reimbursable {
     function submitRelayEntry(
         bytes calldata entry,
         uint32[] calldata groupMembers
-    ) external {
+    ) external nonReentrant {
         uint256 gasStart = gasleft();
         uint256 currentRequestId = relay.currentRequestID;
 
