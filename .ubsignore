@@ -5,3 +5,9 @@
 # or "Key" (EphemeralPublicKeyMessage). These are DKG protocol message types,
 # not cryptographic material being compared with ==.
 pkg/beacon/gjkr/integration_test.go
+
+# pkg/beacon/gjkr/protocol.go: same name-based false positive on identifier
+# equality (senderID == senderID, misbehavedMemberID == misbehavedMemberID,
+# commitment.String() == sum.String()). These compare protocol-message IDs
+# and big-int decimal strings, not secrets, tokens, or HMAC outputs.
+pkg/beacon/gjkr/protocol.go
