@@ -16,8 +16,8 @@ jobs:
   docs-detect-changes:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
       contents: read
+      pull-requests: read
     outputs:
       path-filter: ${{ steps.filter.outputs.path-filter }}
     steps:
