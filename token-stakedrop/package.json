@@ -24,7 +24,7 @@
     "node": ">=14"
   },
   "devDependencies": {
-    "babel-eslint": "^10.1.0",
+    "@babel/eslint-parser": "^7.11.0",
     "eslint": "^7.20.0",
     "eslint-config-keep": "github:keep-network/eslint-config-keep",
     "prettier": "^2.2.1"
