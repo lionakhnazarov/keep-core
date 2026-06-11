@@ -128,6 +128,11 @@ func TestScheduleRetransmissions_WithBackoffStrategy(t *testing.T) {
 
 	var retransmissions uint64
 
+	strategy := &signallingStrategy{
+		delegate: WithBackoffStrategy(),
+		done:     make(chan struct{}, 20),
+	}
+
 	ScheduleRetransmissions(
 		ctx,
 		&testutils.MockLogger{},
@@ -136,18 +141,25 @@ func TestScheduleRetransmissions_WithBackoffStrategy(t *testing.T) {
 			atomic.AddUint64(&retransmissions, 1)
 			return nil
 		},
-		WithBackoffStrategy(),
+		strategy,
 	)
 
-	// ScheduleRetransmissions registers its onTick handler in a goroutine;
-	// yield briefly so that goroutine runs before we start sending ticks.
-	time.Sleep(10 * time.Millisecond)
+	waitForHandlerRegistration(t, ticker)
 
 	// BackoffStrategy fires at ticks 1, 3, 6, 11, 20 -- 5 fires in 20 ticks.
 	for i := uint64(1); i <= 20; i++ {
 		ticks <- i
 	}
-	time.Sleep(50 * time.Millisecond)
+
+	// Each tick's strategy.Tick runs in its own goroutine; join all of them
+	// before asserting so an over-firing regression cannot slip through.
+	for i := 0; i < 20; i++ {
+		select {
+		case <-strategy.done:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timed out waiting for tick processing; %d/20 ticks done", i)
+		}
+	}
 
 	got := atomic.LoadUint64(&retransmissions)
 	if got != 5 {
@@ -177,20 +189,22 @@ func TestScheduleRetransmissions_LogsRetransmitError(t *testing.T) {
 		WithStandardStrategy(),
 	)
 
-	// Allow the registration goroutine inside ScheduleRetransmissions to call
-	// onTick before we send the first tick.
-	time.Sleep(10 * time.Millisecond)
+	waitForHandlerRegistration(t, ticker)
 
 	ticks <- 1
-	time.Sleep(50 * time.Millisecond)
 
-	logger.mu.Lock()
-	errs := logger.errors
-	logger.mu.Unlock()
-
-	if len(errs) == 0 {
-		t.Fatal("expected error to be logged, got none")
+	// The retransmit function and the error logging run in a goroutine
+	// spawned by the tick handler; poll until the error shows up instead of
+	// sleeping a fixed amount.
+	deadline := time.Now().Add(5 * time.Second)
+	for len(logger.capturedErrors()) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("expected error to be logged, got none")
+		}
+		time.Sleep(time.Millisecond)
 	}
+
+	errs := logger.capturedErrors()
 	if !strings.Contains(errs[0], "network unavailable") {
 		t.Errorf("unexpected logged error: %q", errs[0])
 	}
@@ -241,4 +255,42 @@ func (cl *capturingLogger) Errorf(format string, args ...interface{}) {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
 	cl.errors = append(cl.errors, fmt.Sprintf(format, args...))
+}
+
+func (cl *capturingLogger) capturedErrors() []string {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	return append([]string{}, cl.errors...)
+}
+
+// waitForHandlerRegistration blocks until the ticker has at least one onTick
+// handler registered. ScheduleRetransmissions registers its handler from a
+// goroutine and the ticker consumes ticks even with no handlers attached, so
+// ticks sent before the registration completes would be silently lost.
+func waitForHandlerRegistration(t *testing.T, ticker *Ticker) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		ticker.handlersMutex.Lock()
+		registered := len(ticker.handlers)
+		ticker.handlersMutex.Unlock()
+		if registered > 0 {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("onTick handler was not registered on time")
+}
+
+// signallingStrategy wraps another Strategy and signals on the done channel
+// after every Tick call, letting tests join the per-tick goroutines spawned
+// by ScheduleRetransmissions before asserting.
+type signallingStrategy struct {
+	delegate Strategy
+	done     chan struct{}
+}
+
+func (ss *signallingStrategy) Tick(retransmitFn RetransmitFn) error {
+	defer func() { ss.done <- struct{}{} }()
+	return ss.delegate.Tick(retransmitFn)
 }
