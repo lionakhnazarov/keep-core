@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -122,7 +123,24 @@ func (sm *spvMaintainer) startControlLoop(ctx context.Context) {
 	}
 }
 
-func (sm *spvMaintainer) maintainSpv(ctx context.Context) error {
+func (sm *spvMaintainer) maintainSpv(ctx context.Context) (err error) {
+	// Defense in depth: a panic anywhere in the proof-task execution (e.g. an
+	// unforeseen out-of-range access on attacker-influenced Bitcoin data) must
+	// not crash the whole client. Recover it into an error so the control loop
+	// logs it and restarts the maintainer after the configured backoff, rather
+	// than the goroutine taking the process down. The stack is logged so the
+	// underlying defect is not silently masked.
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf(
+				"recovered from panic while maintaining SPV: [%v]; stack:\n%s",
+				r,
+				debug.Stack(),
+			)
+			err = fmt.Errorf("recovered from panic while maintaining SPV: [%v]", r)
+		}
+	}()
+
 	for {
 		for action, v := range proofTypes {
 			logger.Infof("starting [%s] proof task execution...", action)
@@ -272,7 +290,11 @@ func isInputCurrentWalletsMainUTXO(
 	if err != nil {
 		return false, fmt.Errorf("failed to get previous transaction: [%v]", err)
 	}
-	fundingOutputValue := previousTransaction.Outputs[fundingOutputIndex].Value
+	fundingOutput, err := previousTransaction.OutputAt(fundingOutputIndex)
+	if err != nil {
+		return false, fmt.Errorf("failed to read funding output: [%v]", err)
+	}
+	fundingOutputValue := fundingOutput.Value
 
 	// Assume the input is the main UTXO and calculate hash.
 	mainUtxoHash := spvChain.ComputeMainUtxoHash(&bitcoin.UnspentTransactionOutput{
