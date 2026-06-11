@@ -148,7 +148,16 @@ func (tb *TransactionBuilder) getScript(
 		)
 	}
 
-	return transaction.Outputs[utxo.Outpoint.OutputIndex].PublicKeyScript, nil
+	output, err := transaction.OutputAt(utxo.Outpoint.OutputIndex)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"cannot get script for transaction with hash [%s]: [%v]",
+			hash.Hex(InternalByteOrder),
+			err,
+		)
+	}
+
+	return output.PublicKeyScript, nil
 }
 
 // AddOutput adds a new transaction's output.

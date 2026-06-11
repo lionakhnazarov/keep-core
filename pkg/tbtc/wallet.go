@@ -699,7 +699,13 @@ func EnsureWalletSyncedBetweenChains(
 			// transaction's inputs must refer to revealed deposits. We can
 			// check one input. If it points to a revealed deposit, that means
 			// the given transaction is produced by our wallet.
-			input := transaction.Inputs[0]
+			input, err := transaction.InputAt(0)
+			if err != nil {
+				return fmt.Errorf(
+					"cannot read transaction input: [%v]",
+					err,
+				)
+			}
 			_, isDeposit, err := bridgeChain.GetDepositRequest(
 				input.Outpoint.TransactionHash,
 				input.Outpoint.OutputIndex,
