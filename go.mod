@@ -54,6 +54,7 @@ require (
 	golang.org/x/sync v0.21.0
 	golang.org/x/term v0.44.0
 	google.golang.org/protobuf v1.36.11
+	pgregory.net/rapid v1.3.0
 )
 
 require (

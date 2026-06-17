@@ -1,0 +1,46 @@
+name: ClusterFuzzLite batch fuzzing
+
+# Scheduled longer fuzzing run over all targets to grow the corpus and reach
+# deeper bugs than per-PR fuzzing can. Does not exit on first crash.
+#
+# Corpus/crash persistence requires a storage repo + a PERSONAL_ACCESS_TOKEN
+# secret; uncomment the storage-repo lines once those exist (see
+# .clusterfuzzlite/README.md). Without persistence the run still fuzzes but
+# starts from the in-tree seed corpus each time.
+on:
+  schedule:
+    - cron: "0 2 * * *" # daily, offset from the -race job (midnight)
+  workflow_dispatch:
+
+# No security-events permission: this repo has no GitHub Advanced
+# Security, so SARIF upload to code scanning would 403. Crash artifacts
+# are reported via the action's run output and artifacts instead.
+permissions:
+  contents: read
+
+jobs:
+  Batch:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address]
+    steps:
+      - name: Build fuzzers (${{ matrix.sanitizer }})
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
+        with:
+          language: go
+          sanitizer: ${{ matrix.sanitizer }}
+          # upload-build: true
+      - name: Run fuzzers (${{ matrix.sanitizer }})
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@82652fb49e77bc29c35da1167bb286e93c6bcc05 # v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 1800
+          mode: "batch"
+          sanitizer: ${{ matrix.sanitizer }}
+          # storage-repo: https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/tlabs-xyz/keep-core-security-fuzz-corpus.git
+          # storage-repo-branch: main
+          # storage-repo-branch-coverage: gh-pages
