@@ -86,6 +86,7 @@ func (skgm *symmetricKeyGeneratingMember) generateSymmetricKeys(
 		// group member by ECDH'ing the public and private key.
 		symmetricKey := thisMemberEphemeralPrivateKey.Ecdh(
 			otherMemberEphemeralPublicKey,
+			signingEcdhInfo(skgm.id, otherMember),
 		)
 		skgm.symmetricKeys[otherMember] = symmetricKey
 	}
@@ -742,4 +743,16 @@ func (fm *finalizingMember) tssFinalize(
 			"TSS result was not generated on time",
 		)
 	}
+}
+
+// signingEcdhInfo returns the HKDF info label for ECDH-derived keys in the
+// tECDSA signing protocol. The pair is sorted so both peers compute the same
+// info regardless of which side initiates. Each MemberIndex is encoded as a
+// single byte; the compile-time assertion in pkg/protocol/group/group.go
+// enforces the uint8 invariant this relies on.
+func signingEcdhInfo(id1, id2 group.MemberIndex) []byte {
+	if id1 > id2 {
+		id1, id2 = id2, id1
+	}
+	return []byte{'t', 'e', 'c', 'd', 's', 'a', '-', 's', 'i', 'g', 'n', byte(id1), byte(id2)}
 }
