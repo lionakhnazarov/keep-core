@@ -84,6 +84,7 @@ func TestDkgRetryLoop(t *testing.T) {
 				startBlock:             211,
 				timeoutBlock:           411, // start block + 200
 				excludedMembersIndexes: []group.MemberIndex{},
+				sessionID:              dkgAttemptSessionID(seed, 1),
 			},
 		},
 		"success on initial attempt with missing announcements and quorum": {
@@ -109,6 +110,7 @@ func TestDkgRetryLoop(t *testing.T) {
 				startBlock:             211,
 				timeoutBlock:           411, // start block + 200
 				excludedMembersIndexes: []group.MemberIndex{9, 10},
+				sessionID:              dkgAttemptSessionID(seed, 1),
 			},
 		},
 		"missing announcements without quorum on initial attempt": {
@@ -117,7 +119,7 @@ func TestDkgRetryLoop(t *testing.T) {
 				return context.WithTimeout(context.Background(), 10*time.Second)
 			},
 			incomingAnnouncementsFn: func(sessionID string) ([]group.MemberIndex, error) {
-				if sessionID == fmt.Sprintf("%v-%v", seed, 1) {
+				if sessionID == dkgAttemptSessionID(seed, 1) {
 					// Non-quorum of members announced their readiness.
 					return []group.MemberIndex{1, 2, 3, 4, 5, 6, 7}, nil
 				}
@@ -137,6 +139,7 @@ func TestDkgRetryLoop(t *testing.T) {
 				startBlock:             427, // 211 + 1 * (11 + 200 + 5)
 				timeoutBlock:           627, // start block + 200
 				excludedMembersIndexes: []group.MemberIndex{2, 5},
+				sessionID:              dkgAttemptSessionID(seed, 2),
 			},
 		},
 		"announcement error on initial attempt": {
@@ -145,7 +148,7 @@ func TestDkgRetryLoop(t *testing.T) {
 				return context.WithTimeout(context.Background(), 10*time.Second)
 			},
 			incomingAnnouncementsFn: func(sessionID string) ([]group.MemberIndex, error) {
-				if sessionID == fmt.Sprintf("%v-%v", seed, 1) {
+				if sessionID == dkgAttemptSessionID(seed, 1) {
 					return nil, fmt.Errorf("unexpected error")
 				}
 
@@ -163,6 +166,7 @@ func TestDkgRetryLoop(t *testing.T) {
 				startBlock:             427, // 211 + 1 * (11 + 200 + 5)
 				timeoutBlock:           627, // start block + 200
 				excludedMembersIndexes: []group.MemberIndex{2, 5},
+				sessionID:              dkgAttemptSessionID(seed, 2),
 			},
 		},
 		"DKG error on initial attempt": {
@@ -192,6 +196,7 @@ func TestDkgRetryLoop(t *testing.T) {
 				startBlock:             427, // 211 + 1 * (11 + 200 + 5)
 				timeoutBlock:           627, // start block + 200
 				excludedMembersIndexes: []group.MemberIndex{2, 5},
+				sessionID:              dkgAttemptSessionID(seed, 2),
 			},
 		},
 		"executing member excluded": {
@@ -221,6 +226,7 @@ func TestDkgRetryLoop(t *testing.T) {
 				startBlock:             643, // 211 + 2 * (11 + 200 + 5)
 				timeoutBlock:           843, // start block + 200
 				excludedMembersIndexes: []group.MemberIndex{9},
+				sessionID:              dkgAttemptSessionID(seed, 3),
 			},
 		},
 		"loop context done": {
@@ -249,7 +255,7 @@ func TestDkgRetryLoop(t *testing.T) {
 			},
 			incomingAnnouncementsFn: func(sessionID string) ([]group.MemberIndex, error) {
 				// Force the first attempt's announcement failure.
-				if sessionID == fmt.Sprintf("%v-%v", seed, 1) {
+				if sessionID == dkgAttemptSessionID(seed, 1) {
 					return nil, fmt.Errorf("unexpected error")
 				}
 
@@ -351,6 +357,34 @@ func TestDkgRetryLoop(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestDkgAttemptSessionIDHasMinimumEntropyWidth(t *testing.T) {
+	seed := big.NewInt(100)
+
+	sessionID := dkgAttemptSessionID(seed, 1)
+
+	testutils.AssertStringsEqual(
+		t,
+		"session ID format",
+		"dkg-64-0000000000000001",
+		sessionID,
+	)
+	if len(sessionID) < 16 {
+		t.Fatal("DKG session ID must satisfy tss-lib SetSessionNonceBytes minimum length")
+	}
+
+	// The smallest possible inputs must still clear the tss-lib floor; this
+	// guards against a future format change silently regressing below 16 bytes.
+	minSessionID := dkgAttemptSessionID(big.NewInt(0), 0)
+	if len(minSessionID) < 16 {
+		t.Fatalf(
+			"DKG session ID for minimum inputs must satisfy tss-lib "+
+				"SetSessionNonceBytes minimum length, got [%v] (%d bytes)",
+			minSessionID,
+			len(minSessionID),
+		)
 	}
 }
 

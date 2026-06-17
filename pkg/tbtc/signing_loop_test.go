@@ -116,6 +116,7 @@ func TestSigningRetryLoop(t *testing.T) {
 				startBlock:             206,
 				timeoutBlock:           236, // start block of the first attempt + 30
 				excludedMembersIndexes: []group.MemberIndex{3, 7, 8, 10},
+				sessionID:              signingAttemptSessionID(message, 206, 1),
 			},
 			outgoingAnnouncementsCount: 1,
 		},
@@ -170,6 +171,7 @@ func TestSigningRetryLoop(t *testing.T) {
 				startBlock:             206,
 				timeoutBlock:           236, // start block of the first attempt + 30
 				excludedMembersIndexes: []group.MemberIndex{4, 5, 8, 10},
+				sessionID:              signingAttemptSessionID(message, 206, 1),
 			},
 			outgoingAnnouncementsCount: 1,
 		},
@@ -184,7 +186,7 @@ func TestSigningRetryLoop(t *testing.T) {
 			incomingAnnouncementsFn: func(
 				sessionID string,
 			) ([]group.MemberIndex, error) {
-				if sessionID == fmt.Sprintf("%v-%v", message, 1) {
+				if sessionID == signingAttemptSessionID(message, 206, 1) {
 					// Minority of members announced their readiness.
 					return []group.MemberIndex{1, 2, 3, 6, 7}, nil
 				}
@@ -231,6 +233,7 @@ func TestSigningRetryLoop(t *testing.T) {
 				startBlock:             247, // 206 + 1 * (6 + 30 + 5)
 				timeoutBlock:           277, // start block of the second attempt + 30
 				excludedMembersIndexes: []group.MemberIndex{1, 2, 5, 9},
+				sessionID:              signingAttemptSessionID(message, 247, 2),
 			},
 			outgoingAnnouncementsCount: 2,
 		},
@@ -245,7 +248,7 @@ func TestSigningRetryLoop(t *testing.T) {
 			incomingAnnouncementsFn: func(
 				sessionID string,
 			) ([]group.MemberIndex, error) {
-				if sessionID == fmt.Sprintf("%v-%v", message, 1) {
+				if sessionID == signingAttemptSessionID(message, 206, 1) {
 					return nil, fmt.Errorf("unexpected error")
 				}
 
@@ -291,6 +294,7 @@ func TestSigningRetryLoop(t *testing.T) {
 				startBlock:             247, // 206 + 1 * (6 + 30 + 5)
 				timeoutBlock:           277, // start block of the second attempt + 30
 				excludedMembersIndexes: []group.MemberIndex{1, 2, 5, 9},
+				sessionID:              signingAttemptSessionID(message, 247, 2),
 			},
 			outgoingAnnouncementsCount: 2,
 		},
@@ -351,6 +355,7 @@ func TestSigningRetryLoop(t *testing.T) {
 				startBlock:             247, // 206 + 1 * (6 + 30 + 5)
 				timeoutBlock:           277, // start block of the second attempt + 30
 				excludedMembersIndexes: []group.MemberIndex{1, 2, 5, 9},
+				sessionID:              signingAttemptSessionID(message, 247, 2),
 			},
 			outgoingAnnouncementsCount: 2,
 		},
@@ -400,6 +405,7 @@ func TestSigningRetryLoop(t *testing.T) {
 				startBlock:             206,
 				timeoutBlock:           236, // start block of the first attempt + 30
 				excludedMembersIndexes: []group.MemberIndex{3, 7, 8, 10},
+				sessionID:              signingAttemptSessionID(message, 206, 1),
 			},
 			// The second announcement is done at the beginning of the
 			// second attempt for which member 2 is eventually excluded.
@@ -478,6 +484,7 @@ func TestSigningRetryLoop(t *testing.T) {
 				startBlock:             247, // 206 + 1 * (6 + 30 + 5)
 				timeoutBlock:           277, // start block of the second attempt + 30
 				excludedMembersIndexes: []group.MemberIndex{1, 2, 5, 9},
+				sessionID:              signingAttemptSessionID(message, 247, 2),
 			},
 			outgoingAnnouncementsCount: 2,
 		},
@@ -587,6 +594,7 @@ func TestSigningRetryLoop(t *testing.T) {
 				startBlock:             247, // 206 + 1 * (6 + 30 + 5)
 				timeoutBlock:           277, // start block of the second attempt + 30
 				excludedMembersIndexes: []group.MemberIndex{1, 2, 5, 9},
+				sessionID:              signingAttemptSessionID(message, 247, 2),
 			},
 			// just the second announcement, the first one was skipped
 			outgoingAnnouncementsCount: 1,
@@ -697,6 +705,44 @@ func TestSigningRetryLoop(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestSigningAttemptSessionIDIncludesAttemptStartBlock(t *testing.T) {
+	message := big.NewInt(100)
+
+	firstCeremony := signingAttemptSessionID(message, 206, 1)
+	repeatedDigestCeremony := signingAttemptSessionID(message, 247, 1)
+	retryAttempt := signingAttemptSessionID(message, 247, 2)
+
+	testutils.AssertStringsEqual(
+		t,
+		"session ID format",
+		"signing-64-00000000000000ce-0000000000000001",
+		firstCeremony,
+	)
+	if len(firstCeremony) < 16 {
+		t.Fatal("signing session ID must satisfy tss-lib SetSessionNonceBytes minimum length")
+	}
+
+	// The smallest possible inputs must still clear the tss-lib floor; this
+	// guards against a future format change silently regressing below 16 bytes.
+	minSessionID := signingAttemptSessionID(big.NewInt(0), 0, 0)
+	if len(minSessionID) < 16 {
+		t.Fatalf(
+			"signing session ID for minimum inputs must satisfy tss-lib "+
+				"SetSessionNonceBytes minimum length, got [%v] (%d bytes)",
+			minSessionID,
+			len(minSessionID),
+		)
+	}
+
+	if firstCeremony == repeatedDigestCeremony {
+		t.Fatal("same digest and attempt number must not reuse the session ID across ceremonies")
+	}
+
+	if repeatedDigestCeremony == retryAttempt {
+		t.Fatal("attempts within a ceremony must not reuse the session ID")
 	}
 }
 
