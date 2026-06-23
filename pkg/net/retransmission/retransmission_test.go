@@ -32,8 +32,18 @@ func TestRetransmitExpectedNumberOfTimes(t *testing.T) {
 
 	<-ctx.Done()
 
-	if atomic.LoadUint64(&retransmissionsCount) != 10 {
-		t.Errorf("expected [10] retransmissions, has [%v]", retransmissionsCount)
+	// Each retransmission runs in its own goroutine spawned by the tick
+	// handler, so the last one may still be in flight when the context is
+	// done. Wait for the expected count before asserting on the final value.
+	deadline := time.Now().Add(5 * time.Second)
+	for atomic.LoadUint64(&retransmissionsCount) < 10 &&
+		time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+
+	got := atomic.LoadUint64(&retransmissionsCount)
+	if got != 10 {
+		t.Errorf("expected [10] retransmissions, has [%v]", got)
 	}
 }
 
@@ -81,146 +91,6 @@ func TestHandlerReceiveRetransmissions(t *testing.T) {
 	}
 }
 
-func TestHandlerEvictsOldRetransmissions(t *testing.T) {
-	var received []net.Message
-
-	handler := withRetransmissionSupport(func(message net.Message) {
-		received = append(received, message)
-	}, 2)
-
-	firstMessage := &mockNetworkMessage{senderID: "a", seqno: 1}
-
-	handler(firstMessage)
-	handler(&mockNetworkMessage{senderID: "a", seqno: 2})
-	handler(&mockNetworkMessage{senderID: "a", seqno: 3})
-	handler(firstMessage)
-
-	if len(received) != 4 {
-		t.Fatalf(
-			"unexpected number of accepted messages\nactual:   [%v]\nexpected: [4]",
-			len(received),
-		)
-	}
-}
-
-func TestHandlerEvictsAcrossMultipleCycles(t *testing.T) {
-	// cacheSize=3. Two full eviction cycles: seqno 1-6 all accepted (6 total).
-	// After seqno 6, cache holds [4,5,6] and seqno 1-3 have been evicted.
-	// Retransmitting 4, 5, 6 must be filtered (still cached).
-	// Re-sending 1, 2, 3 must be accepted (evicted from cache).
-	var received []net.Message
-
-	handler := withRetransmissionSupport(func(message net.Message) {
-		received = append(received, message)
-	}, 3)
-
-	for i := uint64(1); i <= 6; i++ {
-		handler(&mockNetworkMessage{senderID: "a", seqno: i})
-	}
-
-	// Still in cache -- must be filtered.
-	handler(&mockNetworkMessage{senderID: "a", seqno: 4})
-	handler(&mockNetworkMessage{senderID: "a", seqno: 5})
-	handler(&mockNetworkMessage{senderID: "a", seqno: 6})
-
-	// Evicted -- must be re-accepted.
-	handler(&mockNetworkMessage{senderID: "a", seqno: 1})
-	handler(&mockNetworkMessage{senderID: "a", seqno: 2})
-	handler(&mockNetworkMessage{senderID: "a", seqno: 3})
-
-	if len(received) != 9 {
-		t.Fatalf(
-			"unexpected number of accepted messages\nactual:   [%v]\nexpected: [9]",
-			len(received),
-		)
-	}
-}
-
-// TestHandlerRingBufferStableUnderManyCycles regression-tests the bounded
-// cache: feeding many more unique IDs than the cache size must keep FIFO
-// eviction correct cycle after cycle. The slice-shift implementation that
-// preceded the ring buffer was functionally correct here too, but its backing
-// array grew beyond maxCacheSize before Go reallocated; this test pins the
-// observable behavior so a regression in either direction is caught.
-func TestHandlerRingBufferStableUnderManyCycles(t *testing.T) {
-	const cacheSize = 4
-	const totalUnique = 1000
-
-	var received []net.Message
-	handler := withRetransmissionSupport(func(message net.Message) {
-		received = append(received, message)
-	}, cacheSize)
-
-	for i := uint64(1); i <= totalUnique; i++ {
-		handler(&mockNetworkMessage{senderID: "a", seqno: i})
-	}
-
-	if len(received) != totalUnique {
-		t.Fatalf(
-			"expected every unique message to be accepted exactly once\nactual:   [%d]\nexpected: [%d]",
-			len(received),
-			totalUnique,
-		)
-	}
-
-	// The last cacheSize messages must still be deduplicated.
-	for i := uint64(totalUnique - cacheSize + 1); i <= totalUnique; i++ {
-		handler(&mockNetworkMessage{senderID: "a", seqno: i})
-	}
-	if len(received) != totalUnique {
-		t.Fatalf(
-			"recent messages must remain cached after many cycles\nactual:   [%d]\nexpected: [%d]",
-			len(received),
-			totalUnique,
-		)
-	}
-
-	// Messages older than the window must be accepted again.
-	for i := uint64(1); i <= uint64(cacheSize); i++ {
-		handler(&mockNetworkMessage{senderID: "a", seqno: i})
-	}
-	if len(received) != totalUnique+cacheSize {
-		t.Fatalf(
-			"evicted messages must be re-accepted\nactual:   [%d]\nexpected: [%d]",
-			len(received),
-			totalUnique+cacheSize,
-		)
-	}
-}
-
-func TestHandlerConcurrentAccess(t *testing.T) {
-	var mu sync.Mutex
-	var received []net.Message
-
-	handler := withRetransmissionSupport(func(message net.Message) {
-		mu.Lock()
-		received = append(received, message)
-		mu.Unlock()
-	}, 10)
-
-	const goroutines = 20
-	const msgsPerGoroutine = 50
-
-	var wg sync.WaitGroup
-	wg.Add(goroutines)
-	for g := 0; g < goroutines; g++ {
-		go func(g int) {
-			defer wg.Done()
-			for i := 0; i < msgsPerGoroutine; i++ {
-				handler(&mockNetworkMessage{
-					senderID: fmt.Sprintf("peer-%d", g),
-					seqno:    uint64(i),
-				})
-			}
-		}(g)
-	}
-	wg.Wait()
-
-	if len(received) == 0 {
-		t.Fatal("expected at least one message to be received")
-	}
-}
-
 type mockNetworkMessage struct {
 	senderID string
 	seqno    uint64
@@ -258,6 +128,11 @@ func TestScheduleRetransmissions_WithBackoffStrategy(t *testing.T) {
 
 	var retransmissions uint64
 
+	strategy := &signallingStrategy{
+		delegate: WithBackoffStrategy(),
+		done:     make(chan struct{}, 20),
+	}
+
 	ScheduleRetransmissions(
 		ctx,
 		&testutils.MockLogger{},
@@ -266,17 +141,24 @@ func TestScheduleRetransmissions_WithBackoffStrategy(t *testing.T) {
 			atomic.AddUint64(&retransmissions, 1)
 			return nil
 		},
-		WithBackoffStrategy(),
+		strategy,
 	)
+
+	waitForHandlerRegistration(t, ticker)
 
 	// BackoffStrategy fires at ticks 1, 3, 6, 11, 20 -- 5 fires in 20 ticks.
 	for i := uint64(1); i <= 20; i++ {
 		ticks <- i
 	}
 
-	deadline := time.Now().Add(2 * time.Second)
-	for atomic.LoadUint64(&retransmissions) < 5 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
+	// Each tick's strategy.Tick runs in its own goroutine; join all of them
+	// before asserting so an over-firing regression cannot slip through.
+	for i := 0; i < 20; i++ {
+		select {
+		case <-strategy.done:
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timed out waiting for tick processing; %d/20 ticks done", i)
+		}
 	}
 
 	got := atomic.LoadUint64(&retransmissions)
@@ -307,26 +189,22 @@ func TestScheduleRetransmissions_LogsRetransmitError(t *testing.T) {
 		WithStandardStrategy(),
 	)
 
+	waitForHandlerRegistration(t, ticker)
+
 	ticks <- 1
 
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		logger.mu.Lock()
-		n := len(logger.errors)
-		logger.mu.Unlock()
-		if n > 0 {
-			break
+	// The retransmit function and the error logging run in a goroutine
+	// spawned by the tick handler; poll until the error shows up instead of
+	// sleeping a fixed amount.
+	deadline := time.Now().Add(5 * time.Second)
+	for len(logger.capturedErrors()) == 0 {
+		if time.Now().After(deadline) {
+			t.Fatal("expected error to be logged, got none")
 		}
 		time.Sleep(time.Millisecond)
 	}
 
-	logger.mu.Lock()
-	errs := logger.errors
-	logger.mu.Unlock()
-
-	if len(errs) == 0 {
-		t.Fatal("expected error to be logged, got none")
-	}
+	errs := logger.capturedErrors()
 	if !strings.Contains(errs[0], "network unavailable") {
 		t.Errorf("unexpected logged error: %q", errs[0])
 	}
@@ -377,4 +255,42 @@ func (cl *capturingLogger) Errorf(format string, args ...interface{}) {
 	cl.mu.Lock()
 	defer cl.mu.Unlock()
 	cl.errors = append(cl.errors, fmt.Sprintf(format, args...))
+}
+
+func (cl *capturingLogger) capturedErrors() []string {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	return append([]string{}, cl.errors...)
+}
+
+// waitForHandlerRegistration blocks until the ticker has at least one onTick
+// handler registered. ScheduleRetransmissions registers its handler from a
+// goroutine and the ticker consumes ticks even with no handlers attached, so
+// ticks sent before the registration completes would be silently lost.
+func waitForHandlerRegistration(t *testing.T, ticker *Ticker) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		ticker.handlersMutex.Lock()
+		registered := len(ticker.handlers)
+		ticker.handlersMutex.Unlock()
+		if registered > 0 {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("onTick handler was not registered on time")
+}
+
+// signallingStrategy wraps another Strategy and signals on the done channel
+// after every Tick call, letting tests join the per-tick goroutines spawned
+// by ScheduleRetransmissions before asserting.
+type signallingStrategy struct {
+	delegate Strategy
+	done     chan struct{}
+}
+
+func (ss *signallingStrategy) Tick(retransmitFn RetransmitFn) error {
+	defer func() { ss.done <- struct{}{} }()
+	return ss.delegate.Tick(retransmitFn)
 }

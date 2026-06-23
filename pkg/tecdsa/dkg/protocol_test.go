@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bnb-chain/tss-lib/common"
 	"github.com/bnb-chain/tss-lib/crypto/paillier"
 	"github.com/bnb-chain/tss-lib/ecdsa/keygen"
 	"github.com/bnb-chain/tss-lib/tss"
@@ -30,7 +31,7 @@ import (
 const (
 	groupSize          = 3
 	dishonestThreshold = 0
-	sessionID          = "session-1"
+	sessionID          = "session-1-with-128-bits"
 )
 
 func TestGenerateEphemeralKeyPair(t *testing.T) {
@@ -186,6 +187,7 @@ func TestGenerateSymmetricKeys(t *testing.T) {
 			expectedKey := ephemeral.SymmetricKey(
 				member.ephemeralKeyPairs[otherMemberID].PrivateKey.Ecdh(
 					otherMemberEphemeralPublicKey,
+					dkgEcdhInfo(member.id, otherMemberID),
 				),
 			)
 
@@ -245,6 +247,39 @@ func TestGenerateSymmetricKeys_InvalidEphemeralPublicKeyMessage(t *testing.T) {
 				err,
 			)
 		}
+	}
+}
+
+func TestInitializeTssRoundOneSetsSessionNonce(t *testing.T) {
+	members, err := initializeTssRoundOneMembersGroup(
+		dishonestThreshold,
+		groupSize,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedNonce := new(big.Int).SetBytes(common.SHA512_256([]byte(sessionID)))
+	for _, member := range members {
+		testutils.AssertBigIntsEqual(
+			t,
+			fmt.Sprintf("session nonce for member [%v]", member.id),
+			expectedNonce,
+			member.tssParameters.SessionNonce(),
+		)
+	}
+
+	otherSessionSource := members[0].symmetricKeyGeneratingMember
+	originalSessionID := otherSessionSource.sessionID
+	otherSessionSource.sessionID = "other-session-with-128-bits"
+	otherSessionMember, err := otherSessionSource.initializeTssRoundOne()
+	otherSessionSource.sessionID = originalSessionID
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if expectedNonce.Cmp(otherSessionMember.tssParameters.SessionNonce()) == 0 {
+		t.Fatal("initialized TSS members should use different nonces for different session IDs")
 	}
 }
 
@@ -1287,7 +1322,7 @@ func TestVerifyDKGResultSignatures(t *testing.T) {
 						resultHash: ResultSignatureHash{11: 11},
 						signature:  []byte("sign 2"),
 						publicKey:  []byte("pubKey 2"),
-						sessionID:  "session-1",
+						sessionID:  sessionID,
 					},
 					&verificationOutcome{
 						isValid: true,
@@ -1300,7 +1335,7 @@ func TestVerifyDKGResultSignatures(t *testing.T) {
 						resultHash: ResultSignatureHash{11: 11},
 						signature:  []byte("sign 3"),
 						publicKey:  []byte("pubKey 3"),
-						sessionID:  "session-1",
+						sessionID:  sessionID,
 					},
 					&verificationOutcome{
 						isValid: true,
@@ -1323,7 +1358,7 @@ func TestVerifyDKGResultSignatures(t *testing.T) {
 						resultHash: ResultSignatureHash{12: 12},
 						signature:  []byte("sign 2"),
 						publicKey:  []byte("pubKey 2"),
-						sessionID:  "session-1",
+						sessionID:  sessionID,
 					},
 					&verificationOutcome{
 						isValid: true,
@@ -1344,7 +1379,7 @@ func TestVerifyDKGResultSignatures(t *testing.T) {
 						resultHash: ResultSignatureHash{11: 11},
 						signature:  []byte("sign 2"),
 						publicKey:  []byte("pubKey 2"),
-						sessionID:  "session-1",
+						sessionID:  sessionID,
 					},
 					&verificationOutcome{
 						isValid: false,
@@ -1364,7 +1399,7 @@ func TestVerifyDKGResultSignatures(t *testing.T) {
 						resultHash: ResultSignatureHash{11: 11},
 						signature:  []byte("bad sign"),
 						publicKey:  []byte("pubKey 2"),
-						sessionID:  "session-1",
+						sessionID:  sessionID,
 					},
 					&verificationOutcome{
 						isValid: false,

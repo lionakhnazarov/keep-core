@@ -28,7 +28,7 @@ import (
 const (
 	groupSize          = 3
 	dishonestThreshold = 0
-	sessionID          = "session-1"
+	sessionID          = "session-1-with-128-bits"
 )
 
 func TestGenerateEphemeralKeyPair(t *testing.T) {
@@ -199,6 +199,7 @@ func TestGenerateSymmetricKeys(t *testing.T) {
 			expectedKey := ephemeral.SymmetricKey(
 				member.ephemeralKeyPairs[otherMemberID].PrivateKey.Ecdh(
 					otherMemberEphemeralPublicKey,
+					signingEcdhInfo(member.id, otherMemberID),
 				),
 			)
 
@@ -258,6 +259,36 @@ func TestGenerateSymmetricKeys_InvalidEphemeralPublicKeyMessage(t *testing.T) {
 				err,
 			)
 		}
+	}
+}
+
+func TestInitializeTssRoundOneSetsSessionNonce(t *testing.T) {
+	members, err := initializeTssRoundOneMembersGroup(
+		dishonestThreshold,
+		groupSize,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedNonce := new(big.Int).SetBytes(common.SHA512_256([]byte(sessionID)))
+	for _, member := range members {
+		testutils.AssertBigIntsEqual(
+			t,
+			fmt.Sprintf("session nonce for member [%v]", member.id),
+			expectedNonce,
+			member.tssParameters.SessionNonce(),
+		)
+	}
+
+	otherSessionSource := members[0].symmetricKeyGeneratingMember
+	originalSessionID := otherSessionSource.sessionID
+	otherSessionSource.sessionID = "other-session-with-128-bits"
+	otherSessionMember := otherSessionSource.initializeTssRoundOne()
+	otherSessionSource.sessionID = originalSessionID
+
+	if expectedNonce.Cmp(otherSessionMember.tssParameters.SessionNonce()) == 0 {
+		t.Fatal("initialized TSS members should use different nonces for different session IDs")
 	}
 }
 

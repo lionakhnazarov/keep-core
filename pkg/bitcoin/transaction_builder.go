@@ -148,18 +148,16 @@ func (tb *TransactionBuilder) getScript(
 		)
 	}
 
-	outputIndex := utxo.Outpoint.OutputIndex
-	if outputIndex >= uint32(len(transaction.Outputs)) {
+	output, err := transaction.OutputAt(utxo.Outpoint.OutputIndex)
+	if err != nil {
 		return nil, fmt.Errorf(
-			"output index [%d] out of range for transaction [%s] "+
-				"with [%d] outputs",
-			outputIndex,
+			"cannot get script for transaction with hash [%s]: [%v]",
 			hash.Hex(InternalByteOrder),
-			len(transaction.Outputs),
+			err,
 		)
 	}
 
-	return transaction.Outputs[outputIndex].PublicKeyScript, nil
+	return output.PublicKeyScript, nil
 }
 
 // AddOutput adds a new transaction's output.

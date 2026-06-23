@@ -140,9 +140,12 @@ func (skgm *symmetricKeyGeneratingMember) initializeTssRoundOne() *tssRoundOneMe
 		len(groupTssPartiesIDs),
 		skgm.group.HonestThreshold()-1,
 	)
+	// Bind GG20 proof challenges to the existing protocol session.
+	tssParameters.SetSessionNonceBytes([]byte(skgm.sessionID))
 
 	tssOutgoingMessagesChan := make(chan tss.Message, len(groupTssPartiesIDs))
 	tssResultChan := make(chan tsslibcommon.SignatureData, 1)
+	fullBytesLen := (tecdsa.Curve.Params().N.BitLen() + 7) / 8
 
 	tssParty := signing.NewLocalParty(
 		skgm.message,
@@ -150,6 +153,7 @@ func (skgm *symmetricKeyGeneratingMember) initializeTssRoundOne() *tssRoundOneMe
 		skgm.privateKeyShare.Data(),
 		tssOutgoingMessagesChan,
 		tssResultChan,
+		fullBytesLen,
 	)
 
 	return &tssRoundOneMember{

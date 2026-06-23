@@ -30,9 +30,16 @@ on:
 
 # Automatic releases are now handled by the dedicated release.yml workflow
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   client-detect-changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       path-filter: ${{ steps.filter.outputs.path-filter }}
     steps:
@@ -49,6 +56,9 @@ jobs:
 
   electrum-integration-detect-changes:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       path-filter: ${{ steps.filter.outputs.path-filter }}
     steps:
@@ -71,6 +81,20 @@ jobs:
         || needs.client-detect-changes.outputs.path-filter == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Free disk space
+        # The multi-arch client binary build exhausts the default ~14GB free
+        # on ubuntu-latest. Reclaim ~30GB by removing preinstalled toolchains
+        # we don't use.
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
       - uses: actions/checkout@v4
         with:
           # Fetch the whole history for the `git describe` command to work.
@@ -144,6 +168,20 @@ jobs:
           path: coverage/coverage.out
           if-no-files-found: warn
 
+
+      # The Tier-2 interceptor relies on a mutex to let a stateful Strategy run
+      # under concurrent Sends without a data race; TestStrategyConcurrentStatefulNoRace
+      # only has teeth under the race detector. Scoped to the fast, deterministic
+      # interception/byzantine packages (dkgtest is excluded: its real-DKG goroutines
+      # and wall-clock windows are timeout-amplified by -race).
+      - name: Run Go race tests (Tier-2 interceptor)
+        run: |
+          docker run \
+            --workdir /go/src/github.com/keep-network/keep-core \
+            go-build-env \
+            go test -race -timeout 15m \
+              ./pkg/internal/interception/... \
+              ./pkg/internal/byzantine/...
 
       - name: Build Docker Runtime Image
         if: github.event_name != 'workflow_dispatch'
@@ -310,6 +348,27 @@ jobs:
           install-go: false
           checks: "-SA1019"
 
+  client-golangci:
+    needs: client-detect-changes
+    if: |
+      github.event_name == 'push'
+        || needs.client-detect-changes.outputs.path-filter == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+      # Additive: hosts only the project-specific ruleguard rule that bans raw
+      # indexing of a bitcoin.Transaction's Outputs/Inputs (use OutputAt/InputAt
+      # instead). The existing go vet / gofmt / staticcheck / gosec jobs are
+      # left intact and are not duplicated here. Config: .golangci.yml +
+      # .golangci-ruleguard.rules.go.
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+
   client-integration-test:
     needs: [client-detect-changes, electrum-integration-detect-changes, client-build-test-publish]
     if: |
@@ -336,3 +395,89 @@ jobs:
             --workdir /go/src/github.com/keep-network/keep-core \
             go-build-env \
             gotestsum -- -timeout 20m -tags=integration ./...
+
+  client-race-test:
+    needs: client-build-test-publish
+    # Non-blocking by design: runs nightly (schedule) and on manual
+    # dispatch, but is intentionally NOT a required PR check until it has
+    # been green and stable for a while. The first runs on a codebase that
+    # has never had the race detector enabled are expected to surface
+    # latent races and timing-sensitive flakes; triage each before
+    # promoting this to a required check.
+    if: |
+      github.event_name == 'schedule'
+        || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download Docker Build Image
+        uses: actions/download-artifact@v4
+        with:
+          name: go-build-env-image
+          path: /tmp
+
+      - name: Load Docker Build Image
+        run: |
+          docker load --input /tmp/go-build-env-image.tar
+
+      - name: Run Go tests with the race detector
+        # The race detector requires cgo and a C toolchain, both present in
+        # the build image (g++/gcc). It is ~2-20x slower and uses ~5-10x
+        # more memory than a normal run, hence the longer timeout and why
+        # this is a separate job rather than a flag on the main test step.
+        # The default test scope (./...) includes the in-process protocol
+        # simulations (dkgtest / entrytest / gjkr roundtrip), which is where
+        # data races in concurrent protocol code actually surface.
+        run: |
+          docker run \
+            --workdir /go/src/github.com/keep-network/keep-core \
+            --env CGO_ENABLED=1 \
+            go-build-env \
+            gotestsum -- -race -timeout 60m
+
+      - name: Report scheduled race-detector failure
+        # A non-blocking nightly job rots red silently without this: nobody
+        # watches the Actions tab. Upsert a labeled issue so failures are
+        # visible and triaged before this job is promoted to a required
+        # check. Manual (workflow_dispatch) runs are excluded — the person
+        # who dispatched them is already watching.
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const label = "race-detector-failure";
+            const runUrl =
+              `${context.serverUrl}/${context.repo.owner}/` +
+              `${context.repo.repo}/actions/runs/${context.runId}`;
+            const body =
+              `The scheduled \`-race\` test job failed.\n\n` +
+              `Run: ${runUrl}\n\n` +
+              `Triage the race report before promoting the job to a ` +
+              `required PR check.`;
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: label,
+            });
+            if (open.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open.data[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: "Nightly race-detector run failed",
+                labels: [label],
+                body,
+              });
+            }
