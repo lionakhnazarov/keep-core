@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/btcsuite/btcd/v2/wire"
+	"github.com/btcsuite/btcd/wire"
 	"github.com/checksum0/go-electrum/electrum"
 	"github.com/keep-network/keep-core/pkg/bitcoin"
 )
