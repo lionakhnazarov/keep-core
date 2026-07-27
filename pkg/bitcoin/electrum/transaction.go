@@ -18,6 +18,17 @@ func decodeTransaction(rawTx string) (*wire.MsgTx, error) {
 		return nil, fmt.Errorf("failed to decode a hex string: [%w]", err)
 	}
 
+	// The Electrum server is untrusted and the deserialization below panics
+	// on transactions holding more script data than any consensus-valid
+	// transaction can carry.
+	if len(headerBytes) > bitcoin.MaxTransactionByteLength {
+		return nil, fmt.Errorf(
+			"transaction byte length [%v] exceeds the maximum of [%v]",
+			len(headerBytes),
+			bitcoin.MaxTransactionByteLength,
+		)
+	}
+
 	buf := bytes.NewBuffer(headerBytes)
 
 	var t wire.MsgTx

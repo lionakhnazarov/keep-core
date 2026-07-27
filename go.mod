@@ -26,6 +26,12 @@ replace (
 
 require (
 	github.com/bnb-chain/tss-lib v1.3.5
+	// v0.25.0 is the last release with the classic single-module layout. v0.26
+	// moved wire, txscript, chaincfg and friends into separate /v2 modules and
+	// dropped the plain import paths, which the go-electrum and tss-lib forks
+	// above still use. Every advisory open against the former v0.22.3 pin is
+	// already fixed here, so staying on v0.25.0 is a layout constraint rather
+	// than a security gap.
 	github.com/btcsuite/btcd v0.25.0
 	github.com/btcsuite/btcd/btcec v0.0.0-00010101000000-000000000000
 	github.com/btcsuite/btcd/btcec/v2 v2.3.5

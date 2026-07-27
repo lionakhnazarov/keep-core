@@ -7,6 +7,8 @@ A copy of the `btcec/` directory from
 **`v0.22.3`**, plus three files added for vendoring only:
 
 - `go.mod` (declares the pre-split module path `github.com/btcsuite/btcd/btcec`)
+- `go.sum` (covers the two test-only dependencies, so the package is also
+  testable standalone from inside this directory)
 - `LICENSE` (copied verbatim from the btcd repository root at the same tag)
 - `VENDOR.md` (this file)
 
@@ -48,11 +50,18 @@ gofmt -w /tmp/btcec-upstream
 diff -r /tmp/btcec-upstream third_party/btcsuite/btcec
 ```
 
-The only differences reported must be the three added files listed
-above. The upstream tests are included and can be run with:
+The only differences reported must be the four added files listed
+above. The upstream tests are included and can be run either from the
+main module:
 
 ```sh
 go test github.com/btcsuite/btcd/btcec
+```
+
+or standalone:
+
+```sh
+cd third_party/btcsuite/btcec && go test ./...
 ```
 
 ## Exit path

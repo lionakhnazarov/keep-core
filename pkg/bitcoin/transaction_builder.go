@@ -179,7 +179,18 @@ func (tb *TransactionBuilder) ComputeSignatureHashes() ([]*big.Int, error) {
 	// Calculation of sighashes for witness inputs can be faster as common
 	// sighash fragments can be pre-computed upfront and reused. The previous
 	// outputs of all added inputs must be provided so the pre-computation can
-	// determine the witness version of the spent outputs.
+	// determine the witness version of the spent outputs. A missing entry
+	// makes the pre-computation panic, so make sure the builder's state is
+	// consistent before handing it over.
+	for i, input := range tb.internal.TxIn {
+		if tb.prevOuts.FetchPrevOutput(input.PreviousOutPoint) == nil {
+			return nil, fmt.Errorf(
+				"missing previous output for input [%v]",
+				i,
+			)
+		}
+	}
+
 	witnessSigHashFragments := txscript.NewTxSigHashes(
 		tb.internal.MsgTx,
 		tb.prevOuts,
